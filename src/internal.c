@@ -19,8 +19,6 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-
-
 #ifdef HAVE_CONFIG_H
     #include <config.h>
 #endif
@@ -4570,6 +4568,8 @@ void FreeX509(WOLFSSL_X509* x509)
         x509->authKeyId = NULL;
         XFREE(x509->subjKeyId, x509->heap, DYNAMIC_TYPE_X509_EXT);
         x509->subjKeyId = NULL;
+        wolfSSL_ASN1_STRING_free(x509->subjKeyIdStr);
+        x509->subjKeyIdStr = NULL;
         XFREE(x509->authInfo, x509->heap, DYNAMIC_TYPE_X509_EXT);
         x509->authInfo = NULL;
         XFREE(x509->rawCRLInfo, x509->heap, DYNAMIC_TYPE_X509_EXT);
@@ -6803,9 +6803,35 @@ int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
 #endif /* HAVE_RPK */
 
 #ifndef NO_CERTS
+#ifdef WOLFSSL_COPY_CERT
+    /* If WOLFSSL_COPY_CERT is defined, always copy the cert */
+    if (ctx->certificate != NULL) {
+        ret = AllocCopyDer(&ssl->buffers.certificate, ctx->certificate->buffer,
+            ctx->certificate->length, ctx->certificate->type,
+            ctx->certificate->heap);
+        if (ret != 0) {
+            return ret;
+        }
+
+        ssl->buffers.weOwnCert = 1;
+        ret = WOLFSSL_SUCCESS;
+    }
+    if (ctx->certChain != NULL) {
+        ret = AllocCopyDer(&ssl->buffers.certChain, ctx->certChain->buffer,
+            ctx->certChain->length, ctx->certChain->type,
+            ctx->certChain->heap);
+        if (ret != 0) {
+            return ret;
+        }
+
+        ssl->buffers.weOwnCertChain = 1;
+        ret = WOLFSSL_SUCCESS;
+    }
+#else
     /* ctx still owns certificate, certChain, key, dh, and cm */
     ssl->buffers.certificate = ctx->certificate;
     ssl->buffers.certChain = ctx->certChain;
+#endif
 #ifdef WOLFSSL_TLS13
     ssl->buffers.certChainCnt = ctx->certChainCnt;
 #endif
@@ -6915,12 +6941,12 @@ int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
 #endif
 #if defined(OPENSSL_EXTRA) && !defined(NO_BIO)
     /* Don't change recv callback if currently using BIO's */
-    if (ssl->CBIORecv != BioReceive)
+    if (ssl->CBIORecv != SslBioReceive)
 #endif
         ssl->CBIORecv = ctx->CBIORecv;
 #if defined(OPENSSL_EXTRA) && !defined(NO_BIO)
     /* Don't change send callback if currently using BIO's */
-    if (ssl->CBIOSend != BioSend)
+    if (ssl->CBIOSend != SslBioSend)
 #endif
         ssl->CBIOSend = ctx->CBIOSend;
     ssl->verifyDepth = ctx->verifyDepth;
@@ -14002,7 +14028,8 @@ int LoadCertByIssuer(WOLFSSL_X509_STORE* store, X509_NAME* issuer, int type)
                         ph->hash_value = hash;
                         ph->last_suffix = suffix;
 
-                        ret = wolfSSL_sk_BY_DIR_HASH_push(entry->hashes, ph);
+                        ret = wolfSSL_sk_BY_DIR_HASH_push(entry->hashes, ph) > 0
+                                ? WOLFSSL_SUCCESS : WOLFSSL_FAILURE;
                     }
                 }
                 wc_UnLockMutex(&lookup->dirs->lock);
@@ -25034,6 +25061,20 @@ static int SendAlert_ex(WOLFSSL* ssl, int severity, int type)
         }
     #endif
 
+    /*
+     * We check if we are trying to send a
+     * CLOSE_NOTIFY alert.
+     * */
+    if (type == close_notify) {
+        if (!ssl->options.sentNotify) {
+            ssl->options.sentNotify = 1;
+        }
+        else {
+            /* CLOSE_NOTIFY already sent */
+            return 0;
+        }
+    }
+
     ssl->buffers.outputBuffer.length += sendSz;
 
     ret = SendBuffered(ssl);
@@ -25116,7 +25157,7 @@ const char* wolfSSL_ERR_reason_error_string(unsigned long e)
     }
 
     /* pass to wolfCrypt */
-    if (error < MAX_CODE_E && error > MIN_CODE_E) {
+    if (error <= WC_FIRST_E && error >= WC_LAST_E) {
         return wc_GetErrorString(error);
     }
 
@@ -30294,7 +30335,7 @@ static int HashSkeData(WOLFSSL* ssl, enum wc_HashType hashType,
 
                 if (ret == 0) {
                     if (wolfSSL_sk_X509_NAME_push(ssl->client_ca_names, name)
-                        == WOLFSSL_FAILURE)
+                        <= 0)
                     {
                         ret = MEMORY_ERROR;
                     }
