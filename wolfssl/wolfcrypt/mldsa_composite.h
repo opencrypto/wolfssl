@@ -210,11 +210,11 @@ struct mldsa_composite_key {
         wc_MlDsaCompositeKeyParams keyParams[2];
         const enum wc_HashType hash;
     } params;
-    MlDsaKey * mldsa_key;
+    MlDsaKey mldsa_key;
     union {
-        RsaKey * rsa_oaep; /* RSAOAEPk, RSAPSSk */
-        ecc_key * ecc; /* ECDSAk */
-        ed25519_key * ed25519; /* ED25519k */
+        RsaKey rsa_oaep; /* RSAOAEPk, RSAPSSk */
+        ecc_key ecc; /* ECDSAk */
+        ed25519_key ed25519; /* ED25519k */
     } alt_key;
 };
 

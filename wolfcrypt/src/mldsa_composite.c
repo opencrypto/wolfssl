@@ -63,8 +63,27 @@ int wc_mldsa_composite_make_key(mldsa_composite_key* key, WC_RNG* rng)
         return BAD_FUNC_ARG;
     }
 
-    ret = wc_dilithium_make_key(key->mldsa_key, rng);
-    if (ret == 0) ret = wc_ecc_make_key(rng, 256, key->alt_key.ecc);
+    ret = wc_dilithium_make_key(&key->mldsa_key, rng);
+    if (ret == 0) {
+
+        switch (key->params.type) {
+
+            case WC_MLDSA_COMPOSITE_TYPE_MLDSA44_ED25519:
+                wc_ed25519_init(&key->alt_key.ed25519);
+                int kSz = wc_ed25519_size(&key->alt_key.ed25519);
+                ret = wc_ed25519_make_key(rng, kSz, &key->alt_key.ed25519);
+                break;
+
+            case WC_MLDSA_COMPOSITE_TYPE_MLDSA44_P256:
+                wc_ecc_init(&key->alt_key.ecc);
+                int kSz = wc_ecc_get_curve_size_from_id(ECC_SECP256R1);
+                ret = wc_ecc_make_key(rng, kSz, &key->alt_key.ecc);
+                break;
+
+            default:
+                ret = ALGO_ID_E;
+        }
+    }
 
     return ret;
 }
@@ -156,11 +175,8 @@ int wc_mldsa_composite_init_ex(mldsa_composite_key* key, void* heap, int devId)
     }
 
     /* Init the MLDSA Key */
-    ret = wc_dilithium_init_ex(key->mldsa_key, heap, devId);
-    if (ret) return ret;
-
-    /* Sets the traditional pointer to NULL */
-    key->alt_key.ecc = NULL;
+    ret = wc_dilithium_init_ex(&key->mldsa_key, heap, devId);
+    if (ret == 0) wc_ecc_init_ex(&key->alt_key.ecc, heap, devId);
 
 #ifdef WOLF_CRYPTO_CB
     key->devCtx = NULL;
@@ -191,8 +207,15 @@ int wc_mldsa_composite_init_id(mldsa_composite_key* key, const unsigned char* id
     }
 
     if (ret == 0) {
-        ret = wc_dilithium_init_ex(key, heap, devId);
+        ret = wc_dilithium_init_ex(&key->mldsa_key, heap, devId);
     }
+
+    if (ret == 0) {
+        switch (key->params.type) {
+            case 
+        }
+    }
+
     if ((ret == 0) && (id != NULL) && (len != 0)) {
         XMEMCPY(key->id, id, (size_t)len);
         key->idLen = len;
@@ -278,7 +301,7 @@ int wc_mldsa_composite_set_type(mldsa_composite_key* key, byte type)
  * level [out] The level.
  * returns BAD_FUNC_ARG when key is NULL or level has not been set.
  */
-int wc_mldsa_composite_get_level(mldsa_composite_key* key, byte* type)
+int wc_mldsa_composite_get_type(mldsa_composite_key* key, byte* type)
 {
     int ret = 0;
 
@@ -314,22 +337,18 @@ void wc_mldsa_composite_free(mldsa_composite_key* key)
 #ifdef WOLFSSL_WC_MLDSA_COMPOSITE
 
         /* Free the ML-DSA key*/
-        if (key->mldsa_key) wc_MlDsaCompositeKey_Free(key->mldsa_key);
-        ForceZero(key->mldsa_key, sizeof(*key->mldsa_key));
+        ForceZero(&key->mldsa_key, sizeof(key->mldsa_key));
 
         /* Free the classic component */
         switch (key->params.type) {
             case WC_MLDSA_COMPOSITE_TYPE_MLDSA44_ED25519: {
-                wc_ed25519_free(key->alt_key.ed25519);
-                ForceZero(key->alt_key.ecc, sizeof(*key->alt_key.ed25519));
+                ForceZero(&key->alt_key.ed25519, sizeof(key->alt_key.ed25519));
             } break;
             case WC_MLDSA_COMPOSITE_TYPE_MLDSA44_P256: {
-                wc_ecc_free(key->alt_key.ecc);
-                ForceZero(key->alt_key.ecc, sizeof(*key->alt_key.ecc));
+                ForceZero(&key->alt_key.ecc, sizeof(key->alt_key.ecc));
             }
             default: {
                 /* Error */
-                
             }
         }
 #endif /* WOLFSSL_WC_MLDSA_COMPOSITE*/
@@ -351,10 +370,18 @@ int wc_mldsa_composite_size(mldsa_composite_key* key)
     int ret = BAD_FUNC_ARG;
 
     if (key != NULL) {
-        if (key->params.type == WC_MLDSA_COMPOSITE_TYPE_MLDSA44_ED25519) {
-            ret = MLDSA44_ED25519_KEY_SIZE;
-        } else if (key->params.type == WC_MLDSA_COMPOSITE_TYPE_MLDSA44_P256) {
-            ret = MLDSA44_P256_KEY_SIZE;
+        switch (key->params.type) {
+            case WC_MLDSA_COMPOSITE_TYPE_MLDSA44_ED25519:
+                ret = DILITHIUM_ML_DSA_44_KEY_SIZE + ED25519_KEY_SIZE;
+                break;
+
+            case WC_MLDSA_COMPOSITE_TYPE_MLDSA44_P256:
+                ret = DILITHIUM_ML_DSA_44_KEY_SIZE + wc_ecc_get_curve_size_from_id(ECC_SECP256R1);
+                break;
+
+            default:
+                /* Error */
+                ret = ALGO_ID_E;
         }
     }
 
@@ -373,11 +400,21 @@ int wc_mldsa_composite_priv_size(mldsa_composite_key* key) {
     int ret = BAD_FUNC_ARG;
 
     if (key != NULL) {
-        if (key->params.type == WC_MLDSA_COMPOSITE_TYPE_MLDSA44_ED25519) {
-            ret = MLDSA44_ED25519_PRV_KEY_SIZE;
-        } else if (key->params.type == WC_MLDSA_COMPOSITE_TYPE_MLDSA44_P256) {
-            ret = MLDSA44_P256_PRV_KEY_SIZE;
+
+        switch (key->params.type) {
+            case WC_MLDSA_COMPOSITE_TYPE_MLDSA44_ED25519:
+                ret = DILITHIUM_ML_DSA_44_PRV_KEY_SIZE + ED25519_PRV_KEY_SIZE;
+                break;
+
+            case WC_MLDSA_COMPOSITE_TYPE_MLDSA44_P256:
+                ret = DILITHIUM_ML_DSA_44_PRV_KEY_SIZE + wc_ecc_get_curve_size_from_id(ECC_SECP256R1);
+                break;
+
+            default:
+                /* Error */
+                ret = ALGO_ID_E;
         }
+
     }
 
     return ret;
@@ -416,10 +453,19 @@ int wc_mldsa_composite_pub_size(mldsa_composite_key* key)
     int ret = BAD_FUNC_ARG;
 
     if (key != NULL) {
-        if (key->params.type == WC_MLDSA_COMPOSITE_TYPE_MLDSA44_ED25519) {
-            ret = MLDSA44_ED25519_PUB_KEY_SIZE;
-        } else if (key->params.type == WC_MLDSA_COMPOSITE_TYPE_MLDSA44_P256) {
-            ret = MLDSA44_P256_PUB_KEY_SIZE;
+
+        switch (key->params.type) {
+            case WC_MLDSA_COMPOSITE_TYPE_MLDSA44_ED25519:
+                ret = DILITHIUM_ML_DSA_44_PUB_KEY_SIZE + ED25519_PUB_KEY_SIZE;
+                break;
+
+            case WC_MLDSA_COMPOSITE_TYPE_MLDSA44_P256:
+                ret = DILITHIUM_ML_DSA_44_PUB_KEY_SIZE + wc_ecc_get_curve_size_from_id(ECC_SECP256R1);
+                break;
+
+            default:
+                /* Error */
+                ret = ALGO_ID_E;
         }
     }
 
@@ -458,10 +504,19 @@ int wc_mldsa_composite_sig_size(mldsa_composite_key* key)
     int ret = BAD_FUNC_ARG;
 
     if (key != NULL) {
-        if (key->params.type == WC_MLDSA_COMPOSITE_TYPE_MLDSA44_ED25519) {
-            ret = MLDSA44_ED25519_SIG_SIZE;
-        } else if (key->params.type == WC_MLDSA_COMPOSITE_TYPE_MLDSA44_P256) {
-            ret = MLDSA44_P256_SIG_SIZE;
+        switch (key->params.type) {
+            case WC_MLDSA_COMPOSITE_TYPE_MLDSA44_ED25519:
+                ret = DILITHIUM_ML_DSA_44_SIG_SIZE + ED25519_SIG_SIZE;
+                break;
+
+            case WC_MLDSA_COMPOSITE_TYPE_MLDSA44_P256:
+                ret = DILITHIUM_ML_DSA_44_SIG_SIZE + 
+                    wc_ecc_sig_size_calc(wc_ecc_get_curve_size_from_id(ECC_SECP256R1));
+                break;
+
+            default:
+                /* Error */
+                ret = ALGO_ID_E;
         }
     }
 
@@ -493,19 +548,19 @@ int wc_mldsa_composite_check_key(mldsa_composite_key* key)
 {
     int ret = 0;
     
-    ret = wc_mldsa_composite_check_key(key->mldsa_key);
+    ret = wc_dilithium_check_key(&key->mldsa_key);
 
     switch(key->params.type) {
 
 #if defined(HAVE_ED25519)
         case WC_MLDSA_COMPOSITE_TYPE_MLDSA44_ED25519: {
-            ret = wc_ecc_check_key(key->alt_key.ecc);
+            ret = wc_ed25519_check_key(&key->alt_key.ed25519);
         } break;
 #endif
 
 #if defined(HAVE_ECC)
         case WC_MLDSA_COMPOSITE_TYPE_MLDSA44_P256: {
-            ret = wc_ed25519_check_key(key->alt_key.ed25519);
+            ret = wc_ecc_check_key(&key->alt_key.ecc);
         } break;
 #endif
 
@@ -610,11 +665,11 @@ int wc_mldsa_composite_export_public(mldsa_composite_key* key, byte* out, word32
 
         word32 tmpLen = *outLen;
         /* Exports the ML-DSA key first */
-        ret = wc_MlDsaKey_ExportPubRaw(key->mldsa_key, out, &tmpLen);
+        ret = wc_MlDsaKey_ExportPubRaw(&key->mldsa_key, out, &tmpLen);
         if (ret == 0) {
             *outLen = tmpLen;
             int pubLenX = 32, pubLenY = 32;
-            ret = wc_ecc_export_public_raw(key, out, &pubLenX, out + 32, &pubLenY);
+            ret = wc_ecc_export_public_raw(&key->alt_key.ecc, out, &pubLenX, out + 32, &pubLenY);
         }
     }
 
@@ -715,6 +770,19 @@ int wc_mldsa_composite_import_key(const byte* priv, word32 privSz,
     if ((pub == NULL) && (pubSz != 0)) {
         ret = BAD_FUNC_ARG;
     }
+
+    /*
+     * TODO:
+     *
+     * Go Through the SEQUENCE and import the keys
+     * 
+     * 1. Open The ASN1 SEQUENCE
+     * 2. For Each ASN1 STRING, process the component
+     *    2.a) Parse the key from the content
+     *    2.b) If n = 0, import the ML-DSA key
+     *    2.c) If n = 1, import the Traditional key
+     * 3. Done
+     */
 
     if ((ret == 0) && (pub != NULL)) {
         /* Import public key. */
@@ -920,20 +988,17 @@ int wc_MlDsaComposite_PublicKeyDecode(const byte* input, word32* inOutIdx,
             ret = 0;
 
     #if !defined(WOLFSSL_MLDSA_COMPOSITE_NO_ASN1)
-            // /* Get OID sum for level. */
-            // if (key->level == WC_ML_DSA_44) {
-            //     keytype = DILITHIUM_LEVEL2k;
-            // }
-            // else if (key->level == WC_ML_DSA_65) {
-            //     keytype = DILITHIUM_LEVEL3k;
-            // }
-            // else if (key->level == WC_ML_DSA_87) {
-            //     keytype = DILITHIUM_LEVEL5k;
-            // }
-            // else {
-            //     /* Level not set. */
-            //     ret = BAD_FUNC_ARG;
-            // }
+            /* Get OID sum for type. */
+            if (key->params.type == WC_MLDSA_COMPOSITE_TYPE_MLDSA44_ED25519) {
+                keytype = MLDSA44_ED25519k;
+            }
+            else if (key->params.type == WC_MLDSA_COMPOSITE_TYPE_MLDSA44_P256) {
+                keytype = MLDSA44_P256k;
+            }
+            else {
+                /* Level not set. */
+                ret = BAD_FUNC_ARG;
+            }
             if (ret == 0) {
                 /* Decode the asymmetric key and get out public key data. */
                 ret = DecodeAsymKeyPublic_Assign(input, inOutIdx, inSz, &pubKey,
@@ -941,24 +1006,19 @@ int wc_MlDsaComposite_PublicKeyDecode(const byte* input, word32* inOutIdx,
             }
     #else
             /* Get OID sum for level. */
-        #ifndef WOLFSSL_NO_ML_DSA_44
-            if (key->level == WC_ML_DSA_44) {
-                oid = dilithium_oid_44;
-                oidLen = (int)sizeof(dilithium_oid_44);
+        #ifndef WOLFSSL_NO_MLDSA44_ED25519
+            if (key->params.type == WC_MLDSA_COMPOSITE_TYPE_MLDSA44_ED25519) {
+                oid = mldsa44_ed25519_oid;
+                oidLen = (int)sizeof(mldsa44_ed25519_oid);
             }
             else
         #endif
-        #ifndef WOLFSSL_NO_ML_DSA_65
-            if (key->level == WC_ML_DSA_65) {
-                oid = dilithium_oid_65;
-                oidLen = (int)sizeof(dilithium_oid_65);
-            }
-            else
-        #endif
-        #ifndef WOLFSSL_NO_ML_DSA_87
-            if (key->level == WC_ML_DSA_87) {
-                oid = dilithium_oid_87;
-                oidLen = (int)sizeof(dilithium_oid_87);
+        #ifndef WOLFSSL_NO_MLDSA44_P256
+            if (key->level == WC_MLDSA_COMPOSITE_TYPE_MLDSA44_P256) {
+                // oid = dilithium_oid_65;
+                // oidLen = (int)sizeof(dilithium_oid_65);
+                oid = mldsa44_p256_oid;
+                oidLen = (int)sizeof(mldsa44_p256_oid);
             }
             else
         #endif
@@ -966,37 +1026,7 @@ int wc_MlDsaComposite_PublicKeyDecode(const byte* input, word32* inOutIdx,
                 /* Level not set. */
                 ret = BAD_FUNC_ARG;
             }
-            if (ret == 0) {
-                ret = dilithium_check_type(input, &idx, 0x30, inSz);
-            }
-            if (ret == 0) {
-                ret = dilitihium_get_der_length(input, &idx, &length, inSz);
-            }
-            if (ret == 0) {
-                ret = dilithium_check_type(input, &idx, 0x30, inSz);
-            }
-            if (ret == 0) {
-                ret = dilitihium_get_der_length(input, &idx, &length, inSz);
-            }
-            if (ret == 0) {
-                ret = dilithium_check_type(input, &idx, 0x06, inSz);
-            }
-            if (ret == 0) {
-                ret = dilitihium_get_der_length(input, &idx, &length, inSz);
-            }
-            if (ret == 0) {
-                if ((length != oidLen) ||
-                        (XMEMCMP(input + idx, oid, oidLen) != 0)) {
-                    ret = ASN_PARSE_E;
-                }
-                idx += oidLen;
-            }
-            if (ret == 0) {
-                ret = dilithium_check_type(input, &idx, 0x03, inSz);
-            }
-            if (ret == 0) {
-                ret = dilitihium_get_der_length(input, &idx, &length, inSz);
-            }
+            
             if (ret == 0) {
                 if (input[idx] != 0) {
                     ret = ASN_PARSE_E;
@@ -1012,7 +1042,7 @@ int wc_MlDsaComposite_PublicKeyDecode(const byte* input, word32* inOutIdx,
     #endif
             if (ret == 0) {
                 /* Import public key data. */
-                ret = wc_dilithium_import_public(pubKey, pubKeyLen, key);
+                ret = wc_mldsa_composite_import_public(pubKey, pubKeyLen, key, key->params.type);
             }
         }
     }
@@ -1038,25 +1068,21 @@ int wc_MlDsaComposite_PublicKeyToDer(mldsa_composite_key* key, byte* output, wor
         ret = BAD_FUNC_ARG;
     }
 
-    // if (ret == 0) {
-    //     /* Get OID and length for level. */
-    //     if (key->level == WC_ML_DSA_44) {
-    //         keytype = DILITHIUM_LEVEL2k;
-    //         pubKeyLen = DILITHIUM_LEVEL2_PUB_KEY_SIZE;
-    //     }
-    //     else if (key->level == WC_ML_DSA_65) {
-    //         keytype = DILITHIUM_LEVEL3k;
-    //         pubKeyLen = DILITHIUM_LEVEL3_PUB_KEY_SIZE;
-    //     }
-    //     else if (key->level == WC_ML_DSA_87) {
-    //         keytype = DILITHIUM_LEVEL5k;
-    //         pubKeyLen = DILITHIUM_LEVEL5_PUB_KEY_SIZE;
-    //     }
-    //     else {
-    //         /* Level not set. */
-    //         ret = BAD_FUNC_ARG;
-    //     }
-    // }
+    if (ret == 0) {
+        /* Get OID and length for level. */
+        if (key->params.type == WC_MLDSA_COMPOSITE_TYPE_MLDSA44_ED25519) {
+            keytype = MLDSA44_ED25519k;
+            pubKeyLen = MLDSA44_ED25519_KEY_SIZE;
+        }
+        else if (key->params.type == WC_MLDSA_COMPOSITE_TYPE_MLDSA44_P256) {
+            keytype = MLDSA44_P256k;
+            pubKeyLen = MLDSA44_P256_KEY_SIZE;
+        }
+        else {
+            /* Level not set. */
+            ret = BAD_FUNC_ARG;
+        }
+    }
 
     if (ret == 0) {
         ret = SetAsymKeyDerPublic(key->p, pubKeyLen, output, len, keytype,
@@ -1080,22 +1106,11 @@ int wc_MlDsaComposite_PrivateKeyToDer(mldsa_composite_key* key, byte* output, wo
 {
     int ret = BAD_FUNC_ARG;
 
-    // /* Validate parameters and check private key set. */
-    // if ((key != NULL) && key->prvKeySet) {
-    //     /* Create DER for level. */
-    //     if (key->level == WC_ML_DSA_44) {
-    //         ret = SetAsymKeyDer(key->k, DILITHIUM_LEVEL2_KEY_SIZE, NULL, 0,
-    //             output, len, DILITHIUM_LEVEL2k);
-    //     }
-    //     else if (key->level == WC_ML_DSA_65) {
-    //         ret = SetAsymKeyDer(key->k, DILITHIUM_LEVEL3_KEY_SIZE, NULL, 0,
-    //             output, len, DILITHIUM_LEVEL3k);
-    //     }
-    //     else if (key->level == WC_ML_DSA_87) {
-    //         ret = SetAsymKeyDer(key->k, DILITHIUM_LEVEL5_KEY_SIZE, NULL, 0,
-    //             output, len, DILITHIUM_LEVEL5k);
-    //     }
-    // }
+    /* Validate parameters and check private key set. */
+    if ((key != NULL) && key->prvKeySet) {
+        // ret = wc_Dilithium_PrivateKeyToDer(&key->mldsa_key, len);
+        ret = NOT_COMPILED_IN;
+    }
 
     return ret;
 }
@@ -1122,6 +1137,8 @@ int wcMlDsaComposite_KeyToDer(mldsa_composite_key* key, byte* output, word32 len
     //             DILITHIUM_LEVEL5_PUB_KEY_SIZE, output, len, DILITHIUM_LEVEL5k);
     //     }
     // }
+    
+    ret = NOT_COMPILED_IN;
 
     return ret;
 }
