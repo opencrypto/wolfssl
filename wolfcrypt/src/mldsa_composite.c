@@ -47,8 +47,8 @@
     #include <wolfcrypt/src/misc.c>
 #endif
 
-#ifdef WOLFSSL_WC_MLDSA_COMPOSITE
 
+#ifdef HAVE_MLDSA_COMPOSITE
 
 /******************************************************************************
  * Encode/Decode operations
@@ -68,17 +68,17 @@ int wc_mldsa_composite_make_key(mldsa_composite_key* key, WC_RNG* rng)
 
         switch (key->params.type) {
 
-            case WC_MLDSA_COMPOSITE_TYPE_MLDSA44_ED25519:
+            case WC_MLDSA_COMPOSITE_TYPE_MLDSA44_ED25519: {
                 wc_ed25519_init(&key->alt_key.ed25519);
                 int kSz = wc_ed25519_size(&key->alt_key.ed25519);
                 ret = wc_ed25519_make_key(rng, kSz, &key->alt_key.ed25519);
-                break;
+            } break;
 
-            case WC_MLDSA_COMPOSITE_TYPE_MLDSA44_P256:
+            case WC_MLDSA_COMPOSITE_TYPE_MLDSA44_P256: {
                 wc_ecc_init(&key->alt_key.ecc);
                 int kSz = wc_ecc_get_curve_size_from_id(ECC_SECP256R1);
                 ret = wc_ecc_make_key(rng, kSz, &key->alt_key.ecc);
-                break;
+            } break;
 
             default:
                 ret = ALGO_ID_E;
@@ -90,20 +90,28 @@ int wc_mldsa_composite_make_key(mldsa_composite_key* key, WC_RNG* rng)
 #endif /* !WOLFSSL_MLDSA_COMPOSITE_NO_MAKE_KEY */
 
 #ifndef WOLFSSL_MLDSA_COMPOSITE_NO_VERIFY
-WOLFSSL_API
-int mldsa_composite_verify_msg(mldsa_composite_key* key, const byte* msg,
-    word32 msgLen, const byte* sig, word32 sigLen, int* res)
+int wc_mldsa_composite_verify_msg(const byte* sig, word32 sigLen, const byte* msg,
+    word32 msgLen, int* res, mldsa_composite_key* key)
 {
-    return wc_mldsa_composite_verify_msg_ex(key, msg, msgLen, sig, sigLen, res, NULL, 0);
+    return wc_mldsa_composite_verify_msg_ex(sig, sigLen, msg, msgLen, res, key, NULL, 0);
 }
 
-WOLFSSL_API
-int mldsa_composite_verify_msg_ex(mldsa_composite_key* key, const byte* msg,
-    word32 msgLen, const byte* sig, word32 sigLen, int* res, const byte* context, byte contextLen)
+int wc_mldsa_composite_verify_msg_ex(const byte* sig, word32 sigLen, const byte* msg,
+    word32 msgLen, int* res, mldsa_composite_key* key, const byte* context, byte contextLen)
 {
     int ret = 0;
 
-    return NOT_COMPILED_IN;
+    ret = NOT_COMPILED_IN;
+    (void)sig;
+    (void)sigLen;
+    (void)msg;
+    (void)msgLen;
+    (void)res;
+    (void)key;
+    (void)context;
+    (void)contextLen;
+    
+    return ret;
 }
 #endif /* WOLFSSL_MLDSA_COMPOSITE_NO_VERIFY */
 
@@ -143,8 +151,11 @@ int wc_mldsa_composite_sign_msg_ex(const byte* in, word32 inLen, byte* out,
          *    2.c) Add the BIT STRING to the sequence
          * 3. Save the DER representation of the sequence as the signature
          */
-        ret = wc_MlDsaKey_Sign(in, inLen, outLen, in, inLen, rng);
+        ret = wc_MlDsaKey_Sign(&key->mldsa_key, out, outLen, in, inLen, rng);
     }
+
+    (void)context;
+    (void)contextLen;
 
     return ret;
     }
@@ -254,7 +265,7 @@ int wc_mldsa_composite_init_label(mldsa_composite_key* key, const char* label, v
 
     return ret;
 }
-#endif
+#endif /* WOLF_PRIVATE_KEY_ID */
 
 /* Set the level of the MlDsaComposite private/public key.
  *
@@ -282,7 +293,7 @@ int wc_mldsa_composite_set_type(mldsa_composite_key* key, byte type)
             case WC_MLDSA_COMPOSITE_TYPE_MLDSA44_ED25519:
             case WC_MLDSA_COMPOSITE_TYPE_MLDSA44_P256: {
                 /* Set the algorithm level for the ML-DSA key */
-                ret = wc_MlDsa_set_level(key->mldsa_key, WC_ML_DSA_44);
+                ret = wc_MlDsaKey_SetParams(&key->mldsa_key, WC_ML_DSA_44);
             } break;
 
             default: {
@@ -479,7 +490,7 @@ int wc_mldsa_composite_pub_size(mldsa_composite_key* key)
  * @return  0 on success.
  * @return  BAD_FUNC_ARG when key is NULL or level not set,
  */
-int wc_MlDsaComposite_GetPubLen(mldsa_composite_key* key, int* len)
+int wc_MlDsaCompositeKey_GetPubLen(mldsa_composite_key* key, int* len)
 {
     int ret = 0;
 
@@ -530,7 +541,7 @@ int wc_mldsa_composite_sig_size(mldsa_composite_key* key)
  * @return  0 on success.
  * @return  BAD_FUNC_ARG when key is NULL or level not set,
  */
-int wc_MlDsaComposite_GetSigLen(mldsa_composite_key* key, int* len)
+int wc_MlDsaCompositeKey_GetSigLen(mldsa_composite_key* key, int* len)
 {
     int ret = 0;
 
@@ -616,6 +627,8 @@ int wc_mldsa_composite_import_public(const byte* in, word32 inLen, mldsa_composi
         key->pubKeySet = 1;
     }
 
+    (void)type;
+
     return ret;
 }
 
@@ -668,8 +681,9 @@ int wc_mldsa_composite_export_public(mldsa_composite_key* key, byte* out, word32
         ret = wc_MlDsaKey_ExportPubRaw(&key->mldsa_key, out, &tmpLen);
         if (ret == 0) {
             *outLen = tmpLen;
-            int pubLenX = 32, pubLenY = 32;
-            ret = wc_ecc_export_public_raw(&key->alt_key.ecc, out, &pubLenX, out + 32, &pubLenY);
+            // int pubLenX = 32, pubLenY = 32;
+            // ret = wc_ecc_export_public_raw(&key->alt_key.ecc, out, &pubLenX, out + 32, &pubLenY);
+            ret = NOT_COMPILED_IN;
         }
     }
 
@@ -710,10 +724,12 @@ int wc_mldsa_composite_import_private(const byte* priv, word32 privSz,
     */
 
     if (ret == 0) {
-        ret = wc_MlDsaKey_import_private(priv, privSz, key);
+        ret = wc_MlDsaKey_ImportPrivRaw(&key->mldsa_key, priv, privSz);
         /* Private key is set. */
         
     }
+
+    (void)type;
 
     return ret;
 }
@@ -732,7 +748,7 @@ int wc_mldsa_composite_export_private(mldsa_composite_key* key, byte* out,
     word32* outLen)
 {
     int ret = 0;
-    word32 inLen;
+    // word32 inLen;
 
     /* Validate parameters. */
     if ((key == NULL) || (out == NULL) || (outLen == NULL)) {
@@ -744,10 +760,10 @@ int wc_mldsa_composite_export_private(mldsa_composite_key* key, byte* out,
         ret = BAD_FUNC_ARG;
     }
 
-    /* Check array length. */
-    if ((ret == 0) && (inLen < *outLen)) {
-        ret = BUFFER_E;
-    }
+    // /* Check array length. */
+    // if ((ret == 0) && (inLen < *outLen)) {
+    //     ret = BUFFER_E;
+    // }
 
     // if (ret == 0) {
     //     /* Copy private key out key. */
@@ -786,11 +802,11 @@ int wc_mldsa_composite_import_key(const byte* priv, word32 privSz,
 
     if ((ret == 0) && (pub != NULL)) {
         /* Import public key. */
-        ret = wc_dilithium_import_public(pub, pubSz, key);
+        ret = wc_MlDsaKey_ImportPrivRaw(&key->mldsa_key, pub, pubSz);
     }
-    if (ret == 0) {
-        ret = dilithium_set_priv_key(priv, privSz, key);
-    }
+
+    (void)priv;
+    (void)privSz;
 
     return ret;
 }
@@ -866,13 +882,13 @@ int wc_MlDsaComposite_PrivateKeyDecode(const byte* input, word32* inOutIdx,
 #endif
         {
             /* No public key data, only import private key data. */
-            ret = wc_dilithium_import_private(privKey, privKeyLen, key);
+            ret = wc_dilithium_import_private(privKey, privKeyLen, &key->mldsa_key);
         }
 #if defined(WOLFSSL_DILITHIUM_PUBLIC_KEY)
         else {
             /* Import private and public key data. */
             ret = wc_dilithium_import_key(privKey, privKeyLen, pubKey,
-                pubKeyLen, key);
+                pubKeyLen, &key->mldsa_key);
         }
 #endif
     }
@@ -887,76 +903,56 @@ int wc_MlDsaComposite_PrivateKeyDecode(const byte* input, word32* inOutIdx,
 
 #endif /* WOLFSSL_MLDSA_COMPOSITE_NO_ASN1 */
 
-static int mldsa_composite_get_der_length(const byte* input, word32* inOutIdx,
-    int *length, word32 inSz)
-{
-    int ret = 0;
-    word32 idx = *inOutIdx;
-    word32 len = 0;
+// static int mldsa_composite_get_der_length(const byte* input, word32* inOutIdx,
+//     int *length, word32 inSz)
+// {
+//     int ret = 0;
+//     word32 idx = *inOutIdx;
+//     word32 len = 0;
 
-    if (idx >= inSz) {
-        ret = ASN_PARSE_E;
-    }
-    else if (input[idx] < 0x80) {
-        len = input[idx];
-        idx++;
-    }
-    else if ((input[idx] == 0x80) || (input[idx] >= 0x83)) {
-        ret = ASN_PARSE_E;
-    }
-    else if (input[idx] == 0x81) {
-        if (idx + 1 >= inSz) {
-            ret = ASN_PARSE_E;
-        }
-        else if (input[idx + 1] < 0x80) {
-            ret = ASN_PARSE_E;
-        }
-        else {
-            len = input[idx + 1];
-            idx += 2;
-        }
-    }
-    else if (input[idx] == 0x82) {
-        if (idx + 2 >= inSz) {
-            ret = ASN_PARSE_E;
-        }
-        else {
-            len = ((word16)input[idx + 1] << 8) + input[idx + 2];
-            idx += 3;
-            if (len < 0x100) {
-                ret = ASN_PARSE_E;
-            }
-        }
-    }
+//     if (idx >= inSz) {
+//         ret = ASN_PARSE_E;
+//     }
+//     else if (input[idx] < 0x80) {
+//         len = input[idx];
+//         idx++;
+//     }
+//     else if ((input[idx] == 0x80) || (input[idx] >= 0x83)) {
+//         ret = ASN_PARSE_E;
+//     }
+//     else if (input[idx] == 0x81) {
+//         if (idx + 1 >= inSz) {
+//             ret = ASN_PARSE_E;
+//         }
+//         else if (input[idx + 1] < 0x80) {
+//             ret = ASN_PARSE_E;
+//         }
+//         else {
+//             len = input[idx + 1];
+//             idx += 2;
+//         }
+//     }
+//     else if (input[idx] == 0x82) {
+//         if (idx + 2 >= inSz) {
+//             ret = ASN_PARSE_E;
+//         }
+//         else {
+//             len = ((word16)input[idx + 1] << 8) + input[idx + 2];
+//             idx += 3;
+//             if (len < 0x100) {
+//                 ret = ASN_PARSE_E;
+//             }
+//         }
+//     }
 
-    if ((ret == 0) && ((idx + len) > inSz)) {
-        ret = ASN_PARSE_E;
-    }
+//     if ((ret == 0) && ((idx + len) > inSz)) {
+//         ret = ASN_PARSE_E;
+//     }
 
-    *length = (int)len;
-    *inOutIdx = idx;
-    return ret;
-}
-
-static int mldsa_composite_check_type(const byte* input, word32* inOutIdx, byte type,
-    word32 inSz)
-{
-    int ret = 0;
-    word32 idx = *inOutIdx;
-
-    if (idx >= inSz) {
-        ret = ASN_PARSE_E;
-    }
-    else if (input[idx] != type){
-        ret = ASN_PARSE_E;
-    }
-    else {
-        idx++;
-    }
-
-    *inOutIdx = idx;
-    return ret;
-}
+//     *length = (int)len;
+//     *inOutIdx = idx;
+//     return ret;
+// }
 
 #ifdef WOLFSSL_MLDSA_COMPOSITE_PUBLIC_KEY
 int wc_MlDsaComposite_PublicKeyDecode(const byte* input, word32* inOutIdx,
@@ -1112,12 +1108,15 @@ int wc_MlDsaComposite_PrivateKeyToDer(mldsa_composite_key* key, byte* output, wo
         ret = NOT_COMPILED_IN;
     }
 
+    (void)output;
+    (void)len;
+
     return ret;
 }
 
 #ifdef WOLFSSL_MLDSA_COMPOSITE_PUBLIC_KEY
 
-int wcMlDsaComposite_KeyToDer(mldsa_composite_key* key, byte* output, word32 len)
+int wc_MlDsaComposite_KeyToDer(mldsa_composite_key* key, byte* output, word32 len)
 {
     int ret = BAD_FUNC_ARG;
 
@@ -1139,6 +1138,9 @@ int wcMlDsaComposite_KeyToDer(mldsa_composite_key* key, byte* output, word32 len
     // }
     
     ret = NOT_COMPILED_IN;
+    (void)output;
+    (void)len;
+    (void)key;
 
     return ret;
 }

@@ -775,7 +775,7 @@ WOLFSSL_API int wc_Dilithium_PrivateKeyToDer(dilithium_key* key, byte* output,
 #define wc_MlDsaKey_ExportPrivRaw(key, out, outLen)             \
     wc_dilithium_export_private_only(key, out, outLen)
 #define wc_MlDsaKey_ImportPrivRaw(key, in, inLen)               \
-    wc_dilithium_import_private_only(out, outLen, key)
+    wc_dilithium_import_private_only(in, inLen, key)
 #define wc_MlDsaKey_Sign(key, sig, sigSz, msg, msgSz, rng)      \
     wc_dilithium_sign_msg(msg, msgSz, sig, sigSz, key, rng)
 #define wc_MlDsaKey_Free(key)                                   \
