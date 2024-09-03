@@ -9919,7 +9919,7 @@ int TLSX_KeyShare_Setup(WOLFSSL *ssl, KeyShareEntry* clientKSE)
         /* for async do setup of serverKSE below, but return WC_PENDING_E */
         if (ret != 0
         #ifdef WOLFSSL_ASYNC_CRYPT
-            && ret != WC_PENDING_E
+            && ret != WC_NO_ERR_TRACE(WC_PENDING_E)
         #endif
         ) {
             TLSX_KeyShare_FreeAll(list, ssl->heap);
@@ -13141,7 +13141,7 @@ static int TLSX_PopulateSupportedGroups(WOLFSSL* ssl, TLSX** extensions)
         ret = TLSX_UseSupportedCurve(extensions, WOLFSSL_P384_KYBER_LEVEL3,
                                      ssl->heap);
 #endif
-#ifdef WOLFSSL_KYBER768
+#ifdef WOLFSSL_KYBER1024
     if (ret == WOLFSSL_SUCCESS)
         ret = TLSX_UseSupportedCurve(extensions, WOLFSSL_KYBER_LEVEL5,
                                      ssl->heap);
