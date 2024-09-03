@@ -102,6 +102,9 @@ ASN Options:
  *  which is discouraged by X.690 specification - default values shall not
  *  be encoded.
  * NO_TIME_SIGNEDNESS_CHECK: Disabled the time_t signedness check.
+ * WOLFSSL_ECC_SIGALG_PARAMS_NULL_ALLOWED: Allows the ECDSA/EdDSA signature
+ *  algorithms in certificates to have NULL parameter instead of empty.
+ *  DO NOT enable this unless required for interoperability.
 */
 
 #include <wolfssl/wolfcrypt/error-crypt.h>
@@ -1504,6 +1507,8 @@ int GetASN_Items(const ASNItem* asn, ASNGetData *data, int count, int complete,
     int    minDepth;
     /* Integer had a zero prepended. */
     int    zeroPadded;
+    word32 tmpW32Val;
+    signed char tmpScharVal;
 
 #ifdef WOLFSSL_DEBUG_ASN_TEMPLATE
     WOLFSSL_ENTER("GetASN_Items");
@@ -1542,14 +1547,18 @@ int GetASN_Items(const ASNItem* asn, ASNGetData *data, int count, int complete,
         /* Check if first of numbered choice. */
         if (choice == 0 && asn[i].optional > 1) {
             choice = asn[i].optional;
-            if (choiceMet[choice - 2] == -1) {
+            tmpScharVal = choiceMet[choice - 2];
+            XFENCE(); /* Prevent memory access */
+            if (tmpScharVal == -1) {
                 /* Choice seen but not found a match yet. */
                 choiceMet[choice - 2] = 0;
             }
         }
 
         /* Check for end of data or not a choice and tag not matching. */
-        if (idx == endIdx[depth] || (data[i].dataType != ASN_DATA_TYPE_CHOICE &&
+        tmpW32Val = endIdx[depth];
+        XFENCE(); /* Prevent memory access */
+        if (idx == tmpW32Val || (data[i].dataType != ASN_DATA_TYPE_CHOICE &&
                               (input[idx] & ~ASN_CONSTRUCTED) != asn[i].tag)) {
             if (asn[i].optional) {
                 /* Skip over ASN.1 items underneath this optional item. */
@@ -1617,6 +1626,7 @@ int GetASN_Items(const ASNItem* asn, ASNGetData *data, int count, int complete,
 
         /* Store found tag in data. */
         data[i].tag = input[idx];
+        XFENCE(); /* Prevent memory access */
         if (data[i].dataType != ASN_DATA_TYPE_CHOICE) {
             int constructed = (input[idx] & ASN_CONSTRUCTED) == ASN_CONSTRUCTED;
             /* Check constructed match expected for non-choice ASN.1 item. */
@@ -14000,6 +14010,10 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
                             " found");
                 WOLFSSL_MSG("Use WOLFSSL_NO_ASN_STRICT if wanting to allow"
                             " empty DirectoryString's");
+            #if (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)) && \
+            !defined(WOLFCRYPT_ONLY)
+                wolfSSL_X509_NAME_free(dName);
+            #endif /* OPENSSL_EXTRA */
                 return ASN_PARSE_E;
             }
         #endif
@@ -16655,7 +16669,7 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
     const byte* sigParams, word32 sigParamsSz,
     byte* rsaKeyIdx)
 {
-    int ret = ASN_SIG_CONFIRM_E; /* default to failure */
+    int ret = WC_NO_ERR_TRACE(ASN_SIG_CONFIRM_E); /* default to failure */
 #if defined(WOLFSSL_RENESAS_TSIP_TLS) || defined(WOLFSSL_RENESAS_FSPSM_TLS)
     CertAttribute* certatt = NULL;
 #endif
@@ -22093,16 +22107,20 @@ static int DecodeCertInternal(DecodedCert* cert, int verify, int* criticalExt,
         }
         /* Parameters not allowed after ECDSA or EdDSA algorithm OID. */
         else if (IsSigAlgoECC(cert->signatureOID)) {
-            if ((dataASN[X509CERTASN_IDX_SIGALGO_PARAMS_NULL].tag != 0)
-        #ifdef WC_RSA_PSS
-                || (dataASN[X509CERTASN_IDX_SIGALGO_PARAMS].tag != 0)
-        #endif
-                ) {
+        #ifndef WOLFSSL_ECC_SIGALG_PARAMS_NULL_ALLOWED
+            if (dataASN[X509CERTASN_IDX_SIGALGO_PARAMS_NULL].tag != 0) {
                 WOLFSSL_ERROR_VERBOSE(ASN_PARSE_E);
                 ret = ASN_PARSE_E;
             }
-        }
+        #endif
         #ifdef WC_RSA_PSS
+            if (dataASN[X509CERTASN_IDX_SIGALGO_PARAMS].tag != 0) {
+                WOLFSSL_ERROR_VERBOSE(ASN_PARSE_E);
+                ret = ASN_PARSE_E;
+            }
+        #endif
+        }
+    #ifdef WC_RSA_PSS
         /* Check parameters starting with a SEQUENCE. */
         else if (dataASN[X509CERTASN_IDX_SIGALGO_PARAMS].tag != 0) {
             word32 oid = dataASN[X509CERTASN_IDX_SIGALGO_OID].data.oid.sum;
@@ -22144,7 +22162,7 @@ static int DecodeCertInternal(DecodedCert* cert, int verify, int* criticalExt,
                 cert->sigParamsLength = sigAlgParamsSz;
             }
         }
-        #endif
+    #endif
     }
     if ((ret == 0) && (!done)) {
         pubKeyEnd = dataASN[X509CERTASN_IDX_TBS_ISSUERUID].offset;
@@ -32022,7 +32040,7 @@ int wc_MakeSelfCert(Cert* cert, byte* buf, word32 buffSz,
 WOLFSSL_ABI
 int wc_GetSubjectRaw(byte **subjectRaw, Cert *cert)
 {
-    int rc = BAD_FUNC_ARG;
+    int rc = WC_NO_ERR_TRACE(BAD_FUNC_ARG);
     if ((subjectRaw != NULL) && (cert != NULL)) {
         *subjectRaw = cert->sbjRaw;
         rc = 0;

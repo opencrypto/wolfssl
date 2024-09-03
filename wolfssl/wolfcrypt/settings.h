@@ -3529,8 +3529,6 @@ extern void uITRON4_free(void *p) ;
 #endif
 
 #if (defined(HAVE_LIBOQS) ||                                            \
-     defined(WOLFSSL_WC_KYBER) ||                                       \
-     defined(WOLFSSL_WC_DILITHIUM) ||                                   \
      defined(HAVE_LIBXMSS) ||                                           \
      defined(HAVE_LIBLMS) ||                                            \
      defined(WOLFSSL_DUAL_ALG_CERTS)) &&                                \
