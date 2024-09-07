@@ -5656,7 +5656,7 @@ int EncodeObjectId(const word16* in, word32 inSz, byte* out, word32* outSz)
     }
 
     /* compute length of encoded OID */
-    d = (in[0] * 40) + in[1];
+    d = ((word32)in[0] * 40) + in[1];
     len = 0;
     for (i = 1; i < (int)inSz; i++) {
         x = 0;
@@ -5679,7 +5679,7 @@ int EncodeObjectId(const word16* in, word32 inSz, byte* out, word32* outSz)
         }
 
         /* calc first byte */
-        d = (in[0] * 40) + in[1];
+        d = ((word32)in[0] * 40) + in[1];
 
         /* encode bytes */
         x = 0;
@@ -5714,7 +5714,7 @@ int EncodeObjectId(const word16* in, word32 inSz, byte* out, word32* outSz)
     }
 
     /* return length */
-    *outSz = len;
+    *outSz = (word32)len;
 
     return 0;
 }
@@ -6886,8 +6886,9 @@ static const ASNItem pkcs8KeyASN[] = {
 /*  PKEY_ALGO_PARAM_SEQ */            { 2, ASN_SEQUENCE, 1, 0, 1 },
 #endif
 /*  PKEY_DATA           */        { 1, ASN_OCTET_STRING, 0, 0, 0 },
-                /* attributes            [0] Attributes OPTIONAL */
-                /* [[2: publicKey        [1] PublicKey OPTIONAL ]] */
+/*  OPTIONAL Attributes IMPLICIT [0] */
+                                  { 1, ASN_CONTEXT_SPECIFIC | 0, 1, 0, 1 },
+/* [[2: publicKey        [1] PublicKey OPTIONAL ]] */
 };
 enum {
     PKCS8KEYASN_IDX_SEQ = 0,
@@ -6900,6 +6901,7 @@ enum {
     PKCS8KEYASN_IDX_PKEY_ALGO_PARAM_SEQ,
 #endif
     PKCS8KEYASN_IDX_PKEY_DATA,
+    PKCS8KEYASN_IDX_PKEY_ATTRIBUTES,
     WOLF_ENUM_DUMMY_LAST_ELEMENT(PKCS8KEYASN_IDX)
 };
 
@@ -7310,7 +7312,9 @@ int wc_CreatePKCS8Key(byte* out, word32* outSz, byte* key, word32 keySz,
     *outSz = tmpSz + sz;
     return (int)(tmpSz + sz);
 #else
-    DECL_ASNSETDATA(dataASN, pkcs8KeyASN_Length);
+    /* pkcs8KeyASN_Length-1, the -1 is because we are not adding the optional
+     * set of attributes */
+    DECL_ASNSETDATA(dataASN, pkcs8KeyASN_Length-1);
     int sz = 0;
     int ret = 0;
     word32 keyIdx = 0;
@@ -7331,7 +7335,7 @@ int wc_CreatePKCS8Key(byte* out, word32* outSz, byte* key, word32 keySz,
         ret = ASN_PARSE_E;
     }
 
-    CALLOC_ASNSETDATA(dataASN, pkcs8KeyASN_Length, ret, NULL);
+    CALLOC_ASNSETDATA(dataASN, pkcs8KeyASN_Length-1, ret, NULL);
 
     if (ret == 0) {
         /* Only support default PKCS #8 format - v0. */
@@ -7357,7 +7361,7 @@ int wc_CreatePKCS8Key(byte* out, word32* outSz, byte* key, word32 keySz,
         SetASN_Buffer(&dataASN[PKCS8KEYASN_IDX_PKEY_DATA], key, keySz);
 
         /* Get the size of the DER encoding. */
-        ret = SizeASN_Items(pkcs8KeyASN, dataASN, pkcs8KeyASN_Length, &sz);
+        ret = SizeASN_Items(pkcs8KeyASN, dataASN, pkcs8KeyASN_Length-1, &sz);
     }
     if (ret == 0) {
         /* Always return the calculated size. */
@@ -7370,7 +7374,7 @@ int wc_CreatePKCS8Key(byte* out, word32* outSz, byte* key, word32 keySz,
     }
     if (ret == 0) {
         /*  Encode PKCS #8 key into buffer. */
-        SetASN_Items(pkcs8KeyASN, dataASN, pkcs8KeyASN_Length, out);
+        SetASN_Items(pkcs8KeyASN, dataASN, pkcs8KeyASN_Length-1, out);
         ret = sz;
     }
 
@@ -13480,12 +13484,12 @@ static int GenerateDNSEntryRIDString(DNS_entry* entry, void* heap)
                     }
 
                     if (i < tmpSize - 1) {
-                        ret = XSNPRINTF(oidName + j, MAX_OID_SZ - j, "%d.",
-                            tmpName[i]);
+                        ret = XSNPRINTF(oidName + j, (word32)(MAX_OID_SZ - j),
+                            "%d.", tmpName[i]);
                     }
                     else {
-                        ret = XSNPRINTF(oidName + j, MAX_OID_SZ - j, "%d",
-                            tmpName[i]);
+                        ret = XSNPRINTF(oidName + j, (word32)(MAX_OID_SZ - j),
+                            "%d", tmpName[i]);
                     }
 
                     if (ret >= 0) {
@@ -13504,7 +13508,7 @@ static int GenerateDNSEntryRIDString(DNS_entry* entry, void* heap)
     if (ret == 0) {
         nameSz = (int)XSTRLEN((const char*)finalName);
 
-        entry->ridString = (char*)XMALLOC(nameSz + 1, heap,
+        entry->ridString = (char*)XMALLOC((word32)(nameSz + 1), heap,
                 DYNAMIC_TYPE_ALTNAME);
 
         if (entry->ridString == NULL) {
@@ -13512,7 +13516,7 @@ static int GenerateDNSEntryRIDString(DNS_entry* entry, void* heap)
         }
 
         if (ret == 0) {
-            XMEMCPY(entry->ridString, finalName, nameSz + 1);
+            XMEMCPY(entry->ridString, finalName, (word32)(nameSz + 1));
         }
     }
 
@@ -28125,9 +28129,9 @@ static int EncodeName(EncodedName* name, const char* nameStr,
                 break;
         #ifdef WOLFSSL_CUSTOM_OID
             case ASN_CUSTOM_NAME:
-                nameSz = cname->custom.valSz;
+                nameSz = (word32)cname->custom.valSz;
                 oid = cname->custom.oid;
-                oidSz = cname->custom.oidSz;
+                oidSz = (word32)cname->custom.oidSz;
                 break;
         #endif
         #ifdef WOLFSSL_CERT_REQ
@@ -28451,8 +28455,8 @@ static int SetNameRdnItems(ASNSetData* dataASN, ASNItem* namesASN,
                 else if (type == ASN_CUSTOM_NAME) {
                 #ifdef WOLFSSL_CUSTOM_OID
                     SetRdnItems(namesASN + idx, dataASN + idx, name->custom.oid,
-                        name->custom.oidSz, name->custom.enc,
-                        name->custom.val, name->custom.valSz);
+                        (word32)name->custom.oidSz, (byte)name->custom.enc,
+                        name->custom.val, (word32)name->custom.valSz);
                 #endif
                 }
                 else {
@@ -32490,7 +32494,7 @@ int wc_SetExtKeyUsageOID(Cert *cert, const char *in, word32 sz, byte idx,
     }
 
     XMEMCPY(cert->extKeyUsageOID[idx], oid, oidSz);
-    cert->extKeyUsageOIDSz[idx] = oidSz;
+    cert->extKeyUsageOIDSz[idx] = (byte)oidSz;
     cert->extKeyUsage |= EXTKEYUSE_USER;
 
     return 0;
@@ -32526,7 +32530,7 @@ int wc_SetCustomExtension(Cert *cert, int critical, const char *oid,
     ext->oid = (char*)oid;
     ext->crit = (critical == 0) ? 0 : 1;
     ext->val = (byte*)der;
-    ext->valSz = derSz;
+    ext->valSz = (int)derSz;
 
     cert->customCertExtCount++;
     return 0;
@@ -36774,7 +36778,7 @@ static int DecodeBasicOcspResponse(byte* source, word32* ioIndex,
         int sigValid = -1;
 
         #ifndef NO_SKID
-            ca = GetCA(cm, resp->single->issuerKeyHash);
+            ca = GetCAByKeyHash(cm, resp->single->issuerKeyHash);
         #else
             ca = GetCA(cm, resp->single->issuerHash);
         #endif
@@ -36915,7 +36919,7 @@ static int DecodeBasicOcspResponse(byte* source, word32* ioIndex,
 
         /* Response didn't have a certificate - lookup CA. */
     #ifndef NO_SKID
-        ca = GetCA(cm, resp->single->issuerKeyHash);
+        ca = GetCAByKeyHash(cm, resp->single->issuerKeyHash);
     #else
         ca = GetCA(cm, resp->single->issuerHash);
     #endif
@@ -38728,7 +38732,7 @@ end:
             tbsParams =
                 GetASNItem_Addr(dataASN[CRLASN_IDX_TBS_SIGALGO_PARAMS],
                     buff);
-            tbsParamsSz =
+            tbsParamsSz =(int)
                 GetASNItem_Length(dataASN[CRLASN_IDX_TBS_SIGALGO_PARAMS],
                     buff);
         }
@@ -38736,7 +38740,7 @@ end:
             sigParams =
                 GetASNItem_Addr(dataASN[CRLASN_IDX_SIGALGO_PARAMS],
                     buff);
-            sigParamsSz =
+            sigParamsSz = (int)
                 GetASNItem_Length(dataASN[CRLASN_IDX_SIGALGO_PARAMS],
                     buff);
             dcrl->sigParamsIndex =
@@ -38763,7 +38767,7 @@ end:
             ret = ASN_PARSE_E;
         }
         else if ((tbsParamsSz > 0) &&
-                 (XMEMCMP(tbsParams, sigParams, tbsParamsSz) != 0)) {
+                 (XMEMCMP(tbsParams, sigParams, (word32)tbsParamsSz) != 0)) {
             WOLFSSL_MSG("CRL TBS and signature parameter mismatch");
             ret = ASN_PARSE_E;
         }

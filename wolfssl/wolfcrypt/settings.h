@@ -3281,8 +3281,8 @@ extern void uITRON4_free(void *p) ;
     #define WOLFSSL_NO_HASH_RAW
 #endif
 
-/* XChacha not implemented with ARM assembly ChaCha */
-#if defined(WOLFSSL_ARMASM)
+#if defined(HAVE_XCHACHA) && !defined(HAVE_CHACHA)
+    /* XChacha requires ChaCha */
     #undef HAVE_XCHACHA
 #endif
 
@@ -3536,13 +3536,8 @@ extern void uITRON4_free(void *p) ;
     #error Experimental settings without WOLFSSL_EXPERIMENTAL_SETTINGS
 #endif
 
-#if defined(HAVE_PQC) && !defined(HAVE_LIBOQS) && !defined(HAVE_PQM4) && \
-    !defined(WOLFSSL_HAVE_KYBER)
+#if defined(HAVE_PQC) && !defined(HAVE_LIBOQS) && !defined(WOLFSSL_HAVE_KYBER)
 #error Please do not define HAVE_PQC yourself.
-#endif
-
-#if defined(HAVE_PQC) && defined(HAVE_LIBOQS) && defined(HAVE_PQM4)
-#error Please do not define both HAVE_LIBOQS and HAVE_PQM4.
 #endif
 
 #if defined(HAVE_PQC) && defined(WOLFSSL_DTLS13) && \
