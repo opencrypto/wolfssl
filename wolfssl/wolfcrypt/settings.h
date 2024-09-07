@@ -3514,6 +3514,20 @@ extern void uITRON4_free(void *p) ;
 #endif
 #endif
 
+#ifdef HAVE_MLDSA_COMPOSITE
+    #define WOLFSSL_HAVE_MLDSA_COMPOSITE
+    #define WOLFSSL_MLDSA44_P256
+    #define WOLFSSL_MLDSA44_ED25519
+#endif
+
+#ifdef HAVE_PQM4
+#define HAVE_PQC
+#define WOLFSSL_HAVE_KYBER
+#define WOLFSSL_KYBER512
+#define WOLFSSL_NO_KYBER768
+#define WOLFSSL_NO_KYBER1024
+#endif
+
 #if (defined(HAVE_LIBOQS) ||                                            \
      defined(HAVE_LIBXMSS) ||                                           \
      defined(HAVE_LIBLMS) ||                                            \
