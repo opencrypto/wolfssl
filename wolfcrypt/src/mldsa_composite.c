@@ -106,8 +106,6 @@ int wc_mldsa_composite_verify_msg_ex(const byte* sig, word32 sigLen, const byte*
         *res = 0; // Or a more specific error code if needed
         return BAD_FUNC_ARG; 
     }
-
-    int idx = 0;
     
     byte * mldsa_sig_buffer = 0;
     int mldsa_sig_buffer_len = 0;
@@ -123,6 +121,8 @@ int wc_mldsa_composite_verify_msg_ex(const byte* sig, word32 sigLen, const byte*
     // - The length of each BIT STRING should match the length of the signature of the corresponding DSA component
 
 #ifndef WOLFSSL_ASN_TEMPLATE
+    int idx = 0;
+
     if (GetSequence(sig, sigLen, &idx, sigLen) < 0)
         return ASN_PARSE_E;
 
@@ -132,6 +132,9 @@ int wc_mldsa_composite_verify_msg_ex(const byte* sig, word32 sigLen, const byte*
     if (GetOctetString(sig, &idx, &other_sig_buffer_len, sigLen) < 0)
         return ASN_PARSE_E;
 #else
+
+    word32 idx = 0;
+
     static const ASNItem sigsIT[] = {
     /*  SEQ */    { 0, ASN_SEQUENCE, 1, 1, 0 },
     /*  ML-DSA */   { 1, ASN_OCTET_STRING, 0, 0, 0 },
@@ -175,8 +178,9 @@ int wc_mldsa_composite_verify_msg_ex(const byte* sig, word32 sigLen, const byte*
             if (other_sig_buffer_len != ED25519_SIG_SIZE)
                 return ASN_PARSE_E;
             // Verify ED25519 Component
-            if (wc_ed25519_verify_msg_ex(sig, sigLen, msg, msgLen, res, &key->alt_key.ed25519, (byte)Ed25519, context, contextLen) < 0)
-                return ALGO_ID_E;
+            if (wc_ed25519_verify_msg_ex(other_sig_buffer, other_sig_buffer_len, 
+                msg, msgLen, res, &key->alt_key.ed25519, (byte)Ed25519, context, contextLen) < 0)
+                    return ALGO_ID_E;
         } break;
 
         case WC_MLDSA_COMPOSITE_TYPE_MLDSA44_P256: {
@@ -194,8 +198,9 @@ int wc_mldsa_composite_verify_msg_ex(const byte* sig, word32 sigLen, const byte*
             if (other_sig_buffer_len != wc_ecc_sig_size(&key->alt_key.ecc))
                 return ASN_PARSE_E;
             // Verify ECDSA Component
-            if (wc_ecc_verify_hash(&key->alt_key.ecc, sig, sigLen, msg, msgLen, res) < 0)
-                return ALGO_ID_E;
+            if (wc_ecc_verify_hash(other_sig_buffer, other_sig_buffer_len,
+                msg, msgLen, res, &key->alt_key.ecc) < 0)
+                    return ALGO_ID_E;
         } break;
 
         default:
@@ -260,6 +265,8 @@ int wc_mldsa_composite_sign_msg_ex(const byte* in, word32 inLen, byte* out,
 
     (void)context;
     (void)contextLen;
+    (void)innerLen;
+    (void)idx;
 
     return ret;
 }
