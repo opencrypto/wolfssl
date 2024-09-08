@@ -50,6 +50,13 @@
 
 #ifdef HAVE_MLDSA_COMPOSITE
 
+static ASNItem sigsIT[] = {
+/*  SEQ */    { 0, ASN_SEQUENCE, 1, 1, 0 },
+/*  ML-DSA */   { 1, ASN_OCTET_STRING, 0, 0, 0 },
+/*  Trad */     { 1, ASN_OCTET_STRING, 0, 0, 0 },
+};
+#define sigsASN_Length (sizeof(sigsASN) / sizeof(ASNItem))
+
 /******************************************************************************
  * Encode/Decode operations
  ******************************************************************************/
@@ -84,6 +91,16 @@ int wc_mldsa_composite_make_key(mldsa_composite_key* key, WC_RNG* rng)
                 ret = ALGO_ID_E;
         }
     }
+
+#ifndef WOLFSSL_ASN_TEMPLATE
+    // innerLen += SetOctetString(outLen, out + idx);
+
+    // idx += SetSequence(innerLen, out + idx);
+    // idx += SetOctetString(outLen, out + idx);
+
+    // SizeASN_CalcDataLength(out, idx, outLen);
+#else
+#endif
 
     return ret;
 }
@@ -134,13 +151,6 @@ int wc_mldsa_composite_verify_msg_ex(const byte* sig, word32 sigLen, const byte*
 #else
 
     word32 idx = 0;
-
-    static const ASNItem sigsIT[] = {
-    /*  SEQ */    { 0, ASN_SEQUENCE, 1, 1, 0 },
-    /*  ML-DSA */   { 1, ASN_OCTET_STRING, 0, 0, 0 },
-    /*  Trad */     { 1, ASN_OCTET_STRING, 0, 0, 0 },
-    };
-    #define sigsASN_Length (sizeof(sigsASN) / sizeof(ASNItem))
 
     ASNGetData* sigsASN= NULL;
     sigsASN= (ASNGetData*)XMALLOC(sizeof(ASNGetData) * (2), NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -223,15 +233,14 @@ int wc_mldsa_composite_sign_msg(const byte* in, word32 inLen, byte* out,
 }
 
 WOLFSSL_API
-int wc_mldsa_composite_sign_msg_ex(const byte* in, word32 inLen, byte* out,
-    word32 *outLen, mldsa_composite_key* key, WC_RNG* rng, const byte* context, byte contextLen)
+int wc_mldsa_composite_sign_msg_ex(const byte* msg, word32 msgLen, byte* sig,
+    word32 *sigLen, mldsa_composite_key* key, WC_RNG* rng, const byte* context, byte contextLen)
 {
     int ret = 0, idx = 0, innerLen = 0;
     byte rnd[DILITHIUM_RND_SZ];
 
-    /* Must have a random number generator. */
-    if (rng == NULL) {
-        ret = BAD_FUNC_ARG;
+    if (!msg || !sig || !key || !sigLen || !rng) {
+        return BAD_FUNC_ARG; 
     }
 
     if (ret == 0) {
@@ -250,7 +259,33 @@ int wc_mldsa_composite_sign_msg_ex(const byte* in, word32 inLen, byte* out,
          *    2.c) Add the BIT STRING to the sequence
          * 3. Save the DER representation of the sequence as the signature
          */
-        ret = wc_MlDsaKey_Sign(&key->mldsa_key, out, outLen, in, inLen, rng);
+        ret = wc_MlDsaKey_Sign(&key->mldsa_key, sig, sigLen, msg, msgLen, rng);
+        if (ret != 0) {
+            return ret;
+        }
+    }
+
+    // Sign The Traditional component
+    switch (key->params.type) {
+
+        case WC_MLDSA_COMPOSITE_TYPE_MLDSA44_ED25519: {
+            byte ed25519_buffer[ED25519_SIG_SIZE];
+            word32 ed25519_sigLen = ED25519_SIG_SIZE;
+            // Sign ED25519 Component
+            if (wc_ed25519_sign_msg_ex(msg, msgLen, ed25519_buffer, &ed25519_sigLen, &key->alt_key.ed25519, (byte)Ed25519, context, contextLen) < 0)
+                    return ALGO_ID_E;
+        } break;
+
+        case WC_MLDSA_COMPOSITE_TYPE_MLDSA44_P256: {
+            byte ecc_buffer[ECC_MAX_SIG_SIZE];
+            word32 ecc_sigLen = wc_ecc_sig_size(&key->alt_key.ecc);
+            // Sign ECC Component
+            if (wc_ecc_sign_hash(msg, msgLen, ecc_buffer, &ecc_sigLen, rng, &key->alt_key.ecc) < 0)
+                return ALGO_ID_E;
+        } break;
+
+        default:
+            return ALGO_ID_E;
     }
 
 #ifndef WOLFSSL_ASN_TEMPLATE
@@ -261,12 +296,24 @@ int wc_mldsa_composite_sign_msg_ex(const byte* in, word32 inLen, byte* out,
 
     SizeASN_CalcDataLength(out, idx, outLen);
 #else
+
+    ASNSetData* sigsASN=NULL;
+    sigsASN= (ASNSetData*)XMALLOC(sizeof(ASNSetData) * (3), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (sigsASN== NULL)
+        return MEMORY_E;
+
+    ret = SetASN_Items(sigsIT, sigsASN, 3, sig);
+    if (ret < 0) {
+        XFREE(sigsASN, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        return ASN_PARSE_E;
+    }
+
 #endif
 
+    (void)idx;
+    (void)innerLen;
     (void)context;
     (void)contextLen;
-    (void)innerLen;
-    (void)idx;
 
     return ret;
 }
