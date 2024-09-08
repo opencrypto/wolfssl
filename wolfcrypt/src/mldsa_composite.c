@@ -248,17 +248,7 @@ int wc_mldsa_composite_sign_msg_ex(const byte* msg, word32 msgLen, byte* sig,
         ret = wc_RNG_GenerateBlock(rng, rnd, DILITHIUM_RND_SZ);
     }
     if (ret == 0) {
-        /* TODO:
-         * 
-         * Generate the ASN1 SEQUENCE for the signature
-         * 
-         * 1. Generate a new ASN1 SEQUENCE
-         * 2. For Each of the Component Key, do
-         *    2.a) Generate a new BIT STRING
-         *    2.b) Generate the component's signature
-         *    2.c) Add the BIT STRING to the sequence
-         * 3. Save the DER representation of the sequence as the signature
-         */
+        /* Step 8: Sign the message with the ML-DSA key. */
         ret = wc_MlDsaKey_Sign(&key->mldsa_key, sig, sigLen, msg, msgLen, rng);
         if (ret != 0) {
             return ret;
@@ -288,7 +278,18 @@ int wc_mldsa_composite_sign_msg_ex(const byte* msg, word32 msgLen, byte* sig,
             return ALGO_ID_E;
     }
 
+    // Encode the signature as a DER SEQUENCE of BIT STRINGs
+    // - Each BIT STRING represents a signature from a DSA component
+    // - The number of BIT STRINGs should match the number of DSA components in the composite key
+    // - The length of each BIT STRING should match the length of the signature of the corresponding DSA component
+
 #ifndef WOLFSSL_ASN_TEMPLATE
+
+    // This implementation is not complete. It is just a placeholder for the actual implementation.
+    // The actual implementation should encode the signature as a DER SEQUENCE of BIT STRINGs
+    // with the old (non-template) ASN.1 functions.
+    //
+    // We need to calculate the length of the signature and then encode it into the output buffer.
     innerLen += SetOctetString(outLen, out + idx);
 
     idx += SetSequence(innerLen, out + idx);
@@ -297,11 +298,18 @@ int wc_mldsa_composite_sign_msg_ex(const byte* msg, word32 msgLen, byte* sig,
     SizeASN_CalcDataLength(out, idx, outLen);
 #else
 
+    // This implementation is not complete. It is just a placeholder for the actual implementation.
+    // The actual implementation should encode the signature as a DER SEQUENCE of BIT STRINGs
+    // with the new (template) ASN.1 functions.
+
     ASNSetData* sigsASN=NULL;
     sigsASN= (ASNSetData*)XMALLOC(sizeof(ASNSetData) * (3), NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (sigsASN== NULL)
         return MEMORY_E;
 
+    // Missing code for setting the sigsIT values
+
+    // TODO: Check the use of this function, it is not clear how it should be used
     ret = SetASN_Items(sigsIT, sigsASN, 3, sig);
     if (ret < 0) {
         XFREE(sigsASN, NULL, DYNAMIC_TYPE_TMP_BUFFER);
