@@ -47362,13 +47362,11 @@ EXPECT_DECLS;
 // #endif
     ExpectIntEQ(wc_mldsa_composite_export_private(key, privKey, &privKeyLen),
         0);
-// #ifndef WOLFSSL_NO_ML_DSA_44
-//     ExpectIntEQ(privKeyLen, DILITHIUM_LEVEL2_KEY_SIZE);
-// #elif !defined(WOLFSSL_NO_ML_DSA_65)
-//     ExpectIntEQ(privKeyLen, DILITHIUM_LEVEL3_KEY_SIZE);
-// #else
-//     ExpectIntEQ(privKeyLen, DILITHIUM_LEVEL5_KEY_SIZE);
-// #endif
+#ifndef WOLFSSL_NO_MLDSA44_ED25519
+    ExpectIntEQ(privKeyLen, MLDSA44_ED25519_PRV_KEY_SIZE);
+#elif !defined(WOLFSSL_NO_MLDSA44_P256)
+    ExpectIntEQ(privKeyLen, MLDSA44_ED25519_PRV_KEY_SIZE);
+#endif
 
 /*
     ExpectIntEQ(wc_dilithium_init(importKey), 0);

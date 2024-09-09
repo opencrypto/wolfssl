@@ -1103,7 +1103,7 @@ int wc_mldsa_composite_import_private(const byte* priv, word32 privSz,
  *                          On out, the number bytes put into array.
  * @return  0 on success.
  * @return  BAD_FUNC_ARG when a parameter is NULL.
- * @return  BUFFER_E when outLen is less than DILITHIUM_LEVEL2_KEY_SIZE.
+ * @return  BUFFER_E when outLen is less than MLDSA_COMPOSITE_MIN_SZ.
  */
 int wc_mldsa_composite_export_private(mldsa_composite_key* key, byte* out,
     word32* outLen)
@@ -1123,7 +1123,6 @@ int wc_mldsa_composite_export_private(mldsa_composite_key* key, byte* out,
             WOLFSSL_MSG_VSNPRINTF("in buffer: sz = %d, required buffer: sz = %d", 
                 inLen, *outLen);
             ret = BUFFER_E;
-            // ret = BAD_FUNC_ARG;
         }
     }
     if (ret == 0) {
@@ -1156,6 +1155,7 @@ int wc_mldsa_composite_export_private(mldsa_composite_key* key, byte* out,
         }
 
         WOLFSSL_MSG_VSNPRINTF("mldsa export public: sz = %d", mldsa_BufferLen);
+        fprintf(stderr, "mldsa export public: sz = %d\n", mldsa_BufferLen);
 
         /* Exports the other key */
         switch (key->params.type) {
@@ -1181,18 +1181,25 @@ int wc_mldsa_composite_export_private(mldsa_composite_key* key, byte* out,
         }
 
         WOLFSSL_MSG_VSNPRINTF("other export private: sz = %d", other_BufferLen);
+        fprintf(stderr, "other export private: sz = %d\n", other_BufferLen);
 
         // Let's set the ASN1 data
         SetASN_Buffer(&keysASN[MLDSA_COMPASN_IDX_MLDSAKEY], mldsa_Buffer, mldsa_BufferLen);
         SetASN_Buffer(&keysASN[MLDSA_COMPASN_IDX_OTHERKEY], other_Buffer, other_BufferLen);
 
         // Let's calculate the size of the ASN1 data
-        if ((SizeASN_Items(compKeyIT, keysASN, 3, (int *)outLen) < 0) || (*outLen > tmpLen)) {
-            WOLFSSL_MSG_VSNPRINTF("error outLen > tmpLen: %d > %d", *outLen, tmpLen);
+        int encSz = 0;
+        if (SizeASN_Items(compKeyIT, keysASN, 3, &encSz) < 0) {
+            return BAD_STATE_E;  
+        }
+        
+        if (encSz > (int)(*outLen)) {
+            WOLFSSL_MSG_VSNPRINTF("error encSz > : %d > %d", *outLen, tmpLen);
             return BAD_STATE_E;
         }
 
-        WOLFSSL_MSG_VSNPRINTF("composite encoded public: sz = %d", *outLen);
+        WOLFSSL_MSG_VSNPRINTF("composite exported private: sz = %d", *outLen);
+        fprintf(stderr, "composite exported private: sz = %d\n", *outLen);
 
         // Let's encode the ASN1 data
         if (SetASN_Items(compKeyIT, keysASN, 3, out) < 0) {
