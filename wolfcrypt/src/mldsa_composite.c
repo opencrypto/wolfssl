@@ -1112,7 +1112,7 @@ int wc_mldsa_composite_export_private(mldsa_composite_key* key, byte* out,
     word32 inLen;
 
     /* Validate parameters */
-    if ((key == NULL) || (out == NULL) || (outLen == NULL)) {
+    if ((key == NULL) || (out == NULL) || (outLen == NULL || *outLen == 0)) {
         ret = BAD_FUNC_ARG;
     }
     if (ret == 0) {
@@ -1122,7 +1122,8 @@ int wc_mldsa_composite_export_private(mldsa_composite_key* key, byte* out,
         if (inLen < *outLen) {
             WOLFSSL_MSG_VSNPRINTF("in buffer: sz = %d, required buffer: sz = %d", 
                 inLen, *outLen);
-            ret = BAD_FUNC_ARG;
+            ret = BUFFER_E;
+            // ret = BAD_FUNC_ARG;
         }
     }
     if (ret == 0) {

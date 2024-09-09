@@ -47137,7 +47137,7 @@ static int test_wc_mldsa_composite(void)
 #endif
 #ifndef WOLFSSL_MLDSA_COMPOSITE_NO_SIGN
     ExpectIntEQ(wc_mldsa_composite_export_private(key, privKey, &privKeyLen),
-        BAD_FUNC_ARG);
+        BUFFER_E);
 #endif
 
 #ifdef WOLFSSL_MLDSA_COMPOSITE_PRIVATE_KEY
@@ -47256,17 +47256,175 @@ static int test_wc_mldsa_composite_make_key(void)
     return EXPECT_RESULT();
 }
 
-// static int test_wc_mldsa_composite_size(void)
-// {
-//     EXPECT_DECLS;
-//     return EXPECT_RESULT();
-// }
+static int test_wc_mldsa_composite_export(void)
+{
+EXPECT_DECLS;
+#if defined(HAVE_MLDSA_COMPOSITE) && defined(WOLFSSL_WC_MLDSA_COMPOSITE) && \
+    !defined(WOLFSSL_MLDSA_COMPOSITE_NO_SIGN)
+    mldsa_composite_key * key;
+    mldsa_composite_key * importKey = NULL;
+    WC_RNG rng;
+    byte* privKey = NULL;
+    word32 privKeyLen = MLDSA_COMPOSITE_MAX_KEY_SIZE;
+    word32 badKeyLen;
+    byte msg[32];
+    byte* sig = NULL;
+    word32 sigLen = MLDSA_COMPOSITE_MAX_SIG_SIZE;
 
-// static int test_wc_mldsa_composite_export(void)
-// {
-//     EXPECT_DECLS;
-//     return EXPECT_RESULT();
-// }
+    (void)privKeyLen;
+    (void)badKeyLen;
+    (void)sigLen;
+
+    key = (mldsa_composite_key*)XMALLOC(sizeof(*key), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    ExpectNotNull(key);
+    importKey = (mldsa_composite_key*)XMALLOC(sizeof(*key), NULL,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    ExpectNotNull(importKey);
+    privKey = (byte*)XMALLOC(MLDSA_COMPOSITE_MAX_KEY_SIZE, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    ExpectNotNull(privKey);
+    sig = (byte*)XMALLOC(MLDSA_COMPOSITE_MAX_SIG_SIZE, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    ExpectNotNull(sig);
+
+    if (key != NULL) {
+        XMEMSET(key, 0, sizeof(*key));
+    }
+    if (importKey != NULL) {
+        XMEMSET(importKey, 0, sizeof(*importKey));
+    }
+    XMEMSET(&rng, 0, sizeof(WC_RNG));
+    XMEMSET(msg, 0x55, sizeof(msg));
+
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(wc_mldsa_composite_init(key), 0);
+
+#ifndef WOLFSSL_NO_MLDSA44_ED25519
+    ExpectIntEQ(wc_mldsa_composite_set_type(key, WC_MLDSA_COMPOSITE_TYPE_MLDSA44_ED25519), 0);
+#elif !defined(WOLFSSL_NO_MLDSA44_P256)
+    ExpectIntEQ(wc_mldsa_composite_set_type(key, WC_MLDSA_COMPOSITE_TYPE_MLDSA44_P256), 0);
+#endif
+
+#ifndef WOLFSSL_MLDSA_COMPOSITE_NO_MAKE_KEY
+    ExpectIntEQ(wc_mldsa_composite_make_key(key, &rng), 0);
+#endif
+
+/*
+    ExpectIntEQ(wc_dilithium_sign_msg(NULL, 32, NULL, NULL, NULL, NULL),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_dilithium_sign_msg(msg, 32, NULL, NULL, NULL, NULL),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_dilithium_sign_msg(NULL, 32, sig, NULL, NULL, NULL),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_dilithium_sign_msg(NULL, 32, NULL, &sigLen, NULL, NULL),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_dilithium_sign_msg(NULL, 32, NULL, NULL, key, NULL),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_dilithium_sign_msg(NULL, 32, NULL, NULL, NULL, &rng),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_dilithium_sign_msg(NULL, 32, sig, &sigLen, key, &rng),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_dilithium_sign_msg(msg, 32, NULL, &sigLen, key, &rng),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_dilithium_sign_msg(msg, 32, sig, NULL, key, &rng),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_dilithium_sign_msg(msg, 32, sig, &sigLen, NULL, &rng),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_dilithium_sign_msg(msg, 32, sig, &sigLen, key, NULL),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_dilithium_sign_msg(msg, 32, sig, &sigLen, key, &rng), 0);
+*/
+
+    ExpectIntEQ(wc_mldsa_composite_export_private(NULL, NULL, NULL),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_mldsa_composite_export_private(key, NULL, NULL),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_mldsa_composite_export_private(NULL, privKey, NULL),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_mldsa_composite_export_private(NULL, NULL, &privKeyLen),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_mldsa_composite_export_private(NULL, privKey, &privKeyLen),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_mldsa_composite_export_private(key, NULL, &privKeyLen),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_mldsa_composite_export_private(key, privKey, NULL),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    badKeyLen = 0;
+    ExpectIntEQ(wc_mldsa_composite_export_private(key, privKey, &badKeyLen),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+// #ifndef WOLFSSL_NO_ML_DSA_44
+//     ExpectIntEQ(badKeyLen, DILITHIUM_LEVEL2_KEY_SIZE);
+// #elif !defined(WOLFSSL_NO_ML_DSA_65)
+//     ExpectIntEQ(badKeyLen, DILITHIUM_LEVEL3_KEY_SIZE);
+// #else
+//     ExpectIntEQ(badKeyLen, DILITHIUM_LEVEL5_KEY_SIZE);
+// #endif
+    ExpectIntEQ(wc_mldsa_composite_export_private(key, privKey, &privKeyLen),
+        0);
+// #ifndef WOLFSSL_NO_ML_DSA_44
+//     ExpectIntEQ(privKeyLen, DILITHIUM_LEVEL2_KEY_SIZE);
+// #elif !defined(WOLFSSL_NO_ML_DSA_65)
+//     ExpectIntEQ(privKeyLen, DILITHIUM_LEVEL3_KEY_SIZE);
+// #else
+//     ExpectIntEQ(privKeyLen, DILITHIUM_LEVEL5_KEY_SIZE);
+// #endif
+
+/*
+    ExpectIntEQ(wc_dilithium_init(importKey), 0);
+    ExpectIntEQ(wc_dilithium_import_private(privKey, privKeyLen, importKey),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+#ifndef WOLFSSL_NO_ML_DSA_44
+    ExpectIntEQ(wc_dilithium_set_level(importKey, WC_ML_DSA_44), 0);
+#elif !defined(WOLFSSL_NO_ML_DSA_65)
+    ExpectIntEQ(wc_dilithium_set_level(importKey, WC_ML_DSA_65), 0);
+#else
+    ExpectIntEQ(wc_dilithium_set_level(importKey, WC_ML_DSA_87), 0);
+#endif
+    ExpectIntEQ(wc_dilithium_import_private(NULL, 0, NULL),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_dilithium_import_private(privKey, 0, NULL),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_dilithium_import_private(NULL, privKeyLen, NULL),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_dilithium_import_private(NULL, 0, importKey),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_dilithium_import_private(NULL, privKeyLen, importKey),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_dilithium_import_private(privKey, 0, importKey),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_dilithium_import_private(privKey, privKeyLen, NULL),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_dilithium_import_private(privKey, privKeyLen, importKey),
+        0);
+    ExpectIntEQ(wc_dilithium_sign_msg(msg, 32, sig, &sigLen, key, &rng), 0);
+#ifdef WOLFSSL_DILITHIUM_CHECK_KEY
+    ExpectIntEQ(wc_dilithium_check_key(importKey), WC_NO_ERR_TRACE(PUBLIC_KEY_E));
+#endif
+
+*/
+
+    wc_mldsa_composite_free(importKey);
+
+    wc_mldsa_composite_free(key);
+    wc_FreeRng(&rng);
+
+    do {
+        FILE * fp = fopen("mldsa_composite_privkey_der.bin", "wb");
+        ExpectNotNull(fp);
+        ExpectIntEQ(fwrite(privKey, 1, privKeyLen, fp), privKeyLen);
+        fclose(fp);
+        // privKeyLen
+
+    } while (0);
+
+    XFREE(sig, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(privKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(importKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+    return EXPECT_RESULT();
+}
 
 // static int test_wc_mldsa_composite_sign_msg(void)
 // {
@@ -47282,7 +47440,7 @@ static int test_wc_mldsa_composite_make_key(void)
 //     byte msg[32];
 //     byte* sig = NULL;
 //     word32 sigLen = DILITHIUM_MAX_SIG_SIZE;
-
+//
 //     key = (dilithium_key*)XMALLOC(sizeof(*key), NULL, DYNAMIC_TYPE_TMP_BUFFER);
 //     ExpectNotNull(key);
 //     importKey = (dilithium_key*)XMALLOC(sizeof(*key), NULL,
@@ -47294,7 +47452,7 @@ static int test_wc_mldsa_composite_make_key(void)
 //     sig = (byte*)XMALLOC(DILITHIUM_MAX_SIG_SIZE, NULL,
 //         DYNAMIC_TYPE_TMP_BUFFER);
 //     ExpectNotNull(sig);
-
+//
 //     if (key != NULL) {
 //         XMEMSET(key, 0, sizeof(*key));
 //     }
@@ -47303,10 +47461,10 @@ static int test_wc_mldsa_composite_make_key(void)
 //     }
 //     XMEMSET(&rng, 0, sizeof(WC_RNG));
 //     XMEMSET(msg, 0x55, sizeof(msg));
-
+//
 //     ExpectIntEQ(wc_InitRng(&rng), 0);
 //     ExpectIntEQ(wc_dilithium_init(key), 0);
-
+//
 // #ifndef WOLFSSL_NO_ML_DSA_44
 //     ExpectIntEQ(wc_dilithium_set_level(key, WC_ML_DSA_44), 0);
 // #elif !defined(WOLFSSL_NO_ML_DSA_65)
@@ -47314,7 +47472,7 @@ static int test_wc_mldsa_composite_make_key(void)
 // #else
 //     ExpectIntEQ(wc_dilithium_set_level(key, WC_ML_DSA_87), 0);
 // #endif
-
+//
 // #ifdef WOLFSSL_DILITHIUM_NO_MAKE_KEY
 // #ifndef WOLFSSL_NO_ML_DSA_44
 //     ExpectIntEQ(wc_dilithium_import_private(bench_dilithium_level2_key,
@@ -47329,7 +47487,7 @@ static int test_wc_mldsa_composite_make_key(void)
 // #else
 //     ExpectIntEQ(wc_dilithium_make_key(key, &rng), 0);
 // #endif
-
+//
 //     ExpectIntEQ(wc_dilithium_sign_msg(NULL, 32, NULL, NULL, NULL, NULL),
 //         BAD_FUNC_ARG);
 //     ExpectIntEQ(wc_dilithium_sign_msg(msg, 32, NULL, NULL, NULL, NULL),
@@ -47353,7 +47511,7 @@ static int test_wc_mldsa_composite_make_key(void)
 //     ExpectIntEQ(wc_dilithium_sign_msg(msg, 32, sig, &sigLen, key, NULL),
 //         BAD_FUNC_ARG);
 //     ExpectIntEQ(wc_dilithium_sign_msg(msg, 32, sig, &sigLen, key, &rng), 0);
-
+//
 //     ExpectIntEQ(wc_dilithium_export_private(NULL, NULL, NULL),
 //         BAD_FUNC_ARG);
 //     ExpectIntEQ(wc_dilithium_export_private(key, NULL, NULL),
@@ -47387,7 +47545,7 @@ static int test_wc_mldsa_composite_make_key(void)
 // #else
 //     ExpectIntEQ(privKeyLen, DILITHIUM_LEVEL5_KEY_SIZE);
 // #endif
-
+//
 //     ExpectIntEQ(wc_dilithium_init(importKey), 0);
 //     ExpectIntEQ(wc_dilithium_import_private(privKey, privKeyLen, importKey),
 //         BAD_FUNC_ARG);
@@ -47419,10 +47577,10 @@ static int test_wc_mldsa_composite_make_key(void)
 //     ExpectIntEQ(wc_dilithium_check_key(importKey), PUBLIC_KEY_E);
 // #endif
 //     wc_dilithium_free(importKey);
-
+//
 //     wc_dilithium_free(key);
 //     wc_FreeRng(&rng);
-
+//
 //     XFREE(sig, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 //     XFREE(privKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 //     XFREE(importKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -47462,7 +47620,7 @@ static int test_wc_mldsa_composite_make_key(void)
 // #ifndef WOLFSSL_NO_ML_DSA_44
 //     byte b;
 // #endif
-
+//
 //     key = (dilithium_key*)XMALLOC(sizeof(*key), NULL, DYNAMIC_TYPE_TMP_BUFFER);
 //     ExpectNotNull(key);
 //     importKey = (dilithium_key*)XMALLOC(sizeof(*key), NULL,
@@ -47474,7 +47632,7 @@ static int test_wc_mldsa_composite_make_key(void)
 //     sig = (byte*)XMALLOC(DILITHIUM_MAX_SIG_SIZE, NULL,
 //         DYNAMIC_TYPE_TMP_BUFFER);
 //     ExpectNotNull(sig);
-
+//
 //     if (key != NULL) {
 //         XMEMSET(key, 0, sizeof(*key));
 //     }
@@ -47483,10 +47641,10 @@ static int test_wc_mldsa_composite_make_key(void)
 //     }
 //     XMEMSET(&rng, 0, sizeof(WC_RNG));
 //     XMEMSET(msg, 0x55, sizeof(msg));
-
+//
 //     ExpectIntEQ(wc_InitRng(&rng), 0);
 //     ExpectIntEQ(wc_dilithium_init(key), 0);
-
+//
 // #ifndef WOLFSSL_NO_ML_DSA_44
 //     ExpectIntEQ(wc_dilithium_set_level(key, WC_ML_DSA_44), 0);
 // #elif !defined(WOLFSSL_NO_ML_DSA_65)
@@ -47494,7 +47652,7 @@ static int test_wc_mldsa_composite_make_key(void)
 // #else
 //     ExpectIntEQ(wc_dilithium_set_level(key, WC_ML_DSA_87), 0);
 // #endif
-
+//
 // #if !defined(WOLFSSL_NO_ML_DSA_44)
 //     ExpectIntEQ(wc_dilithium_import_public(ml_dsa_44_pub_key,
 //         (word32)sizeof(ml_dsa_44_pub_key), key), 0);
@@ -47514,10 +47672,10 @@ static int test_wc_mldsa_composite_make_key(void)
 // #else
 //     ExpectIntEQ(wc_dilithium_make_key(key, &rng), 0);
 // #endif /* WOLFSSL_DILITHIUM_NO_MAKE_KEY */
-
+//
 //     ExpectIntEQ(wc_dilithium_sign_msg(msg, 32, sig, &sigLen, key, &rng), 0);
 // #endif /* !WOLFSSL_NO_ML_DSA_44 */
-
+//
 //     ExpectIntEQ(wc_dilithium_export_public(NULL, NULL, NULL),
 //         BAD_FUNC_ARG);
 //     ExpectIntEQ(wc_dilithium_export_public(key, NULL, NULL),
@@ -47550,7 +47708,7 @@ static int test_wc_mldsa_composite_make_key(void)
 // #else
 //     ExpectIntEQ(pubKeyLen, DILITHIUM_LEVEL5_PUB_KEY_SIZE);
 // #endif
-
+//
 //     ExpectIntEQ(wc_dilithium_verify_msg(NULL, 0, NULL, 32, NULL, NULL),
 //        BAD_FUNC_ARG);
 //     ExpectIntEQ(wc_dilithium_verify_msg(sig, 0, NULL, 32, NULL, NULL),
@@ -47574,7 +47732,7 @@ static int test_wc_mldsa_composite_make_key(void)
 //     res = 0;
 //     ExpectIntEQ(wc_dilithium_verify_msg(sig, sigLen, msg, 32, &res, key), 0);
 //     ExpectIntEQ(res, 1);
-
+//
 //     ExpectIntEQ(wc_dilithium_init(importKey), 0);
 //     ExpectIntEQ(wc_dilithium_import_public(pubKey, pubKeyLen, importKey),
 //         BAD_FUNC_ARG);
@@ -47608,7 +47766,7 @@ static int test_wc_mldsa_composite_make_key(void)
 //     ExpectIntEQ(wc_dilithium_check_key(importKey), BAD_FUNC_ARG);
 // #endif
 //     wc_dilithium_free(importKey);
-
+//
 // #ifndef WOLFSSL_NO_ML_DSA_44
 //     if (sig != NULL) {
 //         if (sig[sigLen - 5] == 0) {
@@ -47620,7 +47778,7 @@ static int test_wc_mldsa_composite_make_key(void)
 //             ExpectIntEQ(res, 0);
 //             sig[sigLen - 5] = 0x00;
 //         }
-
+//
 //         /* Last count of hints must be less than PARAMS_ML_DSA_44_OMEGA == 80 */
 //         b = sig[sigLen - 1];
 //         sig[sigLen - 1] = 0xff;
@@ -47629,7 +47787,7 @@ static int test_wc_mldsa_composite_make_key(void)
 //             SIG_VERIFY_E);
 //         ExpectIntEQ(res, 0);
 //         sig[sigLen - 1] = b;
-
+//
 //         if (sig[sigLen - 4] > 1) {
 //             /* Index must be less than previous. */
 //             b = sig[sigLen - 84];
@@ -47640,7 +47798,7 @@ static int test_wc_mldsa_composite_make_key(void)
 //             ExpectIntEQ(res, 0);
 //             sig[sigLen - 84] = b;
 //         }
-
+//
 //         /* Mess up commit hash. */
 //         sig[0] ^= 0x80;
 //         res = 1;
@@ -47648,7 +47806,7 @@ static int test_wc_mldsa_composite_make_key(void)
 //             0);
 //         ExpectIntEQ(res, 0);
 //         sig[0] ^= 0x80;
-
+//
 //         /* Mess up z. */
 //         sig[100] ^= 0x80;
 //         res = 1;
@@ -47656,7 +47814,7 @@ static int test_wc_mldsa_composite_make_key(void)
 //             0);
 //         ExpectIntEQ(res, 0);
 //         sig[100] ^= 0x80;
-
+//
 //         /* Set all indeces to 0. */
 //         XMEMSET(sig + sigLen - 4, 0, 4);
 //         ExpectIntEQ(wc_dilithium_verify_msg(sig, sigLen, msg, 32, &res, key),
@@ -47664,10 +47822,10 @@ static int test_wc_mldsa_composite_make_key(void)
 //         ExpectIntEQ(res, 0);
 //     }
 // #endif
-
+//
 //     wc_dilithium_free(key);
 //     wc_FreeRng(&rng);
-
+//
 //     XFREE(sig, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 //     XFREE(pubKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 //     XFREE(importKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -47689,14 +47847,14 @@ static int test_wc_mldsa_composite_make_key(void)
 //     defined(WOLFSSL_DILITHIUM_PUBLIC_KEY)
 //     dilithium_key* key;
 //     word32 idx = 0;
-
+//
 //     key = (dilithium_key*)XMALLOC(sizeof(*key), NULL, DYNAMIC_TYPE_TMP_BUFFER);
 //     ExpectNotNull(key);
-
+//
 //     if (key != NULL) {
 //         XMEMSET(key, 0, sizeof(*key));
 //     }
-
+//
 //     ExpectIntEQ(wc_dilithium_init(key), 0);
 // #ifndef WOLFSSL_NO_ML_DSA_44
 //     ExpectIntEQ(wc_dilithium_set_level(key, WC_ML_DSA_44), 0);
@@ -47707,13 +47865,13 @@ static int test_wc_mldsa_composite_make_key(void)
 // #endif
 //     ExpectIntEQ(wc_Dilithium_PublicKeyDecode(dilithium_public_der, &idx, key,
 //         (word32)sizeof(dilithium_public_der)), 0);
-
+//
 //     wc_dilithium_free(key);
 //     XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 // #endif
 //     return EXPECT_RESULT();
 // }
-
+//
 // static int test_wc_mldsa_composite_der(void)
 // {
 //     EXPECT_DECLS;
@@ -47730,7 +47888,7 @@ static int test_wc_mldsa_composite_make_key(void)
 //     int privDerLen;
 //     int keyDerLen;
 //     word32 idx;
-
+//
 // #ifndef WOLFSSL_NO_ML_DSA_44
 //     pubLen = DILITHIUM_LEVEL2_PUB_KEY_SIZE;
 //     pubDerLen = DILITHIUM_LEVEL2_PUB_KEY_SIZE + 24;
@@ -47747,19 +47905,19 @@ static int test_wc_mldsa_composite_make_key(void)
 //     privDerLen = DILITHIUM_LEVEL5_KEY_SIZE + 30;
 //     keyDerLen = DILITHIUM_LEVEL5_PUB_KEY_SIZE + DILITHIUM_LEVEL5_KEY_SIZE + 34;
 // #endif
-
+//
 //     key = (dilithium_key*)XMALLOC(sizeof(*key), NULL, DYNAMIC_TYPE_TMP_BUFFER);
 //     ExpectNotNull(key);
 //     der = (byte*)XMALLOC(DILITHIUM_MAX_DER_SIZE, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 //     ExpectNotNull(der);
-
+//
 //     if (key != NULL) {
 //         XMEMSET(key, 0, sizeof(*key));
 //     }
 //     XMEMSET(&rng, 0, sizeof(WC_RNG));
 //     ExpectIntEQ(wc_InitRng(&rng), 0);
 //     ExpectIntEQ(wc_dilithium_init(key), 0);
-
+//
 //     ExpectIntEQ(wc_Dilithium_PublicKeyToDer(key, der, DILITHIUM_MAX_DER_SIZE,
 //         0), BAD_FUNC_ARG);
 //     ExpectIntEQ(wc_Dilithium_PublicKeyToDer(key, der, DILITHIUM_MAX_DER_SIZE,
@@ -47770,7 +47928,7 @@ static int test_wc_mldsa_composite_make_key(void)
 //         BAD_FUNC_ARG);
 //     ExpectIntEQ(wc_Dilithium_PrivateKeyDecode(der, &idx, key, privDerLen),
 //         BAD_FUNC_ARG);
-
+//
 // #ifndef WOLFSSL_NO_ML_DSA_44
 //     ExpectIntEQ(wc_dilithium_set_level(key, WC_ML_DSA_44), 0);
 // #elif !defined(WOLFSSL_NO_ML_DSA_65)
@@ -47778,16 +47936,16 @@ static int test_wc_mldsa_composite_make_key(void)
 // #else
 //     ExpectIntEQ(wc_dilithium_set_level(key, WC_ML_DSA_87), 0);
 // #endif
-
+//
 //     ExpectIntEQ(wc_Dilithium_PublicKeyToDer(key, der, DILITHIUM_MAX_DER_SIZE,
 //         0), BAD_FUNC_ARG);
 //     ExpectIntEQ(wc_Dilithium_PublicKeyToDer(key, der, DILITHIUM_MAX_DER_SIZE,
 //         1), BAD_FUNC_ARG);
 //     ExpectIntEQ(wc_Dilithium_PrivateKeyToDer(key, der, DILITHIUM_MAX_DER_SIZE),
 //         BAD_FUNC_ARG);
-
+//
 //     ExpectIntEQ(wc_dilithium_make_key(key, &rng), 0);
-
+//
 //     ExpectIntEQ(wc_Dilithium_PublicKeyToDer(NULL, NULL, 0                     ,
 //         0), BAD_FUNC_ARG);
 //     ExpectIntEQ(wc_Dilithium_PublicKeyToDer(NULL, der , 0                     ,
@@ -47807,7 +47965,7 @@ static int test_wc_mldsa_composite_make_key(void)
 //         1), pubDerLen);
 //     ExpectIntEQ(wc_Dilithium_PublicKeyToDer(key , NULL, DILITHIUM_MAX_DER_SIZE,
 //         1), pubDerLen);
-
+//
 //     ExpectIntEQ(wc_Dilithium_PrivateKeyToDer(NULL, NULL,
 //         0                     ), BAD_FUNC_ARG);
 //     ExpectIntGT(wc_Dilithium_PrivateKeyToDer(key , NULL,
@@ -47823,7 +47981,7 @@ static int test_wc_mldsa_composite_make_key(void)
 //     /* Get length only. */
 //     ExpectIntEQ(wc_Dilithium_PrivateKeyToDer(key , NULL,
 //         DILITHIUM_MAX_DER_SIZE), privDerLen);
-
+//
 //     ExpectIntEQ(wc_Dilithium_KeyToDer(NULL, NULL, 0                     ),
 //         BAD_FUNC_ARG);
 //     ExpectIntGT(wc_Dilithium_KeyToDer(key , NULL, 0                     ),
@@ -47839,7 +47997,7 @@ static int test_wc_mldsa_composite_make_key(void)
 //     /* Get length only. */
 //     ExpectIntEQ(wc_Dilithium_KeyToDer(key , NULL, DILITHIUM_MAX_DER_SIZE),
 //         keyDerLen);
-
+//
 //     ExpectIntEQ(wc_Dilithium_PublicKeyDecode(NULL, NULL, NULL, 0        ),
 //         BAD_FUNC_ARG);
 //     ExpectIntEQ(wc_Dilithium_PublicKeyDecode(der , NULL, NULL, 0        ),
@@ -47858,7 +48016,7 @@ static int test_wc_mldsa_composite_make_key(void)
 //         BAD_FUNC_ARG);
 //     ExpectIntEQ(wc_Dilithium_PublicKeyDecode(der , &idx, key , 0        ),
 //         BAD_FUNC_ARG);
-
+//
 //     ExpectIntEQ(wc_Dilithium_PrivateKeyDecode(NULL, NULL, NULL, 0         ),
 //         BAD_FUNC_ARG);
 //     ExpectIntEQ(wc_Dilithium_PrivateKeyDecode(der , NULL, NULL, 0         ),
@@ -47877,11 +48035,11 @@ static int test_wc_mldsa_composite_make_key(void)
 //         BAD_FUNC_ARG);
 //     ExpectIntEQ(wc_Dilithium_PrivateKeyDecode(der , &idx, key , 0         ),
 //         BAD_FUNC_ARG);
-
+//
 //     ExpectIntEQ(len = wc_Dilithium_PublicKeyToDer(key, der,
 //         DILITHIUM_MAX_DER_SIZE, 0), pubLen);
 //     ExpectIntEQ(wc_dilithium_import_public(der, len, key), 0);
-
+//
 //     ExpectIntEQ(len = wc_Dilithium_PublicKeyToDer(key, der,
 //         DILITHIUM_MAX_DER_SIZE, 1), pubDerLen);
 //     idx = 0;
@@ -47895,21 +48053,21 @@ static int test_wc_mldsa_composite_make_key(void)
 //     }
 // }
 //     ExpectIntEQ(wc_Dilithium_PublicKeyDecode(der, &idx, key, len), 0);
-
+//
 //     ExpectIntEQ(len = wc_Dilithium_PrivateKeyToDer(key, der,
 //         DILITHIUM_MAX_DER_SIZE), privDerLen);
 //     idx = 0;
 //     ExpectIntEQ(wc_Dilithium_PrivateKeyDecode(der, &idx, key, len), 0);
-
+//
 //     ExpectIntEQ(len = wc_Dilithium_KeyToDer(key, der, DILITHIUM_MAX_DER_SIZE),
 //         keyDerLen);
 //     idx = 0;
 //     ExpectIntEQ(wc_Dilithium_PrivateKeyDecode(der, &idx, key, len), 0);
-
-
+//
+//
 //     wc_dilithium_free(key);
 //     wc_FreeRng(&rng);
-
+//
 //     XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 //     XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 // #endif
@@ -95806,7 +95964,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wc_mldsa_composite),
     TEST_DECL(test_wc_mldsa_composite_make_key),
     // TEST_DECL(test_wc_mldsa_composite_size),
-    // TEST_DECL(test_wc_mldsa_composite_export),
+    TEST_DECL(test_wc_mldsa_composite_export),
     // TEST_DECL(test_wc_mldsa_composite_sign_msg),
     // TEST_DECL(test_wc_mldsa_composite_import_public),
     // TEST_DECL(test_wc_mldsa_composite_import_private_key),
