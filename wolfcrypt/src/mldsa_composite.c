@@ -94,15 +94,31 @@ enum {
 int wc_mldsa_composite_make_key(mldsa_composite_key* key, WC_RNG* rng)
 {
     int ret = 0;
-  
+    int mldsa_level = WC_ML_DSA_44;
+
     if (!key || !rng) {
         return BAD_FUNC_ARG;
     }
 
+    switch (key->params.type) {
+        case WC_MLDSA_COMPOSITE_TYPE_MLDSA44_ED25519:
+            mldsa_level = WC_ML_DSA_44;
+            break;
+        case WC_MLDSA_COMPOSITE_TYPE_MLDSA44_P256:
+            mldsa_level = WC_ML_DSA_44;
+            break;
+        default:
+            return BAD_STATE_E;
+    }
+
     // Initialize and Generate the ML-DSA key
     if ((wc_dilithium_init_ex(&key->mldsa_key, key->heap, key->devId) < 0) ||
-        (wc_dilithium_make_key(&key->mldsa_key, rng) < 0)) {
-        return ALGO_ID_E;
+        (wc_dilithium_set_level(&key->mldsa_key, mldsa_level) < 0)) {
+        return BAD_STATE_E;
+    }
+
+    if (wc_dilithium_make_key(&key->mldsa_key, rng) < 0) {
+        return CRYPTGEN_E;
     }
     
     // Initialize and Generate the Traditional DSA key
@@ -110,7 +126,7 @@ int wc_mldsa_composite_make_key(mldsa_composite_key* key, WC_RNG* rng)
 
         case WC_MLDSA_COMPOSITE_TYPE_MLDSA44_ED25519: {
             if (wc_ed25519_init_ex(&key->alt_key.ed25519, key->heap, key->devId) < 0)
-                return CRYPTGEN_E;
+                return BAD_STATE_E;
 
             // wc_ed25519_init(&key->alt_key.ed25519);
             // int kSz = wc_ed25519_size(&key->alt_key.ed25519);
@@ -120,7 +136,7 @@ int wc_mldsa_composite_make_key(mldsa_composite_key* key, WC_RNG* rng)
 
         case WC_MLDSA_COMPOSITE_TYPE_MLDSA44_P256: {
             if (wc_ecc_init_ex(&key->alt_key.ecc, key->heap, key->devId) < 0)
-                return CRYPTGEN_E;
+                return BAD_STATE_E;
             // wc_ecc_init(&key->alt_key.ecc);
             int kSz = wc_ecc_get_curve_size_from_id(ECC_SECP256R1);
             if (wc_ecc_make_key(rng, kSz, &key->alt_key.ecc) < 0) {
