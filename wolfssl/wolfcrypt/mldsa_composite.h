@@ -122,8 +122,8 @@
 #define RSA4096_KEY_SIZE                512
 #define RSA4096_SIG_SIZE                512
 
-#define MLDSA44_P256_KEY_SIZE       DILITHIUM_ML_DSA_44_KEY_SIZE + ECC_MAXSIZE + 12
-#define MLDSA44_P256_SIG_SIZE       DILITHIUM_ML_DSA_44_SIG_SIZE + ECC_MAX_SIG_SIZE + 12
+#define MLDSA44_P256_KEY_SIZE       DILITHIUM_ML_DSA_44_KEY_SIZE + 32 + 12
+#define MLDSA44_P256_SIG_SIZE       DILITHIUM_ML_DSA_44_SIG_SIZE + 72 + 12
 #define MLDSA44_P256_PUB_KEY_SIZE   DILITHIUM_ML_DSA_44_PUB_KEY_SIZE + 64 + 12
 #define MLDSA44_P256_PRV_KEY_SIZE   \
     (MLDSA44_P256_PUB_KEY_SIZE + MLDSA44_P256_KEY_SIZE)
@@ -202,10 +202,6 @@ struct mldsa_composite_key {
     void * p;
         /* Pointer to Raw Encoding */
     
-    byte pubKeySet;
-    byte prvKeySet;
-        /* Track key contents */
-
     int devId;
         /* should use wc_CryptoCb_DefaultDevID() */
 

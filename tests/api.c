@@ -47575,31 +47575,29 @@ EXPECT_DECLS;
     ExpectIntEQ(wc_mldsa_composite_make_key(key, &rng), 0);
 #endif
 
-/*
-    ExpectIntEQ(wc_dilithium_sign_msg(NULL, 32, NULL, NULL, NULL, NULL),
+    ExpectIntEQ(wc_mldsa_composite_sign_msg(NULL, 32, NULL, NULL, NULL, NULL),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_dilithium_sign_msg(msg, 32, NULL, NULL, NULL, NULL),
+    ExpectIntEQ(wc_mldsa_composite_sign_msg(msg, 32, NULL, NULL, NULL, NULL),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_dilithium_sign_msg(NULL, 32, sig, NULL, NULL, NULL),
+    ExpectIntEQ(wc_mldsa_composite_sign_msg(NULL, 32, sig, NULL, NULL, NULL),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_dilithium_sign_msg(NULL, 32, NULL, &sigLen, NULL, NULL),
+    ExpectIntEQ(wc_mldsa_composite_sign_msg(NULL, 32, NULL, &sigLen, NULL, NULL),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_dilithium_sign_msg(NULL, 32, NULL, NULL, key, NULL),
+    ExpectIntEQ(wc_mldsa_composite_sign_msg(NULL, 32, NULL, NULL, key, NULL),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_dilithium_sign_msg(NULL, 32, NULL, NULL, NULL, &rng),
+    ExpectIntEQ(wc_mldsa_composite_sign_msg(NULL, 32, NULL, NULL, NULL, &rng),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_dilithium_sign_msg(NULL, 32, sig, &sigLen, key, &rng),
+    ExpectIntEQ(wc_mldsa_composite_sign_msg(NULL, 32, sig, &sigLen, key, &rng),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_dilithium_sign_msg(msg, 32, NULL, &sigLen, key, &rng),
+    ExpectIntEQ(wc_mldsa_composite_sign_msg(msg, 32, NULL, &sigLen, key, &rng),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_dilithium_sign_msg(msg, 32, sig, NULL, key, &rng),
+    ExpectIntEQ(wc_mldsa_composite_sign_msg(msg, 32, sig, NULL, key, &rng),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_dilithium_sign_msg(msg, 32, sig, &sigLen, NULL, &rng),
+    ExpectIntEQ(wc_mldsa_composite_sign_msg(msg, 32, sig, &sigLen, NULL, &rng),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_dilithium_sign_msg(msg, 32, sig, &sigLen, key, NULL),
+    ExpectIntEQ(wc_mldsa_composite_sign_msg(msg, 32, sig, &sigLen, key, NULL),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_dilithium_sign_msg(msg, 32, sig, &sigLen, key, &rng), 0);
-*/
+    ExpectIntEQ(wc_mldsa_composite_sign_msg(msg, 32, sig, &sigLen, key, &rng), 0);
 
     ExpectIntEQ(wc_mldsa_composite_export_private(NULL, NULL, NULL),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));

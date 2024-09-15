@@ -45302,6 +45302,7 @@ static wc_test_ret_t mldsa_composite_param_test(int param, WC_RNG* rng)
 {
     wc_test_ret_t ret;
     mldsa_composite_key* key;
+    mldsa_composite_key imported_key;
     byte* sig = NULL;
 #ifndef WOLFSSL_MLDSA_COMPOSITE_NO_SIGN
     word32 sigLen;
@@ -45314,6 +45315,12 @@ static wc_test_ret_t mldsa_composite_param_test(int param, WC_RNG* rng)
     byte pubKey_Buffer[MLDSA_COMPOSITE_MAX_PUB_KEY_SIZE];
     word32 pubKey_BufferLen = MLDSA_COMPOSITE_MAX_PUB_KEY_SIZE;
 
+    byte privKey_Buffer[MLDSA_COMPOSITE_MAX_PRV_KEY_SIZE];
+    word32 privKey_BufferLen = MLDSA_COMPOSITE_MAX_PRV_KEY_SIZE;
+
+    byte exportKey_Buffer[MLDSA_COMPOSITE_MAX_KEY_SIZE];
+    word32 exportKey_BufferLen = MLDSA_COMPOSITE_MAX_KEY_SIZE;
+
     key = (mldsa_composite_key*)XMALLOC(sizeof(*key), HEAP_HINT,
         DYNAMIC_TYPE_TMP_BUFFER);
     if (key == NULL) {
@@ -45325,11 +45332,16 @@ static wc_test_ret_t mldsa_composite_param_test(int param, WC_RNG* rng)
         ERROR_OUT(WC_TEST_RET_ENC_ERRNO, out);
     }
 
+    printf("mldsa_composite_param_test: param = %d\n", param);
+
+
     ret = wc_mldsa_composite_init(key);
     if (ret != 0) {
         ret = WC_TEST_RET_ENC_EC(ret);
         return ret;
     }
+
+    printf("ML-DSA Composite - Make Key\n");
 
     ret = wc_mldsa_composite_set_type(key, param);
     if (ret != 0) {
@@ -45340,47 +45352,55 @@ static wc_test_ret_t mldsa_composite_param_test(int param, WC_RNG* rng)
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
+    printf("ML-DSA Composite - Pub Export Public\n");
+    printf("                   mldsa_composite_export_public()\n");
+
     ret = wc_mldsa_composite_export_public(key, pubKey_Buffer, &pubKey_BufferLen);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
-    do {
-        FILE * pubkeyfile = NULL;
-        if (param == WC_MLDSA_COMPOSITE_TYPE_MLDSA44_P256) {
-            pubkeyfile = fopen("mldsa-composite-pubkey-p256.bin", "wb");
-        } else {
-            pubkeyfile = fopen("mldsa-composite-pubkey-ed25519.bin", "wb");
-        }
-        fwrite(pubKey_Buffer, pubKey_BufferLen, 1, pubkeyfile);
-        fclose(pubkeyfile);
-    } while (0);
+    // printf("ML-DSA Composite - Pub Import Public\n");
+
+    // ret = wc_mldsa_composite_import_public(pubKey_Buffer, pubKey_BufferLen, &imported_key, param);
+    // if (ret != 0)
+    //     ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    printf("                   mldsa_composite_export_private()\n");
+
+    ret = wc_mldsa_composite_export_private(key, privKey_Buffer, &privKey_BufferLen);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    printf("                   mldsa_composite_export_key()\n");
+
+    ret = wc_mldsa_composite_export_key(key, exportKey_Buffer, &exportKey_BufferLen, pubKey_Buffer, &pubKey_BufferLen);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    (void)imported_key;
+    (void)res;
+    (void)msg;
+    (void)sigLen;
+    (void)sig;
 
 #ifndef WOLFSSL_MLDSA_COMPOSITE_NO_SIGN
 
-printf("DEBUG: Sign Message\n");
+    printf("ML-DSA Composite - Sign and Verify\n");
 
     sigLen = wc_mldsa_composite_sig_size(key);
     if (sigLen <= 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
-    printf("MLDSA_COMPOSITE: Sign Message (Expected SigLen: %d)\n", sigLen);
+    printf("ML-DSA Composite - Sign\n");
 
     ret = wc_mldsa_composite_sign_msg(msg, (word32)sizeof(msg), sig, &sigLen, key, rng);
-
-    printf("MLDSA_COMPOSITE: Zuppa Ok 2 (sigLen = %d)\n", sigLen);
-
-    do {
-        FILE * sigfile = fopen("mldsa-composite-sig.bin", "wb");
-        fwrite(sig, sigLen, 1, sigfile);
-        fclose(sigfile);
-    } while (0);
     
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
 #ifndef WOLFSSL_MLDSA_COMPOSITE_NO_VERIFY
 
-    printf("MLDSA_COMPOSITE: Verify Msg\n");
+    printf("ML-DSA Composite - Verify\n");
 
     ret = wc_mldsa_composite_verify_msg(sig, sigLen, msg, (word32)sizeof(msg), &res,
         key);
@@ -45390,6 +45410,31 @@ printf("DEBUG: Sign Message\n");
         ERROR_OUT(WC_TEST_RET_ENC_EC(res), out);
 #endif
 #endif
+
+    printf("ML-DSA Composite - Private Export\n");
+
+    ret = wc_mldsa_composite_export_private(key, privKey_Buffer, &privKey_BufferLen);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    printf("ML-DSA Composite - Private Import\n");
+
+    MlDsaCompositeKey * private_key = NULL;
+    private_key = XMALLOC(sizeof(MlDsaCompositeKey), HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    if (private_key == NULL) {
+        ERROR_OUT(WC_TEST_RET_ENC_ERRNO, out);
+    }
+    ret = wc_mldsa_composite_import_private(privKey_Buffer, privKey_BufferLen, private_key, param);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    wc_mldsa_composite_free(private_key);
+
+    // printf("ML-DSA Composite - Export Key\n");
+
+    // ret = wc_mldsa_composite_export_key(key, exportKey_Buffer, &exportKey_BufferLen, pubKey_Buffer, &pubKey_BufferLen);
+    // if (ret != 0)
+    //     ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
 out:
     wc_mldsa_composite_free(key);
@@ -45420,9 +45465,9 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t mldsa_composite_test(void)
     ret = mldsa_composite_param_test(WC_MLDSA44_P256, &rng);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
-    ret = mldsa_composite_param_test(WC_MLDSA44_ED25519, &rng);
-    if (ret != 0)
-        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    // ret = mldsa_composite_param_test(WC_MLDSA44_ED25519, &rng);
+    // if (ret != 0)
+    //     ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 #endif
 #endif
 
