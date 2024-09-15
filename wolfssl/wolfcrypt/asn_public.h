@@ -152,6 +152,7 @@ enum CertType {
     CA_TYPE,
     ECC_PRIVATEKEY_TYPE,
     DSA_PRIVATEKEY_TYPE,
+    ACERT_TYPE,
     CERTREQ_TYPE,
     DSA_TYPE,
     ECC_TYPE,
