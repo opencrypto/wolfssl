@@ -640,8 +640,6 @@ int wc_mldsa_composite_size(mldsa_composite_key* key)
             ret = ALGO_ID_E;
     }
 
-    MADWOLF_DEBUG("(wc_mldsa_composite_size): Private Key Size: %d\n", ret);
-
     return ret;
 }
 
