@@ -74,12 +74,6 @@
         fflush(stdout);                               \
     } while (0)
 
-    //    char line[256];                              
-    //   snprintf(line, sizeof(line) - 1, "%d: " a, __LINE__, __VA_ARGS__);  
-    //   line[sizeof(line) - 1] = '\0';                  
-    //   WOLFSSL_MSG(line);                              
-    // } while (0)
-
 #ifdef HAVE_MLDSA_COMPOSITE
 
 static const ASNItem compositeIT[] = {
@@ -383,7 +377,6 @@ int wc_mldsa_composite_sign_msg_ex(const byte* msg, word32 msgLen, byte* sig,
         WOLFSSL_MSG_VSNPRINTF("error not enough space for ASN1 data (needed: %d, provided: %d)", *sigLen, inSigLen);
         return BUFFER_E;
     }
-
 
     // Let's encode the ASN1 data
     if ((*sigLen = SetASN_Items(compositeIT, sigsASN, 3, sig)) <= 0) { 
