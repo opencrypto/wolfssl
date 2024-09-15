@@ -577,7 +577,7 @@ static word32 SizeASNLength(word32 length)
 
 #ifdef DEBUG_WOLFSSL
     /* Enable this when debugging the parsing or creation of ASN.1 data. */
-    #if 0
+    #if 1
         #define WOLFSSL_DEBUG_ASN_TEMPLATE
     #endif
 #endif

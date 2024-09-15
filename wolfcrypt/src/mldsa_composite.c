@@ -39,6 +39,7 @@
 
 #if defined(HAVE_MLDSA_COMPOSITE)
 #include <wolfssl/wolfcrypt/mldsa_composite.h>
+#endif
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>
@@ -59,32 +60,39 @@
       WOLFSSL_MSG(line);                              \
     }                                                 \
     while (0)
-#endif
+
+#define MADWOLF_DEBUG0(a)                         \
+    do {                                              \
+        printf("[%s():%d] " a "\n", __func__, __LINE__);      \
+        fflush(stdout);                               \
+    } while (0)
+
+
+#define MADWOLF_DEBUG(a, ...)                         \
+    do {                                              \
+        printf("[%s():%d] " a "\n", __func__, __LINE__, __VA_ARGS__);      \
+        fflush(stdout);                               \
+    } while (0)
+
+    //    char line[256];                              
+    //   snprintf(line, sizeof(line) - 1, "%d: " a, __LINE__, __VA_ARGS__);  
+    //   line[sizeof(line) - 1] = '\0';                  
+    //   WOLFSSL_MSG(line);                              
+    // } while (0)
 
 #ifdef HAVE_MLDSA_COMPOSITE
-static ASNItem compSigsIT[] = {
-/*  SEQ */    { 0, ASN_SEQUENCE, 1, 1, 0 },
-/*  ML-DSA */   { 1, ASN_BIT_STRING, 0, 0, 0 },
-/*  Trad */     { 1, ASN_BIT_STRING, 0, 0, 0 },
-};
-enum {
-    MLDSA_COMPASN_IDX_SEQSIG = 0,
-    MLDSA_COMPASN_IDX_MLDSASIG,
-    MLDSA_COMPASN_IDX_OTHERSIG,
-};
-#define sigsASN_Length (sizeof(sigsASN) / sizeof(ASNItem))
 
-static ASNItem compKeyIT[] = {
+static const ASNItem compositeIT[] = {
 /*  SEQ */    { 0, ASN_SEQUENCE, 1, 1, 0 },
 /*  ML-DSA */   { 1, ASN_BIT_STRING, 0, 0, 0 },
 /*  Trad */     { 1, ASN_BIT_STRING, 0, 0, 0 },
 };
 enum {
-    MLDSA_COMPASN_IDX_SEQKEY = 0,
-    MLDSA_COMPASN_IDX_MLDSAKEY,
-    MLDSA_COMPASN_IDX_OTHERKEY,
+    MLDSA_COMPASN_IDX_SEQ   = 0,
+    MLDSA_COMPASN_IDX_MLDSA = 1,
+    MLDSA_COMPASN_IDX_OTHER = 2,
 };
-#define sigsASN_Length (sizeof(sigsASN) / sizeof(ASNItem))
+#define mldsaCompASN_Length 3
 
 /******************************************************************************
  * Encode/Decode operations
@@ -163,124 +171,121 @@ int wc_mldsa_composite_verify_msg_ex(const byte* sig, word32 sigLen, const byte*
     word32 msgLen, int* res, mldsa_composite_key* key, const byte* context, byte contextLen) {
 
     int ret = 0;
+        // Ret value
+
+    word32 idx = 0;
+        // Index for the ASN.1 data
    
+    ASNGetData compSigsASN[mldsaCompASN_Length];
+    ASNItem sigsIT[mldsaCompASN_Length] = {
+        { 0, ASN_SEQUENCE, 1, 1, 0 },
+            { 1, ASN_BIT_STRING, 0, 0, 0 },
+            { 1, ASN_BIT_STRING, 0, 0, 0 },
+    };
+
+    byte mldsa_Buffer[DILITHIUM_ML_DSA_44_SIG_SIZE];
+    word32 mldsa_BufferLen = DILITHIUM_ML_DSA_44_SIG_SIZE;
+        // Buffer to hold the ML-DSA public key
+
+    byte other_Buffer[MLDSA_COMPOSITE_MAX_OTHER_SIG_SZ];
+    word32 other_BufferLen = MLDSA_COMPOSITE_MAX_OTHER_SIG_SZ;
+        // Buffer to hold the public key of the other DSA component
+
     // Error Handling: Check for NULL pointers and invalid input lengths. 
     if (!sig || !msg || !res || !key) { 
-        *res = 0; // Or a more specific error code if needed
         return BAD_FUNC_ARG; 
     }
     
-    byte * mldsa_sig_buffer = 0;
-    int mldsa_sig_buffer_len = 0;
-
-    byte * other_sig_buffer = 0;
-    int other_sig_buffer_len = 0;
-
+    // Sets the error flag to 0 (error)
     *res = 0;
 
-    // Let's parse the signature as a DER SEQUENCE of BIT STRINGs
-    // - Each BIT STRING represents a signature from a DSA component
-    // - The number of BIT STRINGs should match the number of DSA components in the composite key
-    // - The length of each BIT STRING should match the length of the signature of the corresponding DSA component
+    // Sets the buffers to 0
+    XMEMSET(compSigsASN, 0, sizeof(*compSigsASN) * mldsaCompASN_Length);
 
-#ifndef WOLFSSL_ASN_TEMPLATE
-    int idx = 0;
+    // Initialize the ASN data
+    GetASN_Buffer(&compSigsASN[MLDSA_COMPASN_IDX_MLDSA], mldsa_Buffer, &mldsa_BufferLen);
+    GetASN_Buffer(&compSigsASN[MLDSA_COMPASN_IDX_OTHER], other_Buffer, &other_BufferLen);
 
-    if (GetSequence(sig, sigLen, &idx, sigLen) < 0)
-        return ASN_PARSE_E;
-
-    if (GetOctetString(sig, &idx, &mldsa_sig_buffer_len, sigLen) < 0)
-        return ASN_PARSE_E;
-
-    if (GetOctetString(sig, &idx, &other_sig_buffer_len, sigLen) < 0)
-        return ASN_PARSE_E;
-#else
-
-    word32 idx = 0;
-
-    ASNGetData compSigsASN[3];
-
-    (void)compSigsASN;
-    (void)idx;
-    (void)sigLen;
-    (void)msg;
-    (void)msgLen;
-    (void)res;
-    (void)key;
-    (void)context;
-    (void)contextLen;
-
-    // ret = GetASN_BitString(sig, sig + idx, sigLen);
-
-    // // ASNGetData* sigsASN= NULL;
-    // // sigsASN= (ASNGetData*)XMALLOC(sizeof(ASNGetData) * (2), NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    // // if (sigsASN== NULL)
-    // //     return MEMORY_E;
-
-    // ASNGetData compSigsASN[3];
-
-    // ret = GetASN_Items(compSigsIT, compSigsASN, 2, 1, sig, &idx, sigLen);
-    // if (ret < 0) {
-    //     XFREE(sigsASN, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    //     return ASN_PARSE_E;
-    // }
-
-    // mldsa_sig_buffer_len = compSigsASN[0].length;
-    // mldsa_sig_buffer = compSigsASN[0].data.buffer.data;
-    // other_sig_buffer_len = compSigsASN[1].length;
-    // other_sig_buffer = compSigsASN[1].data.buffer.data;
-#endif
-
-    // Verify the ML-DSA Component
-    if (wc_dilithium_verify_msg(mldsa_sig_buffer, mldsa_sig_buffer_len, msg, msgLen, res, &key->mldsa_key) < 0)
-        return ALGO_ID_E;
+    // Parse the ASN.1 data
+    if ((ret = GetASN_Items(sigsIT, compSigsASN, 3, 1, sig, &idx, sigLen)) < 0) {
+        MADWOLF_DEBUG("Error while parsing ASN.1 (%d)", ret);
+        return ret;
+    }
 
     // Verify Individual DSA Components: 
     switch (key->params.type) {
 
         case WC_MLDSA_COMPOSITE_TYPE_MLDSA44_ED25519: {
             // Checks the ML-DSA key level
-            if (key->mldsa_key.level != WC_ML_DSA_44)
-                return ALGO_ID_E;
-            // Checks the ML-DSA signature size
-            if (mldsa_sig_buffer_len != DILITHIUM_ML_DSA_44_SIG_SIZE)
-                return ASN_PARSE_E;
-
+            if (key->mldsa_key.level != WC_ML_DSA_44) {
+                MADWOLF_DEBUG("ML-DSA key level error (%d vs. %d)", key->mldsa_key.level, WC_ML_DSA_44);
+                return SIG_VERIFY_E;
+            }
             // Cehcks the ED25519 signature size
-            if (other_sig_buffer_len != ED25519_SIG_SIZE)
-                return ASN_PARSE_E;
+            if (other_BufferLen != ED25519_SIG_SIZE) {
+                MADWOLF_DEBUG("ED25519 signature size error (%d vs. %d)", other_BufferLen, ED25519_SIG_SIZE);
+                return BUFFER_E;
+            }
             // Verify ED25519 Component
-            if (wc_ed25519_verify_msg_ex(other_sig_buffer, other_sig_buffer_len, 
-                msg, msgLen, res, &key->alt_key.ed25519, (byte)Ed25519, context, contextLen) < 0)
-                    return ALGO_ID_E;
+            if ((ret = wc_ed25519_verify_msg_ex(other_Buffer, other_BufferLen, 
+                        msg, msgLen, res, &key->alt_key.ed25519, (byte)Ed25519, context, contextLen)) < 0) {
+                MADWOLF_DEBUG("wc_ed25519_verify_msg_ex failed with %d", ret);
+                return ret;
+            }
         } break;
 
         case WC_MLDSA_COMPOSITE_TYPE_MLDSA44_P256: {
             // Checks the ML-DSA key level
-            if (key->mldsa_key.level != WC_ML_DSA_44)
-                return ALGO_ID_E;
-            // Checks the ML-DSA signature size
-            if (mldsa_sig_buffer_len != DILITHIUM_ML_DSA_44_SIG_SIZE)
-                return ASN_PARSE_E;
-
+            if (key->mldsa_key.level != WC_ML_DSA_44) {
+                MADWOLF_DEBUG("ML-DSA key level error (%d vs. %d)", key->mldsa_key.level, WC_ML_DSA_44);
+                return SIG_VERIFY_E;
+            }
             // Checks the ECDSA curve (P-256)
-            if (key->alt_key.ecc.dp->id != ECC_SECP256R1)
-                return ALGO_ID_E;
+            if (key->alt_key.ecc.dp->id != ECC_SECP256R1) {
+                MADWOLF_DEBUG("ECDSA curve error (%d vs. %d)", key->alt_key.ecc.dp->id, ECC_SECP256R1);
+                return SIG_VERIFY_E;
+            }
             // Cehcks the ECDSA signature size
-            if (other_sig_buffer_len != wc_ecc_sig_size(&key->alt_key.ecc))
+            if ((int)other_BufferLen > wc_ecc_sig_size(&key->alt_key.ecc)) {
+                MADWOLF_DEBUG("ECDSA signature size error (%d vs. %d)", other_BufferLen, wc_ecc_sig_size(&key->alt_key.ecc));
                 return ASN_PARSE_E;
+            }
             // Verify ECDSA Component
-            if (wc_ecc_verify_hash(other_sig_buffer, other_sig_buffer_len,
-                msg, msgLen, res, &key->alt_key.ecc) < 0)
-                    return ALGO_ID_E;
+            if ((ret = wc_ecc_verify_hash(other_Buffer, other_BufferLen,
+                                            msg, msgLen, res, &key->alt_key.ecc)) < 0) {
+                MADWOLF_DEBUG("wc_ecc_verify_hash failed with %d", ret);
+                return ret;
+            }
         } break;
 
         default:
             return ALGO_ID_E;
     }
 
+    // Checks the size of the ML-DSA signature
+    if (key->mldsa_key.level == WC_ML_DSA_44 && mldsa_BufferLen != DILITHIUM_ML_DSA_44_SIG_SIZE) {
+        MADWOLF_DEBUG("ML-DSA key level error (%d vs. %d)", key->mldsa_key.level, WC_ML_DSA_44);
+        return BUFFER_E;
+    } else if (key->mldsa_key.level == WC_ML_DSA_65 && mldsa_BufferLen != DILITHIUM_ML_DSA_65_SIG_SIZE) {
+        MADWOLF_DEBUG("ML-DSA key level error (%d vs. %d)", key->mldsa_key.level, WC_ML_DSA_65);
+        return BUFFER_E;
+    } else if (key->mldsa_key.level == WC_ML_DSA_87 && mldsa_BufferLen != DILITHIUM_ML_DSA_87_SIG_SIZE) {
+        MADWOLF_DEBUG("ML-DSA key level error (%d vs. %d)", key->mldsa_key.level, WC_ML_DSA_87);
+        return BUFFER_E;
+    }
+
+    // Verify the ML-DSA Component
+    if ((ret = wc_dilithium_verify_msg(mldsa_Buffer, mldsa_BufferLen, msg, msgLen, res, &key->mldsa_key)) < 0) {
+        MADWOLF_DEBUG("wc_dilithium_verify_msg failed with %d", ret);
+        return ret;
+    }
+
     // If all components are verified, then the signature is valid
     *res = 1;
+
+    // Unused context
+    (void)context;
+    (void)contextLen;
 
     return ret;
 }
@@ -297,28 +302,35 @@ WOLFSSL_API
 int wc_mldsa_composite_sign_msg_ex(const byte* msg, word32 msgLen, byte* sig,
     word32 *sigLen, mldsa_composite_key* key, WC_RNG* rng, const byte* context, byte contextLen)
 {
-    int ret = 0, idx = 0, innerLen = 0;
+    int ret = 0;
+
+    (void)context;
+    (void)contextLen;
+
     byte rnd[DILITHIUM_RND_SZ];
         // Random seed for the ML-DSA component
-
-    word32 sz = 0;
-        // Size of the encoded signature
-
-    word32 totalSigLen = 0;
-        // Total length of the signature
     
-    byte mldsaSig_buffer[DILITHIUM_ML_DSA_87_SIG_SIZE];
-    word32 mldsaSig_bufferLen = DILITHIUM_ML_DSA_87_SIG_SIZE;
+    ASNSetData sigsASN[3];
+        // ASN1 data for the ML-DSA and traditional DSA components
+
+    byte mldsaSig_buffer[DILITHIUM_ML_DSA_44_SIG_SIZE];
+    word32 mldsaSig_bufferLen = DILITHIUM_ML_DSA_44_SIG_SIZE;
         // Buffer to hold the ML-DSA signature
 
-    byte otherSig_buffer[ECC_MAX_SIG_SIZE];
+    byte otherSig_buffer[MLDSA_COMPOSITE_MAX_OTHER_SIG_SZ];
     word32 otherSig_bufferLen = MLDSA_COMPOSITE_MAX_OTHER_SIG_SZ;
         // Buffer to hold the signature of the other DSA component
+
+    word32 inSigLen = 0;
+        // Length of the input signature buffer
 
     // Error Handling: Check for NULL pointers and invalid input lengths.
     if (!msg || !sig || !key || !sigLen || !rng) {
         return BAD_FUNC_ARG; 
     }
+
+    /* Saves the length of the output buffer. */
+    inSigLen = *sigLen;
 
     /* Generate a random seed for the ML-DSA component. */
     ret = wc_RNG_GenerateBlock(rng, rnd, DILITHIUM_RND_SZ);
@@ -328,107 +340,61 @@ int wc_mldsa_composite_sign_msg_ex(const byte* msg, word32 msgLen, byte* sig,
     ret = wc_MlDsaKey_Sign(&key->mldsa_key, mldsaSig_buffer, &mldsaSig_bufferLen, msg, msgLen, rng);
     if (ret != 0) return ret;
 
-
     // Sign The Traditional component
     switch (key->params.type) {
 
         case WC_MLDSA_COMPOSITE_TYPE_MLDSA44_ED25519: {
             // Sign ED25519 Component
-            if (wc_ed25519_sign_msg_ex(msg, msgLen, otherSig_buffer, &otherSig_bufferLen, &key->alt_key.ed25519, (byte)Ed25519, context, contextLen) < 0)
+            if (wc_ed25519_sign_msg_ex(msg, msgLen, otherSig_buffer, 
+                    &otherSig_bufferLen, &key->alt_key.ed25519, (byte)Ed25519, context, contextLen) < 0) {
                     return ALGO_ID_E;
-            if (otherSig_bufferLen != ED25519_SIG_SIZE)
+            }
+            if (otherSig_bufferLen != ED25519_SIG_SIZE) {
                 return ASN_PARSE_E;
+            }
         } break;
 
         case WC_MLDSA_COMPOSITE_TYPE_MLDSA44_P256: {
             // Sign ECC Component
-            if (wc_ecc_sign_hash(msg, msgLen, otherSig_buffer, &otherSig_bufferLen, rng, &key->alt_key.ecc) < 0)
+            if (wc_ecc_sign_hash(msg, msgLen, otherSig_buffer, &otherSig_bufferLen, 
+                    rng, &key->alt_key.ecc) < 0) {
                 return ALGO_ID_E;
-            if (otherSig_bufferLen != (word32)wc_ecc_sig_size(&key->alt_key.ecc))
-                return ASN_PARSE_E;
+            }
         } break;
 
         default:
             return ALGO_ID_E;
     }
 
-    // Calculate the total length of the signature
-    totalSigLen = SetBitString(mldsaSig_bufferLen, 0, NULL) + mldsaSig_bufferLen + 
-                  SetBitString(otherSig_bufferLen, 0, NULL) + otherSig_bufferLen;
- 
-#ifndef WOLFSSL_ASN_TEMPLATE
+    // Clears the memory (required because of a bug in wolfSSL)
+    XMEMSET(sigsASN, 0, sizeof(sigsASN));
 
-    // Non-template ASN.1 encoding of signature
+    // Set the ASN1 data for the ML-DSA and traditional DSA components
+    SetASN_Buffer(&sigsASN[MLDSA_COMPASN_IDX_MLDSA], mldsaSig_buffer, mldsaSig_bufferLen);
+    SetASN_Buffer(&sigsASN[MLDSA_COMPASN_IDX_OTHER], otherSig_buffer, otherSig_bufferLen);
 
-    // Encode the Sequence Tag first
-    idx = SetSequence(totalSigLen, sig);
-    
-    // Encode the ML-DSA signature
-    idx += SetBitString(mldsaSig_bufferLen, 0, sig + idx); // ML-DSA signature
-    if (mldsaSig_bufferLen > 0) {
-            XMEMCPY(buf + idx, mldsaSig_buffer, (size_t)mldsaSig_bufferLen);
-            idx += mldsaSig_bufferLen;
+    // Let's calculate the size of the ASN1 data
+    if ((ret = SizeASN_Items(compositeIT, sigsASN, 3, (int *)sigLen)) < 0) {
+        WOLFSSL_MSG_VSNPRINTF("error cannot calculate SizeASN_Items");
+        return ret;
     }
 
-    idx += SetBitString(otherSig_bufferLen, 0, sig + idx); // Traditional signature
-    if (otherSig_bufferLen > 0) {
-            XMEMCPY(buf + idx, otherSig_buffer, (size_t)otherSig_bufferLen);
-            idx += mldsaSig_bufferLen;
-    }
-
-    *sigLen = idx;  // Update the total length of the signature
-#else
-
-    // This implementation is not complete. It is just a placeholder for the actual implementation.
-    // The actual implementation should encode the signature as a DER SEQUENCE of BIT STRINGs
-    // with the new (template) ASN.1 functions.
-
-    // ASNSetData* sigsASN=NULL;
-    // sigsASN= (ASNSetData*)XMALLOC(sizeof(ASNSetData) * (3), NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    // if (sigsASN== NULL)
-    //     return MEMORY_E;
-
-    ASNSetData sigsASN[3];
-
-    // Set the ML-DSA signature
-    SetASN_Buffer(&sigsASN[MLDSA_COMPASN_IDX_MLDSASIG], mldsaSig_buffer, mldsaSig_bufferLen);
-    // Set the other DSA component signature
-    SetASN_Buffer(&sigsASN[MLDSA_COMPASN_IDX_OTHERSIG], otherSig_buffer, otherSig_bufferLen);
-
-    /* Calculate size of encoded name and indexes of components. */
-    if (SizeASN_Items(compSigsIT, sigsASN, 3, (int *)&sz) < 0) {
-        XFREE(sigsASN, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        return BAD_STATE_E;
-    }
-
-    WOLFSSL_MSG_VSNPRINTF("totalSigLen = %d, sz = %d", totalSigLen, sz);
-
-    /* Check if the buffer is large enough. */
-    if (sz > *sigLen) {
-        XFREE(sigsASN, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (*sigLen > inSigLen) {
+        WOLFSSL_MSG_VSNPRINTF("error not enough space for ASN1 data (needed: %d, provided: %d)", *sigLen, inSigLen);
         return BUFFER_E;
     }
 
-    // Total length of the signature
-    *sigLen = sz;
 
-    // TODO: Check the use of this function, it is not clear how it should be used
-    ret = SetASN_Items(compSigsIT, sigsASN, 3, sig);
-    if (ret < 0) {
-        XFREE(sigsASN, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    // Let's encode the ASN1 data
+    if ((*sigLen = SetASN_Items(compositeIT, sigsASN, 3, sig)) <= 0) { 
         return ASN_PARSE_E;
     }
 
-    WOLFSSL_MSG_VSNPRINTF("generated encoding: ret = %d", ret);
-
-#endif
-
-    (void)idx;
-    (void)innerLen;
+    // WOLFSSL_MSG_VSNPRINTF("composite context is not used");
     (void)context;
     (void)contextLen;
 
-    return ret;
+    return 0;
 }
 
 #endif /* !WOLFSSL_MLDSA_COMPOSITE_NO_SIGN */
@@ -460,22 +426,6 @@ int wc_mldsa_composite_init_ex(mldsa_composite_key* key, void* heap, int devId)
     }
     /* Init the MLDSA Key */
     if (ret == 0) {
-
-        // ret = wc_dilithium_init_ex(&key->mldsa_key, heap, devId);
-        // switch (key->params.type) {
-
-        //     case WC_MLDSA_COMPOSITE_TYPE_MLDSA44_ED25519: {
-        //         ret = wc_ed25519_init_ex(&key->alt_key.ed25519, heap, devId);
-        //     } break;
-
-        //     case WC_MLDSA_COMPOSITE_TYPE_MLDSA44_P256: {
-        //         ret = wc_ecc_init_ex(&key->alt_key.ecc, heap, devId);
-        //     } break;
-
-        //     default:
-        //         // Not set, yet
-        //         // ret = ALGO_ID_E;
-        // }
 
         key->heap = heap;
 
@@ -690,6 +640,8 @@ int wc_mldsa_composite_size(mldsa_composite_key* key)
             ret = ALGO_ID_E;
     }
 
+    MADWOLF_DEBUG("(wc_mldsa_composite_size): Private Key Size: %d\n", ret);
+
     return ret;
 }
 
@@ -772,7 +724,6 @@ int wc_mldsa_composite_pub_size(mldsa_composite_key* key)
             break;
 
         case WC_MLDSA_COMPOSITE_TYPE_MLDSA44_P256:
-            // ret = DILITHIUM_ML_DSA_44_PUB_KEY_SIZE + wc_ecc_get_curve_size_from_id(ECC_SECP256R1);
             ret = MLDSA44_P256_PUB_KEY_SIZE;
             break;
 
@@ -814,36 +765,24 @@ int wc_MlDsaCompositeKey_GetPubLen(mldsa_composite_key* key, int* len)
 int wc_mldsa_composite_sig_size(mldsa_composite_key* key)
 {
     int ret = 0;
-    // ASNSetData sigsASN[3];
 
     if (key == NULL || key->params.type <= 0) {
         return BAD_FUNC_ARG;
     }
 
-    // Allocates the memory for the ASN data
-    // SetASN_Buffer(&sigsASN[1], NULL, DILITHIUM_ML_DSA_44_SIG_SIZE);
-
     switch (key->params.type) {
         case WC_MLDSA_COMPOSITE_TYPE_MLDSA44_ED25519:
-            // SetASN_Buffer(&sigsASN[2], NULL, ED25519_SIG_SIZE);
-            ret = DILITHIUM_ML_DSA_44_SIG_SIZE + ED25519_SIG_SIZE + MLDSA_COMPOSITE_MAX_SEQUENCE_DER_SIZE;
+            ret = DILITHIUM_ML_DSA_44_SIG_SIZE + ED25519_SIG_SIZE + 12;
             break;
 
         case WC_MLDSA_COMPOSITE_TYPE_MLDSA44_P256:
-            // SetASN_Buffer(&sigsASN[2], NULL, wc_ecc_sig_size_calc(wc_ecc_get_curve_size_from_id(ECC_SECP256R1)));
-            // ret = DILITHIUM_ML_DSA_44_SIG_SIZE + wc_ecc_sig_size_calc(wc_ecc_get_curve_size_from_id(ECC_SECP256R1)) + MLDSA_COMPOSITE_MAX_SEQUENCE_DER_SIZE;
-            ret = DILITHIUM_ML_DSA_44_SIG_SIZE + ECC_MAX_SIG_SIZE + MLDSA_COMPOSITE_MAX_SEQUENCE_DER_SIZE;
+            ret = DILITHIUM_ML_DSA_44_SIG_SIZE + wc_ecc_sig_size(&key->alt_key.ecc) + 12;
             break;
 
         default:
             /* Error */
             return BAD_FUNC_ARG;
     }
-
-    // ret = SizeASN_Items(compSigsIT, sigsASN, 3, NULL);
-
-    // TODO: Free the allocated memory
-    // XFREE(sigsASN[1].data.buffer.data, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     return ret;
 }
@@ -972,80 +911,84 @@ int wc_mldsa_composite_export_public(mldsa_composite_key* key, byte* out, word32
     int ret = 0;
     word32 inLen;
 
+    ASNSetData keysASN[3];
+        // Set the ML-DSA public key
+
+    byte mldsa_Buffer[DILITHIUM_ML_DSA_87_PUB_KEY_SIZE];
+    word32 mldsa_BufferLen = DILITHIUM_ML_DSA_87_PUB_KEY_SIZE;
+        // Buffer to hold the ML-DSA public key
+
+    byte other_Buffer[MLDSA_COMPOSITE_MAX_OTHER_KEY_SZ];
+    word32 other_BufferLen = MLDSA_COMPOSITE_MAX_OTHER_KEY_SZ;
+        // Buffer to hold the public key of the other DSA component
+
     /* Validate parameters */
     if ((key == NULL) || (out == NULL) || (outLen == NULL)) {
-        ret = BAD_FUNC_ARG;
+        return BAD_FUNC_ARG;
     }
-    if (ret == 0) {
-        /* Get length passed in for checking. */
-        inLen = *outLen;
-        *outLen = wc_mldsa_composite_pub_size(key);
-        if (inLen < *outLen) {
-            WOLFSSL_MSG_VSNPRINTF("in buffer: sz = %d, required buffer: sz = %d", 
-                inLen, *outLen);
-            ret = BAD_FUNC_ARG;
-        }
+
+    /* Get length passed in for checking. */
+    inLen = *outLen;
+
+    // Gets the expected size of the pub key
+    *outLen = wc_mldsa_composite_pub_size(key);
+
+    // Checks if the buffer is too small
+    if (inLen < *outLen) {
+        WOLFSSL_MSG_VSNPRINTF("Output Signature Buffer too small (needed: %d, provided: %d)", *outLen, inLen);
+        return BUFFER_E;
     }
-    if (ret == 0) {
 
-        ASNSetData keysASN[3];
-            // Set the ML-DSA public key
+    /* Exports the ML-DSA key */
+    if (wc_MlDsaKey_ExportPubRaw(&key->mldsa_key, mldsa_Buffer, &mldsa_BufferLen) < 0) {
+        WOLFSSL_MSG_VSNPRINTF("error cannot export ML-DSA component's public key\n");
+        return BUFFER_E;
+    }
 
-        byte mldsa_Buffer[DILITHIUM_ML_DSA_87_PUB_KEY_SIZE];
-        word32 mldsa_BufferLen = DILITHIUM_ML_DSA_87_PUB_KEY_SIZE;
-            // Buffer to hold the ML-DSA public key
+    /* Exports the other key */
+    switch (key->params.type) {
+        case WC_MLDSA_COMPOSITE_TYPE_MLDSA44_ED25519: {
+            if ((ret = wc_ed25519_export_public(&key->alt_key.ed25519, 
+                    other_Buffer, &other_BufferLen)) < 0) {
+                return ret;
+            }
+        } break;
 
-        byte other_Buffer[MLDSA_COMPOSITE_MAX_OTHER_KEY_SZ];
-        word32 other_BufferLen = MLDSA_COMPOSITE_MAX_OTHER_KEY_SZ;
-            // Buffer to hold the public key of the other DSA component
-
-        word32 tmpLen = *outLen;
-            // Temporary length
-
-        /* Exports the ML-DSA key */
-        if (wc_MlDsaKey_ExportPubRaw(&key->mldsa_key, mldsa_Buffer, &mldsa_BufferLen) < 0) {
-            return ALGO_ID_E;
-        }
-
-        WOLFSSL_MSG_VSNPRINTF("mldsa export public: sz = %d", mldsa_BufferLen);
-
-        /* Exports the other key */
-        switch (key->params.type) {
-            case WC_MLDSA_COMPOSITE_TYPE_MLDSA44_ED25519: {
-                if (wc_ed25519_export_public(&key->alt_key.ed25519, other_Buffer, &other_BufferLen) < 0) {
-                    return ALGO_ID_E;
-                }
-            } break;
-
-            case WC_MLDSA_COMPOSITE_TYPE_MLDSA44_P256: {
-                word32 pubLenX = 32, pubLenY = 32;
-                if (wc_ecc_export_public_raw(&key->alt_key.ecc, other_Buffer, &pubLenX, &other_Buffer[32], &pubLenY) < 0) {
-                    return ALGO_ID_E;
-                }
-            } break;
-
-            default:
+        case WC_MLDSA_COMPOSITE_TYPE_MLDSA44_P256: {
+            word32 pubLenX = 32, pubLenY = 32;
+            if ((ret = wc_ecc_export_public_raw(&key->alt_key.ecc, 
+                    other_Buffer, &pubLenX, &other_Buffer[32], &pubLenY)) < 0) {
                 return ALGO_ID_E;
-        }
+            }
+            other_BufferLen = pubLenX + pubLenY;
+        } break;
 
-        WOLFSSL_MSG_VSNPRINTF("other export public: sz = %d", other_BufferLen);
+        default:
+            return ALGO_ID_E;
+    }
 
-        // Let's set the ASN1 data
-        SetASN_Buffer(&keysASN[MLDSA_COMPASN_IDX_MLDSAKEY], mldsa_Buffer, mldsa_BufferLen);
-        SetASN_Buffer(&keysASN[MLDSA_COMPASN_IDX_OTHERKEY], other_Buffer, other_BufferLen);
+    // Clears the memory (required because of a bug in wolfSSL)
+    XMEMSET(keysASN, 0, sizeof(keysASN));
 
-        // Let's calculate the size of the ASN1 data
-        if ((SizeASN_Items(compKeyIT, keysASN, 3, (int *)outLen) < 0) || (*outLen > tmpLen)) {
-            WOLFSSL_MSG_VSNPRINTF("error outLen > tmpLen: %d > %d", *outLen, tmpLen);
-            return BAD_STATE_E;
-        }
+    // Let's set the ASN1 data
+    SetASN_Buffer(&keysASN[MLDSA_COMPASN_IDX_MLDSA], mldsa_Buffer, mldsa_BufferLen);
+    SetASN_Buffer(&keysASN[MLDSA_COMPASN_IDX_OTHER], other_Buffer, other_BufferLen);
 
-        WOLFSSL_MSG_VSNPRINTF("composite encoded public: sz = %d", *outLen);
+    // Let's calculate the size of the ASN1 data
+    if ((ret = SizeASN_Items(compositeIT, keysASN, 3, (int *)outLen)) < 0) {
+        WOLFSSL_MSG_VSNPRINTF("error cannot calculate SizeASN_Items: %d", ret);
+        return ret;
+    }
 
-        // Let's encode the ASN1 data
-        if (SetASN_Items(compKeyIT, keysASN, 3, out) < 0) {
-            return ASN_PARSE_E;
-        }
+    if (*outLen > inLen) {
+        WOLFSSL_MSG_VSNPRINTF("error outLen > tmpLen: %d > %d", *outLen, inLen);
+        return BAD_STATE_E;
+    }
+
+    // Let's encode the ASN1 data
+    if ((*outLen = SetASN_Items(compositeIT, keysASN, 3, out)) == 0) {
+        WOLFSSL_MSG_VSNPRINTF("error cannot SetASN_Items\n");
+        return ASN_PARSE_E;
     }
 
     return ret;
@@ -1111,6 +1054,8 @@ int wc_mldsa_composite_export_private(mldsa_composite_key* key, byte* out,
     int ret = 0;
     word32 inLen;
 
+    MADWOLF_DEBUG0("wc_mldsa_composite_export_private");
+
     /* Validate parameters */
     if ((key == NULL) || (out == NULL) || (outLen == NULL || *outLen == 0)) {
         ret = BAD_FUNC_ARG;
@@ -1154,8 +1099,7 @@ int wc_mldsa_composite_export_private(mldsa_composite_key* key, byte* out,
             return ALGO_ID_E;
         }
 
-        WOLFSSL_MSG_VSNPRINTF("mldsa export public: sz = %d", mldsa_BufferLen);
-        fprintf(stderr, "mldsa export public: sz = %d\n", mldsa_BufferLen);
+        MADWOLF_DEBUG("mldsa export public: sz = %d", mldsa_BufferLen);
 
         /* Exports the other key */
         switch (key->params.type) {
@@ -1180,16 +1124,15 @@ int wc_mldsa_composite_export_private(mldsa_composite_key* key, byte* out,
                 return ALGO_ID_E;
         }
 
-        WOLFSSL_MSG_VSNPRINTF("other export private: sz = %d", other_BufferLen);
-        fprintf(stderr, "other export private: sz = %d\n", other_BufferLen);
+        MADWOLF_DEBUG("other export private: sz = %d", other_BufferLen);
 
         // Let's set the ASN1 data
-        SetASN_Buffer(&keysASN[MLDSA_COMPASN_IDX_MLDSAKEY], mldsa_Buffer, mldsa_BufferLen);
-        SetASN_Buffer(&keysASN[MLDSA_COMPASN_IDX_OTHERKEY], other_Buffer, other_BufferLen);
+        SetASN_Buffer(&keysASN[MLDSA_COMPASN_IDX_MLDSA], mldsa_Buffer, mldsa_BufferLen);
+        SetASN_Buffer(&keysASN[MLDSA_COMPASN_IDX_OTHER], other_Buffer, other_BufferLen);
 
         // Let's calculate the size of the ASN1 data
         int encSz = 0;
-        if (SizeASN_Items(compKeyIT, keysASN, 3, &encSz) < 0) {
+        if (SizeASN_Items(compositeIT, keysASN, 3, &encSz) < 0) {
             return BAD_STATE_E;  
         }
         
@@ -1198,17 +1141,12 @@ int wc_mldsa_composite_export_private(mldsa_composite_key* key, byte* out,
             return BAD_STATE_E;
         }
 
-        WOLFSSL_MSG_VSNPRINTF("composite exported private: sz = %d", *outLen);
-        fprintf(stderr, "composite exported private: sz = %d\n", *outLen);
+        MADWOLF_DEBUG("composite exported private: sz = %d", *outLen);
 
         // Let's encode the ASN1 data
-        if (SetASN_Items(compKeyIT, keysASN, 3, out) < 0) {
+        if (SetASN_Items(compositeIT, keysASN, 3, out) < 0) {
             return ASN_PARSE_E;
         }
-
-        // // Let's free the allocated memory
-        // XFREE(keysASN[1].data.buffer.data, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        // XFREE(keysASN[2].data.buffer.data, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     }
 
     return ret;
@@ -1342,57 +1280,6 @@ int wc_MlDsaComposite_PrivateKeyDecode(const byte* input, word32* inOutIdx,
 #endif /* WOLFSSL_MLDSA_COMPOSITE_PRIVATE_KEY */
 
 #endif /* WOLFSSL_MLDSA_COMPOSITE_NO_ASN1 */
-
-// static int mldsa_composite_get_der_length(const byte* input, word32* inOutIdx,
-//     int *length, word32 inSz)
-// {
-//     int ret = 0;
-//     word32 idx = *inOutIdx;
-//     word32 len = 0;
-
-//     if (idx >= inSz) {
-//         ret = ASN_PARSE_E;
-//     }
-//     else if (input[idx] < 0x80) {
-//         len = input[idx];
-//         idx++;
-//     }
-//     else if ((input[idx] == 0x80) || (input[idx] >= 0x83)) {
-//         ret = ASN_PARSE_E;
-//     }
-//     else if (input[idx] == 0x81) {
-//         if (idx + 1 >= inSz) {
-//             ret = ASN_PARSE_E;
-//         }
-//         else if (input[idx + 1] < 0x80) {
-//             ret = ASN_PARSE_E;
-//         }
-//         else {
-//             len = input[idx + 1];
-//             idx += 2;
-//         }
-//     }
-//     else if (input[idx] == 0x82) {
-//         if (idx + 2 >= inSz) {
-//             ret = ASN_PARSE_E;
-//         }
-//         else {
-//             len = ((word16)input[idx + 1] << 8) + input[idx + 2];
-//             idx += 3;
-//             if (len < 0x100) {
-//                 ret = ASN_PARSE_E;
-//             }
-//         }
-//     }
-
-//     if ((ret == 0) && ((idx + len) > inSz)) {
-//         ret = ASN_PARSE_E;
-//     }
-
-//     *length = (int)len;
-//     *inOutIdx = idx;
-//     return ret;
-// }
 
 #ifdef WOLFSSL_MLDSA_COMPOSITE_PUBLIC_KEY
 int wc_MlDsaComposite_PublicKeyDecode(const byte* input, word32* inOutIdx,
