@@ -78,6 +78,8 @@ This library defines the interface APIs for X509 certificates.
 #endif
 #ifndef WC_MLDSA_COMPOSITEKEY_TYPE_DEFINED
     typedef struct mldsa_composite_key mldsa_composite_key;
+    typedef enum wc_mldsa_composite_type wc_MlDsaCompositeType;
+    typedef struct mldsa_composite_params wc_MlDsaCompositeParams;
     #define WC_MLDSA_COMPOSITEKEY_TYPE_DEFINED
 #endif
 #ifndef WC_SPHINCSKEY_TYPE_DEFINED
