@@ -340,7 +340,7 @@ then
     test -z "$enable_sha" && enable_sha=yes
     test -z "$with_eccminsz" && with_eccminsz=192
     test -z "$with_max_ecc_bits" && with_max_ecc_bits=1024
-    AM_CFLAGS="$AM_CFLAGS -DWC_RSA_NO_PADDING -DWOLFSSL_PUBLIC_MP -DHAVE_PUBLIC_FFDHE -DHAVE_FFDHE_6144 -DHAVE_FFDHE_8192 -DWOLFSSL_PSS_LONG_SALT -DWOLFSSL_PSS_SALT_LEN_DISCOVER"
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_WOLFPROVIDER -DWC_RSA_NO_PADDING -DWOLFSSL_PUBLIC_MP -DHAVE_PUBLIC_FFDHE -DHAVE_FFDHE_6144 -DHAVE_FFDHE_8192 -DWOLFSSL_PSS_LONG_SALT -DWOLFSSL_PSS_SALT_LEN_DISCOVER"
 fi
 
 # wolfEngine Options
@@ -4169,7 +4169,7 @@ AC_ARG_ENABLE([compkey],
     )
 
 if (test "$ENABLED_WPAS" = "yes" || test "$ENABLED_OPENSSLALL" = "yes") &&
-   (test "$HAVE_FIPS_VERSION" != "5" || test "$FIPS_VERSION" = "v5-dev")
+   (test "$HAVE_FIPS_VERSION" != "5")
 then
     ENABLED_COMPKEY=yes
 fi
@@ -5520,7 +5520,7 @@ AS_CASE([$FIPS_VERSION],
             [ENABLED_KEYGEN="yes"; AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_KEY_GEN"])
 
         AS_IF([test "$ENABLED_COMPKEY" = "yes" &&
-               (test "$FIPS_VERSION" != "v5-dev" || test "$enable_compkey" != "yes")],
+               ! (test "$FIPS_VERSION" = "v5-dev" && test "$enable_compkey" = "yes")],
             [AC_MSG_WARN([Forcing off compkey for FIPS ${FIPS_VERSION}.])
              ENABLED_COMPKEY="no"])
 
@@ -5538,13 +5538,13 @@ AS_CASE([$FIPS_VERSION],
 
         # Shake128 is a SHA-3 algorithm outside the v5 FIPS algorithm list
         AS_IF([test "$ENABLED_SHAKE128" != "no" &&
-               (test "$FIPS_VERSION" != "v5-dev" || test "$enable_shake128" != "yes")],
+               ! (test "$FIPS_VERSION" = "v5-dev" && test "$enable_shake128" = "yes")],
             [AC_MSG_WARN([Forcing off shake128 for FIPS ${FIPS_VERSION}.])
              ENABLED_SHAKE128=no; AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_SHAKE128"])
 
         # Shake256 is a SHA-3 algorithm outside the v5 FIPS algorithm list
         AS_IF([test "$ENABLED_SHAKE256" != "no" &&
-               (test "$FIPS_VERSION" != "v5-dev" || test "$enable_shake256" != "yes")],
+               ! (test "$FIPS_VERSION" = "v5-dev" && test "$enable_shake256" = "yes")],
             [AC_MSG_WARN([Forcing off shake256 for FIPS ${FIPS_VERSION}.])
              ENABLED_SHAKE256=no; AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_SHAKE256"])
 
@@ -5556,7 +5556,7 @@ AS_CASE([$FIPS_VERSION],
             [ENABLED_AESCCM="yes"; AM_CFLAGS="$AM_CFLAGS -DHAVE_AESCCM"])
 
         AS_IF([test "$ENABLED_AESXTS" = "yes" &&
-               (test "$FIPS_VERSION" != "v5-dev" || test "$enable_aesxts" != "yes")],
+               ! (test "$FIPS_VERSION" = "v5-dev" && test "$enable_aesxts" = "yes")],
             [AC_MSG_WARN([Forcing off aesxts for FIPS ${FIPS_VERSION}.])
              ENABLED_AESXTS="no"])
 
@@ -5596,7 +5596,7 @@ AS_CASE([$FIPS_VERSION],
 
         # AES-GCM streaming isn't part of the v5 FIPS suite.
         AS_IF([test "$ENABLED_AESGCM_STREAM" = "yes" &&
-               (test "$FIPS_VERSION" != "v5-dev" || test "$enable_aesgcm_stream" != "yes")],
+               ! (test "$FIPS_VERSION" = "v5-dev" && test "$enable_aesgcm_stream" = "yes")],
             [AC_MSG_WARN([Forcing off aesgcm-stream for FIPS ${FIPS_VERSION}.])
              ENABLED_AESGCM_STREAM="no"])
 
@@ -5611,12 +5611,12 @@ AS_CASE([$FIPS_VERSION],
                 [ENABLED_AESOFB="yes"; AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AES_OFB"])])
 
         AS_IF([test "$ENABLED_SRTP" != "no" &&
-               (test "$FIPS_VERSION" != "v5-dev" || test "$enable_srtp" != "yes")],
+               ! (test "$FIPS_VERSION" = "v5-dev" && test "$enable_srtp" = "yes")],
             [AC_MSG_WARN([Forcing off srtp for FIPS ${FIPS_VERSION}.])
              ENABLED_SRTP="no"])
 
         AS_IF([test "$ENABLED_SRTP_KDF" != "no" &&
-               (test "$FIPS_VERSION" != "v5-dev" || test "$enable_srtp_kdf" != "yes")],
+               ! (test "$FIPS_VERSION" = "v5-dev" && test "$enable_srtp_kdf" = "yes")],
             [AC_MSG_WARN([Forcing off srtp-kdf for FIPS ${FIPS_VERSION}.])
              ENABLED_SRTP_KDF="no"])
 
@@ -9544,6 +9544,7 @@ then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AES_DIRECT"
     AM_CFLAGS="$AM_CFLAGS -DWC_RSA_NO_PADDING"
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_PUBLIC_MP"
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_WOLFENGINE"
 fi
 
 if test "$ENABLED_WOLFENGINE" = "yes" && test "$ENABLED_FIPS" != "no"
