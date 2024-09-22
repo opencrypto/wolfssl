@@ -125,14 +125,26 @@
 #define MLDSA44_P256_KEY_SIZE       DILITHIUM_ML_DSA_44_KEY_SIZE + 32 + 12
 #define MLDSA44_P256_SIG_SIZE       DILITHIUM_ML_DSA_44_SIG_SIZE + 72 + 12
 #define MLDSA44_P256_PUB_KEY_SIZE   DILITHIUM_ML_DSA_44_PUB_KEY_SIZE + 64 + 12
-#define MLDSA44_P256_PRV_KEY_SIZE   \
-    (MLDSA44_P256_PUB_KEY_SIZE + MLDSA44_P256_KEY_SIZE)
+
+/*
+ * NOTE: There seems to be an issue with the _PRV_ sizes definitions
+ *       that seem to include the _PUB_ sizes twice.
+ * #define MLDSA44_P256_PRV_KEY_SIZE   \
+ *     (MLDSA44_P256_PUB_KEY_SIZE + MLDSA44_P256_KEY_SIZE)
+*/
+#define MLDSA44_P256_PRV_KEY_SIZE   MLDSA44_P256_KEY_SIZE
+
 #define dsfdfsf DILITHIUM_ML_DSA_44_KEY_SIZE
 #define MLDSA44_ED25519_KEY_SIZE       DILITHIUM_ML_DSA_44_KEY_SIZE + ED25519_KEY_SIZE + 12
 #define MLDSA44_ED25519_SIG_SIZE       DILITHIUM_ML_DSA_44_SIG_SIZE + ED25519_SIG_SIZE + 12
 #define MLDSA44_ED25519_PUB_KEY_SIZE   DILITHIUM_ML_DSA_44_PUB_KEY_SIZE + ED25519_PUB_KEY_SIZE + 12
-#define MLDSA44_ED25519_PRV_KEY_SIZE   \
-    (MLDSA44_ED25519_PUB_KEY_SIZE + MLDSA44_ED25519_KEY_SIZE)
+
+/* NOTE: There seems to be an issue with the _PRV_ sizes definitions
+ *       that seem to include the _PUB_ sizes twice.
+ * #define MLDSA44_ED25519_PRV_KEY_SIZE  \
+ *     (MLDSA44_ED25519_PUB_KEY_SIZE + MLDSA44_ED25519_KEY_SIZE)
+*/
+#define MLDSA44_ED25519_PRV_KEY_SIZE   MLDSA44_ED25519_KEY_SIZE
 
 #define MLDSA_COMPOSITE_MAX_OTHER_SIG_SZ 384 // ECC_MAX_SIG_SIZE = 141, RSA3072_SIG_SIZE = 384
 #define MLDSA_COMPOSITE_MAX_OTHER_KEY_SZ 384 // ECC_MAX_SIZE = 66, RSA3072_KEY_SIZE = 384
@@ -152,16 +164,18 @@
 #define MLDSA_COMPOSITE_MAX_LABEL_LEN 32
 #endif
 
-/* Structs */
+                    // ===============
+                    // Data Structures
+                    // ===============
 
-enum wc_MlDsaCompositeType {
+
+enum mldsa_composite_type {
     WC_MLDSA_COMPOSITE_TYPE_MLDSA44_P256         = 1,
     WC_MLDSA_COMPOSITE_TYPE_MLDSA44_ED25519      = 2,
 };
 
-typedef enum wc_MlDsaCompositeType wc_MlDsaCompositeType;
 
-typedef struct wc_mldsa_composite_key_params {
+typedef struct mldsa_composite_params {
     enum wc_PkType type;
     union {        
         struct {
@@ -192,11 +206,15 @@ typedef struct wc_mldsa_composite_key_params {
         } falcon;
 
     } values;
-} wc_MlDsaCompositeKeyParams;
+};
 
+// Public Type Definition
+typedef enum wc_mldsa_composite_type wc_MlDsaCompositeType;
+typedef struct mldsa_composite_params wc_MlDsaCompositeKeyParams;
 
 #endif
 
+// See ans_public.h for type definitions
 struct mldsa_composite_key {
 
     void * p;
@@ -218,7 +236,7 @@ struct mldsa_composite_key {
 #endif /* WOLF_PRIVATE_KEY_ID */
     void* heap; /* heap hint */
     struct {
-        enum wc_MlDsaCompositeType type; /* WC_MLDSA_COMPOSITE_TYPE */
+        enum mldsa_composite_type type; /* WC_MLDSA_COMPOSITE_TYPE */
         wc_MlDsaCompositeKeyParams keyParams[2];
         const enum wc_HashType hash;
     } params;
@@ -232,6 +250,8 @@ struct mldsa_composite_key {
 
 #ifndef WC_MLDSA_COMPOSITEKEY_TYPE_DEFINED
     typedef struct mldsa_composite_key mldsa_composite_key;
+    typedef enum wc_mldsa_composite_type wc_MlDsaCompositeType;
+    typedef struct mldsa_composite_params wc_MlDsaCompositeKeyParams;
     #define mldsa_composite_key MlDsaCompositeKey
     #define WC_MLDSA_COMPOSITEKEY_TYPE_DEFINED
     const mldsa_composite_key mldsacomposite_params[] = {
@@ -493,7 +513,7 @@ WOLFSSL_API int wc_mldsa_composite_export_public(mldsa_composite_key* key, byte*
  *          required for level,
  */
 WOLFSSL_API int wc_mldsa_composite_import_private(const byte* priv, word32 privSz,
-    mldsa_composite_key* key, enum wc_MlDsaCompositeType type);
+    mldsa_composite_key* key, enum mldsa_composite_type type);
 
 /* Export the mldsa_composite private key.
  *

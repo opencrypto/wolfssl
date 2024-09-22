@@ -82,6 +82,45 @@ enum {
 
 #define mldsaCompASN_Length 3
 
+enum mldsa_composite_type {
+    WC_MLDSA_COMPOSITE_TYPE_MLDSA44_P256         = 1,
+    WC_MLDSA_COMPOSITE_TYPE_MLDSA44_ED25519      = 2,
+};
+
+
+typedef struct mldsa_composite_params {
+    enum wc_PkType type;
+    union {        
+        struct {
+            word16 bits;
+            enum wc_HashType mask_gen_param;
+            enum wc_HashType digest_alg_param;
+            int salt_len;
+        } rsapss;
+
+        struct {
+            word16 bits;    
+        } rsa_oaep;
+        
+        struct {
+            ecc_curve_id curve_id;
+        } ecdsa;
+
+        struct {
+            // No Params
+        } ed25519;
+
+        struct {
+            byte level;
+        } dilithium;
+
+        struct {
+            byte level;
+        } falcon;
+
+    } values;
+};
+
 /******************************************************************************
  * Encode/Decode operations
  ******************************************************************************/
@@ -1091,13 +1130,13 @@ int wc_mldsa_composite_export_public(mldsa_composite_key* key, byte* out, word32
  * @param [in]      priv    Array holding private key.
  * @param [in]      privSz  Number of bytes of data in array.
  * @param [in, out] key     mldsa_composite private key.
- * @param [in]      type    WC_MLDSA_COMPOSITEKEY_TYPE_* values
+ * @param [in]      type    mldsa_composite_type values
  * @return  0 otherwise.
  * @return  BAD_FUNC_ARG when a parameter is NULL or privSz is less than size
  *          required for level,
  */
 int wc_mldsa_composite_import_private(const byte* priv, word32 privSz,
-    mldsa_composite_key* key, wc_MlDsaCompositeType type)
+    mldsa_composite_key* key, enum mldsa_composite_type type)
 {
     int ret = 0;
         // Ret value

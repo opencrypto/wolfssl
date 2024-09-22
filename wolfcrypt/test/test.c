@@ -45430,11 +45430,11 @@ static wc_test_ret_t mldsa_composite_param_test(int param, WC_RNG* rng)
 
     wc_mldsa_composite_free(private_key);
 
-    // printf("ML-DSA Composite - Export Key\n");
+    printf("ML-DSA Composite - Export Key\n");
 
-    // ret = wc_mldsa_composite_export_key(key, exportKey_Buffer, &exportKey_BufferLen, pubKey_Buffer, &pubKey_BufferLen);
-    // if (ret != 0)
-    //     ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    ret = wc_mldsa_composite_export_key(key, exportKey_Buffer, &exportKey_BufferLen, pubKey_Buffer, &pubKey_BufferLen);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
 out:
     wc_mldsa_composite_free(key);
