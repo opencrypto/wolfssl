@@ -171,23 +171,22 @@
 
 
 enum mldsa_composite_type {
-    WC_MLDSA_COMPOSITE_TYPE_UNKNOWN                     = 0,
     // Level 1
-    WC_MLDSA44_RSAPSS2048_SHA256   = 1,
-    WC_MLDSA44_RSA2048_SHA256      = 2,
-    WC_MLDSA44_ED25519_SHA512      = 3,
-    WC_MLDSA44_NISTP256_SHA256     = 4,
-    WC_MLDSA44_BPOOL256_SHA256     = 5,
+    WC_MLDSA44_RSAPSS2048_SHA256 = 1,
+    WC_MLDSA44_RSA2048_SHA256,
+    WC_MLDSA44_ED25519_SHA512,
+    WC_MLDSA44_NISTP256_SHA256,
+    WC_MLDSA44_BPOOL256_SHA256,
     // Level 3
-    WC_MLDSA65_RSAPSS3072_SHA512   = 6,
-    WC_MLDSA65_RSA3072_SHA512      = 7,
-    WC_MLDSA65_NISTP256_SHA512     = 8,
-    WC_MLDSA65_BPOOL256_SHA512     = 9,
-    WC_MLDSA65_ED25519_SHA512      = 10,
+    WC_MLDSA65_RSAPSS3072_SHA512,
+    WC_MLDSA65_RSA3072_SHA512,
+    WC_MLDSA65_NISTP256_SHA512,
+    WC_MLDSA65_BPOOL256_SHA512,
+    WC_MLDSA65_ED25519_SHA512,
     // Level 5
-    WC_MLDSA87_NISTP384_SHA512     = 11,
-    WC_MLDSA87_BPOOL384_SHA512     = 12,
-    WC_MLDSA87_ED448_SHA512        = 13,
+    WC_MLDSA87_NISTP384_SHA512,
+    WC_MLDSA87_BPOOL384_SHA512,
+    WC_MLDSA87_ED448_SHA512,
 };
 
 // Size of the MLDSA Composite Types
@@ -200,24 +199,15 @@ enum mldsa_composite_type {
 // Size of the OID Data
 #define MLDSA_COMPOSITE_OID_DATA_SZ                      13
 
-// Buffer Structure to hold the OID data
-typedef struct mldsa_composite_oid_data {
-    const byte data[MLDSA_COMPOSITE_OID_DATA_SZ];
-};
-
-// Data Structure Type definition
-typedef struct mldsa_composite_oid_data mldsa_composite_oid_data;
-
-// Pointer to the Data Structure Type definition
-typedef const mldsa_composite_oid_data* const mldsa_composite_oid_data_const_ptr;
-
 // OID Data (see mldsa_composite.c for the actual data)
-extern const mldsa_composite_oid_data_const_ptr mldsa_composite_type_oid_data[];
+extern const byte mldsa_composite_oid_data[][13];
 
 // Composite Key Parameters
 typedef struct mldsa_composite_params {
+
     enum mldsa_composite_type type;
-    union {        
+
+    union { 
         struct {
             word16 bits;
             enum wc_HashType mask_gen_param;
@@ -233,10 +223,6 @@ typedef struct mldsa_composite_params {
         struct {
             ecc_curve_id curve_id;
         } ecdsa;
-
-        struct {
-            // No Params
-        } ed25519;
 
         struct {
             byte level;
@@ -297,6 +283,7 @@ struct mldsa_composite_key {
         RsaKey rsa; /* RSAOAEPk, RSAPSSk */
         ecc_key ecc; /* ECDSAk */
         ed25519_key ed25519; /* ED25519k */
+        ed448_key ed448; /* ED448k */
     } alt_key;
         /* Alternative Key */
 };
