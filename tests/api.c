@@ -47698,9 +47698,9 @@ static int test_wc_mldsa_composite(void)
     ExpectIntEQ(wc_mldsa_composite_get_type(key, &level), BAD_FUNC_ARG);
 
 #ifndef WOLFSSL_NO_MLDSA44_ED25519
-    ExpectIntEQ(wc_mldsa_composite_set_type(key, WC_MLDSA_COMPOSITE_TYPE_MLDSA44_ED25519), 0);
+    ExpectIntEQ(wc_mldsa_composite_set_type(key, WC_MLDSA44_ED25519_SHA512), 0);
     ExpectIntEQ(wc_mldsa_composite_get_type(key, &level), 0);
-    ExpectIntEQ(level, WC_MLDSA_COMPOSITE_TYPE_MLDSA44_ED25519);
+    ExpectIntEQ(level, WC_MLDSA44_ED25519_SHA512);
 #ifdef WOLFSSL_MLDSA_COMPOSITE_PRIVATE_KEY
     ExpectIntEQ(wc_mldsa_composite_size(key), MLDSA44_ED25519_KEY_SIZE);
 #ifdef WOLFSSL_MLDSA_COMPOSITE_PUBLIC_KEY
@@ -47713,17 +47713,17 @@ static int test_wc_mldsa_composite(void)
 #endif
 
 #ifndef WOLFSSL_NO_MLDSA44_P256
-    ExpectIntEQ(wc_mldsa_composite_set_type(key, WC_MLDSA_COMPOSITE_TYPE_MLDSA44_P256), 0);
+    ExpectIntEQ(wc_mldsa_composite_set_type(key, WC_MLDSA44_NISTP256_SHA256), 0);
     ExpectIntEQ(wc_mldsa_composite_get_type(key, &level), 0);
-    ExpectIntEQ(level, WC_MLDSA_COMPOSITE_TYPE_MLDSA44_P256);
+    ExpectIntEQ(level, WC_MLDSA44_NISTP256_SHA256);
 #ifdef WOLFSSL_MLDSA_COMPOSITE_PRIVATE_KEY
-    ExpectIntEQ(wc_mldsa_composite_size(key), MLDSA44_P256_KEY_SIZE);
+    ExpectIntEQ(wc_mldsa_composite_size(key), MLDSA44_NISTP256_KEY_SIZE);
 #ifdef WOLFSSL_MLDSA_COMPOSITE_PUBLIC_KEY
-    ExpectIntEQ(wc_mldsa_composite_pub_size(key), MLDSA44_P256_PUB_KEY_SIZE);
+    ExpectIntEQ(wc_mldsa_composite_pub_size(key), MLDSA44_NISTP256_PUB_KEY_SIZE);
 #endif
 #endif
 #if !defined(WOLFSSL_MLDSA_COMPOSITE_NO_SIGN) || !defined(WOLFSSL_MLDSA_COMPOSITE_NO_VERIFY)
-    ExpectIntEQ(wc_mldsa_composite_sig_size(key), MLDSA44_P256_SIG_SIZE);
+    ExpectIntEQ(wc_mldsa_composite_sig_size(key), MLDSA44_NISTP256_SIG_SIZE);
 #endif
 #endif
 
@@ -47763,7 +47763,7 @@ static int test_wc_mldsa_composite_make_key(void)
     ExpectIntEQ(wc_mldsa_composite_make_key(key, &rng), BAD_STATE_E);
 
 #ifndef WOLFSSL_NO_MLDSA44_ED25519
-    ExpectIntEQ(wc_mldsa_composite_set_type(key, WC_MLDSA_COMPOSITE_TYPE_MLDSA44_ED25519), 0);
+    ExpectIntEQ(wc_mldsa_composite_set_type(key, WC_MLDSA44_ED25519_SHA512), 0);
 #elif !defined(WOLFSSL_NO_MLDSA44_P256)
     ExpectIntEQ(wc_mldsa_composite_set_type(key, WC_MLDSA_COMPOSITE_TYPE_MLDSA44_P256), 0);
 #endif
@@ -47824,9 +47824,9 @@ EXPECT_DECLS;
     ExpectIntEQ(wc_mldsa_composite_init(key), 0);
 
 #ifndef WOLFSSL_NO_MLDSA44_ED25519
-    ExpectIntEQ(wc_mldsa_composite_set_type(key, WC_MLDSA_COMPOSITE_TYPE_MLDSA44_ED25519), 0);
+    ExpectIntEQ(wc_mldsa_composite_set_type(key, WC_MLDSA44_ED25519_SHA512), 0);
 #elif !defined(WOLFSSL_NO_MLDSA44_P256)
-    ExpectIntEQ(wc_mldsa_composite_set_type(key, WC_MLDSA_COMPOSITE_TYPE_MLDSA44_P256), 0);
+    ExpectIntEQ(wc_mldsa_composite_set_type(key, WC_MLDSA44_NISTP256_SHA256), 0);
 #endif
 
 #ifndef WOLFSSL_MLDSA_COMPOSITE_NO_MAKE_KEY

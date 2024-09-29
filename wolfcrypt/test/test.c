@@ -45505,12 +45505,12 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t mldsa_composite_test(void)
 #ifndef WOLFSSL_NO_ML_DSA_44
 #ifdef WOLFSSL_WC_MLDSA_COMPOSITE
 #ifndef WOLFSSL_MLDSA_COMPOSITE_NO_MAKE_KEY
-    ret = mldsa_composite_param_test(WC_MLDSA44_P256, &rng);
+    ret = mldsa_composite_param_test(WC_MLDSA44_NISTP256_SHA256, &rng);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
-    // ret = mldsa_composite_param_test(WC_MLDSA44_ED25519, &rng);
-    // if (ret != 0)
-    //     ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    ret = mldsa_composite_param_test(WC_MLDSA44_ED25519_SHA512, &rng);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 #endif
 #endif
 
