@@ -45402,11 +45402,11 @@ static wc_test_ret_t mldsa_composite_param_test(int param, WC_RNG* rng)
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
-    // printf("ML-DSA Composite - Pub Import Public\n");
+    printf("ML-DSA Composite - Pub Import Public\n");
 
-    // ret = wc_mldsa_composite_import_public(pubKey_Buffer, pubKey_BufferLen, &imported_key, param);
-    // if (ret != 0)
-    //     ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    ret = wc_mldsa_composite_import_public(pubKey_Buffer, pubKey_BufferLen, &imported_key, param);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
     printf("                   mldsa_composite_export_private()\n");
 
