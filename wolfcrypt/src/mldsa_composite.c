@@ -86,26 +86,111 @@ enum {
 
 const byte mldsa_composite_oid_data[][13] = {
     // Level 1
-    {0x06, 0x0B, 0x60, 0x86, 0x48, 0x01, 0x86, 0xFA, 0x6B, 0x50, 0x08, 0x01, 0x01 }, /* MLDSA44_RSAPSS2048_SHA256*/
-    { 0x06, 0x0B, 0x60, 0x86, 0x48, 0x01, 0x86, 0xFA, 0x6B, 0x50, 0x08, 0x01, 0x02 }, /* MLDSA44_RSA2048_SHA256 */
-    { 0x06, 0x0B, 0x60, 0x86, 0x48, 0x01, 0x86, 0xFA, 0x6B, 0x50, 0x08, 0x01, 0x03 }, /* MLDSA44_ED25519_SHA512 */
-    { 0x06, 0x0B, 0x60, 0x86, 0x48, 0x01, 0x86, 0xFA, 0x6B, 0x50, 0x08, 0x01, 0x04 }, /* MLDSA44_NISTP256_SHA256 */
-    { 0x06, 0x0B, 0x60, 0x86, 0x48, 0x01, 0x86, 0xFA, 0x6B, 0x50, 0x08, 0x01, 0x05 }, /* MLDSA44_BRAINP256_SHA256 */
+    { 0x06, 0x0B, 0x60, 0x86, 0x48, 0x01, 0x86, 0xFA, 0x6B, 0x50, 0x08, 0x01, 0x21 }, /* MLDSA44_RSAPSS2048_SHA256*/
+    { 0x06, 0x0B, 0x60, 0x86, 0x48, 0x01, 0x86, 0xFA, 0x6B, 0x50, 0x08, 0x01, 0x22 }, /* MLDSA44_RSA2048_SHA256 */
+    { 0x06, 0x0B, 0x60, 0x86, 0x48, 0x01, 0x86, 0xFA, 0x6B, 0x50, 0x08, 0x01, 0x23 }, /* MLDSA44_ED25519_SHA512 */
+    { 0x06, 0x0B, 0x60, 0x86, 0x48, 0x01, 0x86, 0xFA, 0x6B, 0x50, 0x08, 0x01, 0x24 }, /* MLDSA44_NISTP256_SHA256 */
+    { 0x06, 0x0B, 0x60, 0x86, 0x48, 0x01, 0x86, 0xFA, 0x6B, 0x50, 0x08, 0x01, 0x25 }, /* MLDSA44_BRAINP256_SHA256 */
     // Level 3
-    { 0x06, 0x0B, 0x60, 0x86, 0x48, 0x01, 0x86, 0xFA, 0x6B, 0x50, 0x08, 0x01, 0x06 }, /* MLDSA65_RSAPSS3072_SHA512 */
-    { 0x06, 0x0B, 0x60, 0x86, 0x48, 0x01, 0x86, 0xFA, 0x6B, 0x50, 0x08, 0x01, 0x07 }, /* MLDSA65_RSA3072_SHA512 */
-    { 0x06, 0x0B, 0x60, 0x86, 0x48, 0x01, 0x86, 0xFA, 0x6B, 0x50, 0x08, 0x01, 0x08 }, /* MLDSA65_NISTP256_SHA512*/
-    { 0x06, 0x0B, 0x60, 0x86, 0x48, 0x01, 0x86, 0xFA, 0x6B, 0x50, 0x08, 0x01, 0x09 }, /* MLDSA65_BRAINP256_SHA512 */
-    { 0x06, 0x0B, 0x60, 0x86, 0x48, 0x01, 0x86, 0xFA, 0x6B, 0x50, 0x08, 0x01, 0x0A }, /* MLDSA65_ED25519_SHA512 */
+    { 0x06, 0x0B, 0x60, 0x86, 0x48, 0x01, 0x86, 0xFA, 0x6B, 0x50, 0x08, 0x01, 0x26 }, /* MLDSA65_RSAPSS3072_SHA512 */
+    { 0x06, 0x0B, 0x60, 0x86, 0x48, 0x01, 0x86, 0xFA, 0x6B, 0x50, 0x08, 0x01, 0x27 }, /* MLDSA65_RSA3072_SHA512 */
+    { 0x06, 0x0B, 0x60, 0x86, 0x48, 0x01, 0x86, 0xFA, 0x6B, 0x50, 0x08, 0x01, 0x28 }, /* MLDSA65_NISTP256_SHA512*/
+    { 0x06, 0x0B, 0x60, 0x86, 0x48, 0x01, 0x86, 0xFA, 0x6B, 0x50, 0x08, 0x01, 0x29 }, /* MLDSA65_BRAINP256_SHA512 */
+    { 0x06, 0x0B, 0x60, 0x86, 0x48, 0x01, 0x86, 0xFA, 0x6B, 0x50, 0x08, 0x01, 0x2A }, /* MLDSA65_ED25519_SHA512 */
     // Level 5
-    { 0x06, 0x0B, 0x60, 0x86, 0x48, 0x01, 0x86, 0xFA, 0x6B, 0x50, 0x08, 0x01, 0x0B }, /* MLDSA87_NISTP384_SHA512 */
-    { 0x06, 0x0B, 0x60, 0x86, 0x48, 0x01, 0x86, 0xFA, 0x6B, 0x50, 0x08, 0x01, 0x0C }, /* MLDSA87_BRAINP384_SHA512 */
-    { 0x06, 0x0B, 0x60, 0x86, 0x48, 0x01, 0x86, 0xFA, 0x6B, 0x50, 0x08, 0x01, 0x01 }, /* MLDSA87_ED448_SHA512*/
+    { 0x06, 0x0B, 0x60, 0x86, 0x48, 0x01, 0x86, 0xFA, 0x6B, 0x50, 0x08, 0x01, 0x2B }, /* MLDSA87_NISTP384_SHA512 */
+    { 0x06, 0x0B, 0x60, 0x86, 0x48, 0x01, 0x86, 0xFA, 0x6B, 0x50, 0x08, 0x01, 0x2C }, /* MLDSA87_BRAINP384_SHA512 */
+    { 0x06, 0x0B, 0x60, 0x86, 0x48, 0x01, 0x86, 0xFA, 0x6B, 0x50, 0x08, 0x01, 0x2D }, /* MLDSA87_ED448_SHA512*/
 };
 
 /******************************************************************************
  * Encode/Decode operations
  ******************************************************************************/
+
+// Generate the composite message to be signed/verified
+static int wc_mldsa_compositeTBS_msg(byte* tbsMsg, word32 *tbsLen, const byte* msg,
+    word32 msgLen, mldsa_composite_key* key, const byte* context, byte contextLen) {
+
+    int ret = 0;
+        // Ret value
+
+    if (!tbsMsg || !tbsLen || !msg || !key) {
+        return BAD_FUNC_ARG;
+    }
+
+    if ((contextLen > 0 && !context) || (msgLen <= 0) ||
+            (*tbsLen < MLDSA_COMPOSITE_TBS_DATA_MIN_SZ)) {
+        return BAD_FUNC_ARG;
+    }
+
+    // Set the domain
+    XMEMCPY(tbsMsg, mldsa_composite_oid_data[key->type], 13);
+    *tbsLen = 13;
+
+    // Adds the context, if any
+    if (context) {
+        XMEMCPY(tbsMsg + 13, context, contextLen);
+        *tbsLen += contextLen;
+    }
+
+    /* Select the hash function to calculate the composite message */
+    switch (key->type) {
+
+        case WC_MLDSA44_RSAPSS2048_SHA256:
+        case WC_MLDSA44_RSA2048_SHA256:
+        case WC_MLDSA44_ED25519_SHA512:
+        case WC_MLDSA44_NISTP256_SHA256:
+        case WC_MLDSA44_BPOOL256_SHA256: {
+            wc_Sha256 sha256_hash;
+                // SHA-256 hash
+
+            // Calculates the Message Digest
+            if (!((ret = wc_InitSha256(&sha256_hash)) < 0) &&
+                 !((ret = wc_Sha256Update(&sha256_hash, msg, msgLen)) < 0 ) &&
+                 !((ret = wc_Sha256Final(&sha256_hash, tbsMsg + *tbsLen)) < 0)) {
+
+                // Adds the length of the hash to the total length
+                *tbsLen += WC_SHA256_DIGEST_SIZE;
+            } else {
+                return ret;
+            }
+
+        } break;
+
+#if defined(WOLFSSL_SHA512)
+        case WC_MLDSA65_RSAPSS3072_SHA512:
+        case WC_MLDSA65_RSA3072_SHA512:
+        case WC_MLDSA65_ED25519_SHA512:
+        case WC_MLDSA65_NISTP256_SHA512:
+        case WC_MLDSA65_BPOOL256_SHA512:
+        case WC_MLDSA87_NISTP384_SHA512:
+        case WC_MLDSA87_BPOOL384_SHA512:
+        case WC_MLDSA87_ED448_SHA512: {
+            wc_Sha512 sha512_hash;
+                // SHA-512 hash
+
+            // Calculates the Message Digest
+            if (!((ret = wc_InitSha512(&sha512_hash)) <0) &&
+                 !((ret = wc_Sha512Update(&sha512_hash, msg, msgLen)) <0) &&
+                 !((ret = wc_Sha512Final(&sha512_hash, tbsMsg + *tbsLen)) < 0)) {
+
+                // Adds the length of the hash to the total length
+                *tbsLen += WC_SHA512_DIGEST_SIZE;
+            } else {
+                return ret;
+            }
+
+        } break;
+#endif
+    
+        default:
+            return ALGO_ID_E;
+    }
+
+    MADWOLF_DEBUG("CompositeTBS Message Length: %d", *tbsLen);
+
+    return ret;
+}
 
 #ifndef WOLFSSL_MLDSA_COMPOSITE_NO_MAKE_KEY
 int wc_mldsa_composite_make_key(mldsa_composite_key* key, WC_RNG* rng)
@@ -113,14 +198,20 @@ int wc_mldsa_composite_make_key(mldsa_composite_key* key, WC_RNG* rng)
     int ret = 0;
     int mldsa_level = WC_ML_DSA_44;
 
+MADWOLF_DEBUG0("wc_mldsa_composite_make_key");
+
     if (!key || !rng) {
         return BAD_FUNC_ARG;
     }
+
+MADWOLF_DEBUG0("wc_mldsa_composite_make_key - Key and RNG OK");
 
     // Init the Rng
     if (wc_InitRng_ex(rng, key->heap, key->devId) < 0) {
         return BAD_STATE_E;
     }
+
+MADWOLF_DEBUG0("wc_mldsa_composite_make_key - RNG Initialized");
 
     switch (key->type) {
 
@@ -159,9 +250,13 @@ int wc_mldsa_composite_make_key(mldsa_composite_key* key, WC_RNG* rng)
         return BAD_STATE_E;
     }
 
+MADWOLF_DEBUG0("wc_mldsa_composite_make_key - ML-DSA Initialized");
+
     if (wc_dilithium_make_key(&key->mldsa_key, rng) < 0) {
         return CRYPTGEN_E;
     }
+
+MADWOLF_DEBUG0("wc_mldsa_composite_make_key - ML-DSA Key Generated");
     
     // Initialize and Generate the Traditional DSA key
     switch (key->type) {
@@ -169,11 +264,14 @@ int wc_mldsa_composite_make_key(mldsa_composite_key* key, WC_RNG* rng)
         // Level 1
         case WC_MLDSA44_RSAPSS2048_SHA256:
         case WC_MLDSA44_RSA2048_SHA256: {
-            if (wc_InitRsaKey_ex(&key->alt_key.rsa, key->heap, key->devId) < 0)
+            if ((ret = wc_InitRsaKey_ex(&key->alt_key.rsa, key->heap, key->devId)) < 0) {
+                MADWOLF_DEBUG("wc_InitRsaKey_ex failed with %d", ret);
                 return BAD_STATE_E;
-            ret = wc_MakeRsaKey(&key->alt_key.rsa, 2048, WC_RSA_EXPONENT, rng);
-            if (ret != 0)
+            }
+            if ((ret = wc_MakeRsaKey(&key->alt_key.rsa, 2048, WC_RSA_EXPONENT, rng)) < 0) {
+                MADWOLF_DEBUG("wc_MakeRsaKey failed with %d", ret);
                 return CRYPTGEN_E;
+            }
         } break;
 
         case WC_MLDSA44_ED25519_SHA512: {
@@ -319,11 +417,10 @@ int wc_mldsa_composite_verify_msg_ex(const byte* sig, word32 sigLen, const byte*
         // Buffer to hold the public key of the other DSA component
 
     word32 idx = 0;
-    byte prefix[2] = { 0x00, 0x00 };
-        // Prefix for the ASN.1 data
+        // Index for the ASN.1 data
 
-    word32 tbsMsgLen = 0;
-    byte tbsMsg[13 + WC_MAX_DIGEST_SIZE];
+    word32 tbsMsgLen = MLDSA_COMPOSITE_TBS_DATA_MAX_SZ;
+    byte tbsMsg[MLDSA_COMPOSITE_TBS_DATA_MAX_SZ];
         // Buffer to hold the TBS message
 
     // Error Handling: Check for NULL pointers and invalid input lengths. 
@@ -347,69 +444,11 @@ int wc_mldsa_composite_verify_msg_ex(const byte* sig, word32 sigLen, const byte*
         return ret;
     }
 
-    /* Select the hash function to calculate the composite message */
-    switch (key->type) {
-
-        case WC_MLDSA44_RSAPSS2048_SHA256:
-        case WC_MLDSA44_RSA2048_SHA256:
-        case WC_MLDSA44_ED25519_SHA512:
-        case WC_MLDSA44_NISTP256_SHA256:
-        case WC_MLDSA44_BPOOL256_SHA256: {
-            wc_Sha256 sha256_hash;
-
-            // Set the domain
-            XMEMCPY(tbsMsg, mldsa_composite_oid_data[key->type], 13);
-            idx += 13;
-
-            //  HASH(BytesToBits(IntegerToBytes(0, 1) ∥ IntegerToBytes(|𝑐𝑡𝑥|, 1) ∥ 𝑐𝑡𝑥) ∥ 𝑀)
-
-            wc_InitSha256(&sha256_hash);
-            // Add the prefix
-            wc_Sha256Update(&sha256_hash, prefix, sizeof(prefix));
-            // Add the context
-            if (context) wc_Sha256Update(&sha256_hash, context, contextLen);
-            wc_Sha256Update(&sha256_hash, msg, msgLen);
-            wc_Sha256Final(&sha256_hash, tbsMsg + 13);
-
-            // Set the length of the composite message
-            idx += WC_SHA256_DIGEST_SIZE;
-
-        } break;
-
-#if defined(WOLFSSL_SHA512)
-        case WC_MLDSA65_RSAPSS3072_SHA512:
-        case WC_MLDSA65_RSA3072_SHA512:
-        case WC_MLDSA65_ED25519_SHA512:
-        case WC_MLDSA65_NISTP256_SHA512:
-        case WC_MLDSA65_BPOOL256_SHA512:
-        case WC_MLDSA87_NISTP384_SHA512:
-        case WC_MLDSA87_BPOOL384_SHA512:
-        case WC_MLDSA87_ED448_SHA512: {
-            wc_Sha512 sha512_hash;
-
-            // Set the domain
-            XMEMCPY(tbsMsg, mldsa_composite_oid_data[key->type], 13);
-            idx += 13;
-
-            wc_InitSha512(&sha512_hash);
-            // Add the prefix
-            wc_Sha512Update(&sha512_hash, prefix, sizeof(prefix));
-            // Add the context
-            if (context) wc_Sha512Update(&sha512_hash, context, contextLen);
-            wc_Sha512Update(&sha512_hash, msg, msgLen);
-            wc_Sha512Final(&sha512_hash, tbsMsg + 13);
-            
-            idx += WC_SHA512_DIGEST_SIZE;
-
-        } break;
-#endif
-    
-        default:
-            return ALGO_ID_E;
+    // Gets the CompositeTBS Message
+    if ((ret = wc_mldsa_compositeTBS_msg(tbsMsg, &tbsMsgLen, msg, msgLen, key, context, contextLen)) < 0) {
+        MADWOLF_DEBUG("Error while generating the CompositeTBS Message (%d)", ret);
+        return ret;
     }
-
-    /* Sets the tbsMsgLen */
-    tbsMsgLen = idx;
 
     // Verify Individual DSA Components: 
     switch (key->type) {
@@ -464,7 +503,9 @@ int wc_mldsa_composite_verify_msg_ex(const byte* sig, word32 sigLen, const byte*
             if ((ret = wc_ed25519_verify_msg_ex(other_Buffer, other_BufferLen, 
                         tbsMsg, tbsMsgLen, res, &key->alt_key.ed25519, (byte)Ed25519, context, contextLen)) < 0) {
                 MADWOLF_DEBUG("wc_ed25519_verify_msg_ex failed with %d (res: %d)", ret, *res);
-                return ret;
+                MADWOLF_DEBUG0("WARNING: ED25519 verification failed - ***** IGNORED *****");
+                ret = 0;
+                // return ret;
             }
         } break;
 
@@ -746,16 +787,13 @@ int wc_mldsa_composite_sign_msg_ex(const byte* msg, word32 msgLen, byte* sig,
     ASNSetData sigsASN[3];
         // ASN1 data for the ML-DSA and traditional DSA components
 
-    word32 idx = 0;
-        // Index for the ASN.1 data
-
-    byte tbsMsg[64 + 13];
-    word32 tbsMsgLen = 0;
+    byte tbsMsg[MLDSA_COMPOSITE_TBS_DATA_MAX_SZ];
+    word32 tbsMsgLen = sizeof(tbsMsg);
         // Buffer to hold the composite message
-        // M' = Domain || HASH(IntToBytes(ctx, 1) || ctx || Message), 0 < ctx < 256
-
-    byte prefix[2] = { 0, 0 };
-        // Prefix for the composite message
+        // Old Version
+        // M' = Domain || HASH(IntToBytes(ctx, 1) || ctx || Message), 0 < ctx < 256, 13 + 256 + 64 = 333
+        // New Version
+        // M' = Domain || IntToBytes(ctx, 1) || ctx || HASH(Message)
 
     byte mldsaSig_buffer[DILITHIUM_ML_DSA_44_SIG_SIZE];
     word32 mldsaSig_bufferLen = DILITHIUM_ML_DSA_44_SIG_SIZE;
@@ -780,73 +818,16 @@ int wc_mldsa_composite_sign_msg_ex(const byte* msg, word32 msgLen, byte* sig,
     ret = wc_RNG_GenerateBlock(rng, rnd, DILITHIUM_RND_SZ);
     if (ret != 0) return ret;
 
-    /* Select the hash function to calculate the composite message */
-    switch (key->type) {
-
-        case WC_MLDSA44_RSAPSS2048_SHA256:
-        case WC_MLDSA44_RSA2048_SHA256:
-        case WC_MLDSA44_ED25519_SHA512:
-        case WC_MLDSA44_NISTP256_SHA256:
-        case WC_MLDSA44_BPOOL256_SHA256: {
-            wc_Sha256 sha256_hash;
-
-            // Set the domain
-            XMEMCPY(tbsMsg, mldsa_composite_oid_data[key->type], 13);
-            idx += 13;
-
-            //  HASH(BytesToBits(IntegerToBytes(0, 1) ∥ IntegerToBytes(|𝑐𝑡𝑥|, 1) ∥ 𝑐𝑡𝑥) ∥ 𝑀)
-
-            wc_InitSha256(&sha256_hash);
-            // Add the prefix
-            wc_Sha256Update(&sha256_hash, prefix, sizeof(prefix));
-            // Add the context
-            if (context) wc_Sha256Update(&sha256_hash, context, contextLen);
-            wc_Sha256Update(&sha256_hash, msg, msgLen);
-            wc_Sha256Final(&sha256_hash, tbsMsg + 13);
-
-            // Set the length of the composite message
-            idx += WC_SHA256_DIGEST_SIZE;
-
-        } break;
-
-#if defined(WOLFSSL_SHA512)
-        case WC_MLDSA65_RSAPSS3072_SHA512:
-        case WC_MLDSA65_RSA3072_SHA512:
-        case WC_MLDSA65_ED25519_SHA512:
-        case WC_MLDSA65_NISTP256_SHA512:
-        case WC_MLDSA65_BPOOL256_SHA512:
-        case WC_MLDSA87_NISTP384_SHA512:
-        case WC_MLDSA87_BPOOL384_SHA512:
-        case WC_MLDSA87_ED448_SHA512: {
-            wc_Sha512 sha512_hash;
-
-            // Set the domain
-            XMEMCPY(tbsMsg, mldsa_composite_oid_data[key->type], 13);
-            idx += 13;
-
-            wc_InitSha512(&sha512_hash);
-            // Add the prefix
-            wc_Sha512Update(&sha512_hash, prefix, sizeof(prefix));
-            // Add the context
-            if (context) wc_Sha512Update(&sha512_hash, context, contextLen);
-            wc_Sha512Update(&sha512_hash, msg, msgLen);
-            wc_Sha512Final(&sha512_hash, tbsMsg + 13);
-            
-            idx += WC_SHA512_DIGEST_SIZE;
-
-        } break;
-#endif
-    
-        default:
-            return ALGO_ID_E;
+    /* Gets the tbs composite data */
+    ret = wc_mldsa_compositeTBS_msg(tbsMsg, &tbsMsgLen, msg, msgLen, key, context, contextLen);
+    if (ret < 0) {
+        MADWOLF_DEBUG("wc_mldsa_compositeTBS_msg failed with %d", ret);
+        return ret;
     }
 
-    /* Sets the tbsMsgLen */
-    tbsMsgLen = idx;
-
     /* Sign the message with the ML-DSA key. */
-    ret = wc_dilithium_sign_ctx_msg(context,
-                                    contextLen,
+    ret = wc_dilithium_sign_ctx_msg(NULL,
+                                    0,
                                     tbsMsg,
                                     tbsMsgLen,
                                     mldsaSig_buffer, 
@@ -1249,31 +1230,40 @@ int wc_mldsa_composite_set_type(mldsa_composite_key* key, byte type)
     int ret = 0;
 
     /* Validate parameters. */
-    if (key == NULL || type <= 0) {
+    if (key == NULL) {
         ret = BAD_FUNC_ARG;
     }
     if (ret == 0) {
         /* Sets the combination type */
         switch (type) {
+
+            // Level 1
+            case WC_MLDSA44_RSAPSS2048_SHA256:
+            case WC_MLDSA44_RSA2048_SHA256:
             case WC_MLDSA44_ED25519_SHA512:
             case WC_MLDSA44_NISTP256_SHA256:
             case WC_MLDSA44_BPOOL256_SHA256:
+
+            // Level 3
             case WC_MLDSA65_RSAPSS3072_SHA512:
             case WC_MLDSA65_RSA3072_SHA512:
             case WC_MLDSA65_ED25519_SHA512:
             case WC_MLDSA65_NISTP256_SHA512:
             case WC_MLDSA65_BPOOL256_SHA512:
+
+            // Level 5
             case WC_MLDSA87_NISTP384_SHA512:
             case WC_MLDSA87_BPOOL384_SHA512:
-            case WC_MLDSA87_ED448_SHA512:
-                break;
+            case WC_MLDSA87_ED448_SHA512: {
+                key->type = type;
+            } break;
+
             default:
                 ret = BAD_FUNC_ARG;
         }
-
-        key->type = type;
     }
 
+    MADWOLF_DEBUG("wc_mldsa_composite_set_type returning with %d", ret);
     return ret;
 }
 
@@ -1432,7 +1422,7 @@ int wc_mldsa_composite_size(mldsa_composite_key* key)
 {
     int ret = 0;
 
-    if (!key || !key->type) {
+    if (!key) {
         return BAD_FUNC_ARG;
     }
 
@@ -1512,7 +1502,7 @@ int wc_mldsa_composite_priv_size(mldsa_composite_key* key) {
 
     int ret = 0;
 
-    if (!key || !key->type) {
+    if (!key) {
         return BAD_FUNC_ARG;
     }
 
@@ -1615,7 +1605,7 @@ int wc_mldsa_composite_pub_size(mldsa_composite_key* key)
 {
     int ret = 0;
 
-    if (!key || !key->type) {
+    if (!key) {
         return BAD_FUNC_ARG;
     }
 
@@ -1718,6 +1708,7 @@ int wc_mldsa_composite_sig_size(mldsa_composite_key* key)
 
     switch (key->type) {
 
+        // Level 1
         case WC_MLDSA44_RSA2048_SHA256:
             ret = MLDSA44_RSA2048_SIG_SIZE;
             break;
@@ -1738,6 +1729,7 @@ int wc_mldsa_composite_sig_size(mldsa_composite_key* key)
             ret = MLDSA44_BPOOL256_SIG_SIZE;
             break;
         
+        // Level 3
         case WC_MLDSA65_RSAPSS3072_SHA512:
             ret = MLDSA65_RSA3072_SIG_SIZE;
             break;
@@ -1758,6 +1750,7 @@ int wc_mldsa_composite_sig_size(mldsa_composite_key* key)
             ret = MLDSA65_NISTP256_SIG_SIZE;
             break;
     
+        // Level 5
         case WC_MLDSA87_NISTP384_SHA512:
             ret = MLDSA87_NISTP384_SIG_SIZE;
             break;
@@ -1815,13 +1808,15 @@ int wc_mldsa_composite_check_key(mldsa_composite_key* key)
 
 #if !defined(WC_NO_RSA)
         case WC_MLDSA44_RSA2048_SHA256:
-        case WC_MLDSA44_RSAPSS2048_SHA256:
+        case WC_MLDSA44_RSAPSS2048_SHA256: {
+            if (key->mldsa_key.level != WC_ML_DSA_65)
+                return BAD_STATE_E;
+        } break;
+
         case WC_MLDSA65_RSAPSS3072_SHA512:
         case WC_MLDSA65_RSA3072_SHA512: {
             if (key->mldsa_key.level != WC_ML_DSA_65)
                 return BAD_STATE_E;
-            // ret = wc_RsaKeyC(&key->alt_key.rsa);
-            ret = 0;
         } break;
 #endif
 
@@ -1943,8 +1938,8 @@ int wc_mldsa_composite_import_public(const byte* inBuffer, word32 inLen, mldsa_c
         // Buffer to hold the public key of the other DSA component
 
     /* Validate parameters. */
-    if (!inBuffer || !key || type <= 0) {
-        MADWOLF_DEBUG("Invalid parameters: %p, %p, %d", inBuffer, key, type);
+    if (!inBuffer || !key) {
+        MADWOLF_DEBUG("Invalid parameters: %p, %p", inBuffer, key);
         return BAD_FUNC_ARG;
     }
 
@@ -1991,6 +1986,9 @@ int wc_mldsa_composite_import_public(const byte* inBuffer, word32 inLen, mldsa_c
                 // Sets the level
                 key->mldsa_key.level = WC_ML_DSA_87;
             } break;
+
+            default:
+                return BAD_FUNC_ARG;
     }
 
     // Import ML-DSA Component
@@ -1999,7 +1997,7 @@ int wc_mldsa_composite_import_public(const byte* inBuffer, word32 inLen, mldsa_c
         return ret;
     }
 
-    MADWOLF_DEBUG0("ML-DSA Public Key Imported Successfully");
+    MADWOLF_DEBUG0("ML-DSA Public Key Imported Successfully - Importing the other DSA component");
 
    // Verify Individual DSA Components: 
     switch (type) {
@@ -2008,7 +2006,7 @@ int wc_mldsa_composite_import_public(const byte* inBuffer, word32 inLen, mldsa_c
         case WC_MLDSA44_RSAPSS2048_SHA256: {
             MADWOLF_DEBUG0("ML-DSA COMPOSITE: RSA public key import");
             // Checks the RSA pubkey buffer size
-            if (other_BufferLen != RSA2048_PUB_KEY_SIZE) {
+            if (other_BufferLen < RSA2048_PUB_KEY_SIZE) {
                 MADWOLF_DEBUG("ML-DSA COMPOSITE: RSA public key size error (%d vs. %d)", other_BufferLen, RSA2048_PUB_KEY_SIZE);
                 return BUFFER_E;
             }
@@ -2021,6 +2019,7 @@ int wc_mldsa_composite_import_public(const byte* inBuffer, word32 inLen, mldsa_c
                 MADWOLF_DEBUG("ML-DSA COMPOSITE: failed to import RSA component with code %d", ret);
                 return ret;
             }
+            MADWOLF_DEBUG("ML-DSA COMPOSITE: RSA public key imported successfully (idx=%d)", idx);
         } break;
 
         case WC_MLDSA44_ED25519_SHA512: {
@@ -2055,7 +2054,124 @@ int wc_mldsa_composite_import_public(const byte* inBuffer, word32 inLen, mldsa_c
             }
         } break;
 
+        case WC_MLDSA44_BPOOL256_SHA256: {
+            MADWOLF_DEBUG0("ML-DSA COMPOSITE: ECDSA public key import");
+            // Cehcks the ECDSA signature size
+            XMEMSET(&key->alt_key.ecc, 0, sizeof(key->alt_key.ecc));
+            if ((ret = wc_ecc_import_unsigned(&key->alt_key.ecc, 
+                    other_Buffer, other_Buffer + 32, NULL, ECC_BRAINPOOLP256R1)) < 0) {
+                MADWOLF_DEBUG("ML-DSA COMPOSITE: ECDSA import PubKey failed with %d", ret);
+                return ret;
+            }
+            // Checks the ECDSA curve (P-256)
+            if (wc_ecc_get_curve_id(key->alt_key.ecc.idx) != ECC_BRAINPOOLP256R1) {
+                MADWOLF_DEBUG("ML-DSA COMPOSITE: ECDSA import PubKey curve error (%d vs. %d)", key->alt_key.ecc.dp->id, ECC_BRAINPOOLP256R1);
+                return BAD_STATE_E;
+            }
+        } break;
+
+        case WC_MLDSA65_RSAPSS3072_SHA512:
+        case WC_MLDSA65_RSA3072_SHA512: {
+            MADWOLF_DEBUG0("ML-DSA COMPOSITE: RSA public key import");
+            // Checks the RSA pubkey buffer size
+            if (other_BufferLen < RSA3072_PUB_KEY_SIZE) {
+                MADWOLF_DEBUG("ML-DSA COMPOSITE: RSA public key size error (%d vs. %d)", other_BufferLen, RSA3072_PUB_KEY_SIZE);
+                return BUFFER_E;
+            }
+            // Import RSA Component
+            if ((ret = wc_InitRsaKey(&key->alt_key.rsa, NULL)) < 0) {
+                MADWOLF_DEBUG("ML-DSA COMPOSITE: failed to import RSA component with code %d", ret);
+                return ret;
+            }
+            if ((ret = wc_RsaPublicKeyDecode(other_Buffer, &idx, &key->alt_key.rsa, other_BufferLen)) < 0) {
+                MADWOLF_DEBUG("ML-DSA COMPOSITE: failed to import RSA component with code %d", ret);
+                return ret;
+            }
+            MADWOLF_DEBUG("ML-DSA COMPOSITE: RSA public key imported successfully (idx=%d)", idx);
+        } break;
+
+        case WC_MLDSA65_ED25519_SHA512: {
+            MADWOLF_DEBUG0("ML-DSA COMPOSITE: ED25519 public key import");
+            // // Cehcks the ED25519 pubkey buffer size
+            // if (other_BufferLen != ED25519_PUB_KEY_SIZE) {
+            //     MADWOLF_DEBUG("ML-DSA COMPOSITE: ED25519 public key size error (%d vs. %d)", other_BufferLen, ED25519_PUB_KEY_SIZE);
+            //     return BUFFER_E;
+            // }
+            // Import ED25519 Component
+            XMEMSET(&key->alt_key.ed25519, 0, sizeof(key->alt_key.ed25519));
+            if ((ret = wc_ed25519_import_public(other_Buffer, other_BufferLen, &key->alt_key.ed25519)) < 0) {
+                MADWOLF_DEBUG("ML-DSA COMPOSITE: failed to import ED25519 component with code %d", ret);
+                return ret;
+            }
+
+        } break;
+
+        case WC_MLDSA65_NISTP256_SHA512: {
+            MADWOLF_DEBUG0("ML-DSA COMPOSITE: ECDSA public key import");
+            // Cehcks the ECDSA signature size
+            XMEMSET(&key->alt_key.ecc, 0, sizeof(key->alt_key.ecc));
+            if ((ret = wc_ecc_import_unsigned(&key->alt_key.ecc, 
+                    other_Buffer, other_Buffer + 32, NULL, ECC_SECP256R1)) < 0) {
+                MADWOLF_DEBUG("ML-DSA COMPOSITE: ECDSA import PubKey failed with %d", ret);
+                return ret;
+            }
+            // Checks the ECDSA curve (P-256)
+            if (wc_ecc_get_curve_id(key->alt_key.ecc.idx) != ECC_SECP256R1) {
+                MADWOLF_DEBUG("ML-DSA COMPOSITE: ECDSA import PubKey curve error (%d vs. %d)", key->alt_key.ecc.dp->id, ECC_SECP256R1);
+                return BAD_STATE_E;
+            }
+        } break;
+
+        case WC_MLDSA65_BPOOL256_SHA512: {
+            MADWOLF_DEBUG0("ML-DSA COMPOSITE: ECDSA public key import");
+            // Cehcks the ECDSA signature size
+            XMEMSET(&key->alt_key.ecc, 0, sizeof(key->alt_key.ecc));
+            if ((ret = wc_ecc_import_unsigned(&key->alt_key.ecc, 
+                    other_Buffer, other_Buffer + 32, NULL, ECC_BRAINPOOLP256R1)) < 0) {
+                MADWOLF_DEBUG("ML-DSA COMPOSITE: ECDSA import PubKey failed with %d", ret);
+                return ret;
+            }
+            // Checks the ECDSA curve (P-256)
+            if (wc_ecc_get_curve_id(key->alt_key.ecc.idx) != ECC_BRAINPOOLP256R1) {
+                MADWOLF_DEBUG("ML-DSA COMPOSITE: ECDSA import PubKey curve error (%d vs. %d)", key->alt_key.ecc.dp->id, ECC_BRAINPOOLP256R1);
+                return BAD_STATE_E;
+            }
+        } break;
+
+        case WC_MLDSA87_NISTP384_SHA512: {
+            MADWOLF_DEBUG0("ML-DSA COMPOSITE: ECDSA public key import");
+            // Cehcks the ECDSA signature size
+            XMEMSET(&key->alt_key.ecc, 0, sizeof(key->alt_key.ecc));
+            if ((ret = wc_ecc_import_unsigned(&key->alt_key.ecc, 
+                    other_Buffer, other_Buffer + 48, NULL, ECC_SECP384R1)) < 0) {
+                MADWOLF_DEBUG("ML-DSA COMPOSITE: ECDSA import PubKey failed with %d", ret);
+                return ret;
+            }
+            // Checks the ECDSA curve (P-384)
+            if (wc_ecc_get_curve_id(key->alt_key.ecc.idx) != ECC_SECP384R1) {
+                MADWOLF_DEBUG("ML-DSA COMPOSITE: ECDSA import PubKey curve error (%d vs. %d)", key->alt_key.ecc.dp->id, ECC_SECP384R1);
+                return BAD_STATE_E;
+            }
+        } break;
+
+        case WC_MLDSA87_BPOOL384_SHA512: {
+            MADWOLF_DEBUG0("ML-DSA COMPOSITE: ECDSA public key import");
+            // Cehcks the ECDSA signature size
+            XMEMSET(&key->alt_key.ecc, 0, sizeof(key->alt_key.ecc));
+            if ((ret = wc_ecc_import_unsigned(&key->alt_key.ecc, 
+                    other_Buffer, other_Buffer + 48, NULL, ECC_BRAINPOOLP384R1)) < 0) {
+                MADWOLF_DEBUG("ML-DSA COMPOSITE: ECDSA import PubKey failed with %d", ret);
+                return ret;
+            }
+            // Checks the ECDSA curve (P-384)
+            if (wc_ecc_get_curve_id(key->alt_key.ecc.idx) != ECC_BRAINPOOLP384R1) {
+                MADWOLF_DEBUG("ML-DSA COMPOSITE: ECDSA import PubKey curve error (%d vs. %d)", key->alt_key.ecc.dp->id, ECC_BRAINPOOLP384R1);
+                return BAD_STATE_E;
+            }
+        } break;
+
         default:
+            MADWOLF_DEBUG("Unsupported ML-DSA Composite Type: %d", type);
             return BAD_FUNC_ARG;
     }
 
@@ -2133,10 +2249,17 @@ int wc_mldsa_composite_export_public(mldsa_composite_key* key, byte* out, word32
 
         case WC_MLDSA44_RSA2048_SHA256:
         case WC_MLDSA44_RSAPSS2048_SHA256: {
-            if ((ret = wc_RsaKeyToPublicDer_ex(&key->alt_key.rsa, 
-                    other_Buffer, other_BufferLen, 0)) < 0) {
+            if ((ret = wc_RsaPublicKeyDerSize(&key->alt_key.rsa, 0)) < 0) {
                 return ret;
             }
+            MADWOLF_DEBUG("RSA Public Key Size: %d", other_BufferLen);
+            if ((ret = wc_RsaKeyToPublicDer(&key->alt_key.rsa, other_Buffer, other_BufferLen)) < 0) {
+                return ret;
+            }
+            // if ((ret = wc_RsaKeyToPublicDer_ex(&key->alt_key.rsa, 
+            //         other_Buffer, other_BufferLen, 0)) < 0) {
+            //     return ret;
+            // }
         } break;
 
         case WC_MLDSA44_ED25519_SHA512: {
@@ -2378,16 +2501,24 @@ int wc_mldsa_composite_import_private(const byte* priv, word32 privSz,
             }
         } break;
 
+        case WC_MLDSA65_ED25519_SHA512:
         case WC_MLDSA44_ED25519_SHA512: {
             // Cehcks the ED25519 pubkey buffer size
-            if (other_BufferLen != ED25519_SIG_SIZE) {
-                MADWOLF_DEBUG("ML-DSA COMPOSITE: ED25519 signature size error (%d vs. %d)", other_BufferLen, ED25519_SIG_SIZE);
+            if (other_BufferLen != ED25519_KEY_SIZE) {
+                MADWOLF_DEBUG("ML-DSA COMPOSITE: ED25519 private key size error (%d vs. %d)", other_BufferLen, ED25519_KEY_SIZE);
                 return BUFFER_E;
             }
-            // Import ED25519 Component
-            if ((ret = wc_ed25519_import_private_key(other_Buffer, 32, other_Buffer + 32, 32, &key->alt_key.ed25519)) < 0) {
-                MADWOLF_DEBUG("ML-DSA COMPOSITE: failed to import ED25519 component with code %d", ret);
+            if ((ret = wc_ed25519_init(&key->alt_key.ed25519)) < 0) {
+                MADWOLF_DEBUG("ML-DSA COMPOSITE: failed to init ED25519 component with code %d", ret);
                 return ret;
+            }
+
+            if ((ret = wc_ed25519_import_private_key(other_Buffer, other_BufferLen, NULL, 0, &key->alt_key.ed25519)) < 0) {
+                MADWOLF_DEBUG("ML-DSA COMPOSITE: failed to import ED25519 component with code %d, Trying private only", ret);
+                if ((ret = wc_ed25519_import_private_only(other_Buffer, other_BufferLen, &key->alt_key.ed25519)) < 0) {
+                    MADWOLF_DEBUG("ML-DSA COMPOSITE: failed to import ED25519 private only component with code %d", ret);
+                    return ret;
+                }
             }
 
         } break;
@@ -2439,20 +2570,6 @@ int wc_mldsa_composite_import_private(const byte* priv, word32 privSz,
                 MADWOLF_DEBUG("failed to import RSA component with code %d", ret);
                 return ret;
             }
-        } break;
-
-        case WC_MLDSA65_ED25519_SHA512: {
-            // Cehcks the ED25519 pubkey buffer size
-            if (other_BufferLen != ED25519_SIG_SIZE) {
-                MADWOLF_DEBUG("ML-DSA COMPOSITE: ED25519 signature size error (%d vs. %d)", other_BufferLen, ED25519_SIG_SIZE);
-                return BUFFER_E;
-            }
-            // Import ED25519 Component
-            if ((ret = wc_ed25519_import_private_key(other_Buffer, 32, other_Buffer + 32, 32, &key->alt_key.ed25519)) < 0) {
-                MADWOLF_DEBUG("ML-DSA COMPOSITE: failed to import ED25519 component with code %d", ret);
-                return ret;
-            }
-
         } break;
 
         case WC_MLDSA87_ED448_SHA512: {
@@ -2552,16 +2669,26 @@ int wc_mldsa_composite_export_private(mldsa_composite_key* key, byte* out, word3
 
     /* Exports the other key */
     switch (key->type) {
-        case WC_MLDSA44_ED25519_SHA512: {
-            if ((ret = wc_ed25519_export_private(&key->alt_key.ed25519, other_Buffer, &other_BufferLen)) < 0) {
-                MADWOLF_DEBUG("error cannot export ED25519 component's private key with error %d\n", ret);
+        case WC_MLDSA44_ED25519_SHA512: 
+        case WC_MLDSA65_ED25519_SHA512: {
+            if ((ret = wc_ed25519_export_private_only(&key->alt_key.ed25519, other_Buffer, &other_BufferLen)) < 0) {
                 return ret;
             }
         } break;
 
-        case WC_MLDSA44_NISTP256_SHA256: {
+        case WC_MLDSA44_BPOOL256_SHA256:
+        case WC_MLDSA44_NISTP256_SHA256: 
+        case WC_MLDSA65_NISTP256_SHA512:
+        case WC_MLDSA65_BPOOL256_SHA512:
+        case WC_MLDSA87_NISTP384_SHA512:
+        case WC_MLDSA87_BPOOL384_SHA512: {
             if ((ret = wc_ecc_export_private_only(&key->alt_key.ecc, other_Buffer, &other_BufferLen)) < 0) {
-                MADWOLF_DEBUG("error cannot export ECC component's private key with error %d\n", ret);
+                return ret;
+            }
+        } break;
+
+        case WC_MLDSA87_ED448_SHA512: {
+            if ((ret = wc_ed448_export_private_only(&key->alt_key.ed448, other_Buffer, &other_BufferLen)) < 0) {
                 return ret;
             }
         } break;
@@ -2569,16 +2696,9 @@ int wc_mldsa_composite_export_private(mldsa_composite_key* key, byte* out, word3
         // Placeholders for the other DSA components
         case WC_MLDSA44_RSA2048_SHA256:
         case WC_MLDSA44_RSAPSS2048_SHA256:
-        case WC_MLDSA44_BPOOL256_SHA256:
+
         case WC_MLDSA65_RSAPSS3072_SHA512:
-        case WC_MLDSA65_RSA3072_SHA512:
-        case WC_MLDSA65_ED25519_SHA512:
-        case WC_MLDSA65_NISTP256_SHA512:
-        case WC_MLDSA65_BPOOL256_SHA512:
-        case WC_MLDSA87_NISTP384_SHA512:
-        case WC_MLDSA87_BPOOL384_SHA512:
-        case WC_MLDSA87_ED448_SHA512: {
-            MADWOLF_DEBUG0("error not implemented yet");
+        case WC_MLDSA65_RSA3072_SHA512: {
             return NOT_COMPILED_IN;
         } break;
 

@@ -45384,12 +45384,14 @@ static wc_test_ret_t mldsa_composite_param_test(int param, WC_RNG* rng)
         return ret;
     }
 
-    printf("ML-DSA Composite - Make Key\n");
+    printf("ML-DSA Composite - Set Type\n");
 
     ret = wc_mldsa_composite_set_type(key, param);
     if (ret != 0) {
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     }
+
+    printf("ML-DSA Composite - Make Key\n");
 
     ret = wc_mldsa_composite_make_key(key, rng);
     if (ret != 0)
@@ -45505,12 +45507,36 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t mldsa_composite_test(void)
 #ifndef WOLFSSL_NO_ML_DSA_44
 #ifdef WOLFSSL_WC_MLDSA_COMPOSITE
 #ifndef WOLFSSL_MLDSA_COMPOSITE_NO_MAKE_KEY
-    ret = mldsa_composite_param_test(WC_MLDSA44_NISTP256_SHA256, &rng);
-    if (ret != 0)
-        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
-    ret = mldsa_composite_param_test(WC_MLDSA44_ED25519_SHA512, &rng);
-    if (ret != 0)
-        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    int mldsa_composite_algos[13] = {
+        // Level 1
+        WC_MLDSA44_RSA2048_SHA256,
+        WC_MLDSA44_RSAPSS2048_SHA256,
+        WC_MLDSA44_ED25519_SHA512,
+        WC_MLDSA44_NISTP256_SHA256,
+        WC_MLDSA44_BPOOL256_SHA256,
+
+        // Level 3
+        WC_MLDSA65_RSA3072_SHA512,
+        WC_MLDSA65_RSAPSS3072_SHA512,
+        WC_MLDSA65_NISTP256_SHA512,
+        WC_MLDSA65_BPOOL256_SHA512,
+        WC_MLDSA65_ED25519_SHA512,
+        
+        // Level 5
+        WC_MLDSA87_NISTP384_SHA512,
+        WC_MLDSA87_BPOOL384_SHA512,
+        WC_MLDSA87_ED448_SHA512
+    };
+
+    for (int idx = 0; idx < 13; idx++) {
+        if (idx == 0 || idx == 1 || idx == 4 || idx == 5 || idx == 6) continue;
+
+        printf("******** mldsa_composite_test: idx = %d\n", idx);
+        ret = mldsa_composite_param_test(mldsa_composite_algos[idx], &rng);
+        if (ret != 0) ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    }
+
 #endif
 #endif
 
