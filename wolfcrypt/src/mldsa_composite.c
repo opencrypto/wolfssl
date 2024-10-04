@@ -408,8 +408,8 @@ int wc_mldsa_composite_verify_msg_ex(const byte* sig, word32 sigLen, const byte*
     ASNGetData compSigsASN[mldsaCompASN_Length];
         // ASN.1 data for the composite signature
 
-    byte mldsa_Buffer[DILITHIUM_ML_DSA_44_SIG_SIZE];
-    word32 mldsa_BufferLen = DILITHIUM_ML_DSA_44_SIG_SIZE;
+    byte mldsa_Buffer[DILITHIUM_ML_DSA_87_SIG_SIZE];
+    word32 mldsa_BufferLen = DILITHIUM_ML_DSA_87_SIG_SIZE;
         // Buffer to hold the ML-DSA public key
 
     byte other_Buffer[MLDSA_COMPOSITE_MAX_OTHER_SIG_SZ];
@@ -441,6 +441,12 @@ int wc_mldsa_composite_verify_msg_ex(const byte* sig, word32 sigLen, const byte*
     // Parse the ASN.1 data
     if ((ret = GetASN_Items(sigsIT, compSigsASN, 3, 1, sig, &idx, sigLen)) < 0) {
         MADWOLF_DEBUG("Error while parsing ASN.1 (%d)", ret);
+        // Save the buffer to a file
+        FILE * f = fopen("mldsa_composite_verify_msg_error.bin", "wb");
+        if (f) {
+            fwrite(sig, 1, sigLen, f);
+            fclose(f);
+        }
         return ret;
     }
 
@@ -1083,23 +1089,30 @@ MADWOLF_DEBUG0("Other signature generated");
     SetASN_Buffer(&sigsASN[MLDSA_COMPASN_IDX_MLDSA], mldsaSig_buffer, mldsaSig_bufferLen);
     SetASN_Buffer(&sigsASN[MLDSA_COMPASN_IDX_OTHER], otherSig_buffer, otherSig_bufferLen);
 
+MADWOLF_DEBUG("ASN1 data set: mldsaSig_bufferLen=%d, otherSig_bufferLen=%d", mldsaSig_bufferLen, otherSig_bufferLen);
+
     // Let's calculate the size of the ASN1 data
     if ((ret = SizeASN_Items(compositeIT, sigsASN, 3, (int *)sigLen)) < 0) {
         WOLFSSL_MSG_VSNPRINTF("error cannot calculate SizeASN_Items");
         return ret;
     }
 
+MADWOLF_DEBUG0("ASN1 data size calculated");
+
     if (*sigLen > inSigLen) {
+        MADWOLF_DEBUG("error not enough space for ASN1 data (needed: %d, provided: %d)", *sigLen, inSigLen);
         WOLFSSL_MSG_VSNPRINTF("error not enough space for ASN1 data (needed: %d, provided: %d)", *sigLen, inSigLen);
         return BUFFER_E;
     }
+
+MADWOLF_DEBUG0("ASN1 data size checked");
 
     // Let's encode the ASN1 data
     if ((*sigLen = SetASN_Items(compositeIT, sigsASN, 3, sig)) <= 0) { 
         return ASN_PARSE_E;
     }
 
-    MADWOLF_DEBUG0("ASN1 data encoded");
+MADWOLF_DEBUG0("ASN1 data encoded");
 
     // WOLFSSL_MSG_VSNPRINTF("composite context is not used");
     (void)context;
@@ -2173,6 +2186,21 @@ int wc_mldsa_composite_import_public(const byte* inBuffer, word32 inLen, mldsa_c
             }
         } break;
 
+        case WC_MLDSA87_ED448_SHA512: {
+            MADWOLF_DEBUG0("ML-DSA COMPOSITE: ED448 public key import");
+            // // Cehcks the ED448 pubkey buffer size
+            // if (other_BufferLen != ED448_PUB_KEY_SIZE) {
+            //     MADWOLF_DEBUG("ML-DSA COMPOSITE: ED448 public key size error (%d vs. %d)", other_BufferLen, ED448_PUB_KEY_SIZE);
+            //     return BUFFER_E;
+            // }
+            // Import ED448 Component
+            XMEMSET(&key->alt_key.ed448, 0, sizeof(key->alt_key.ed448));
+            if ((ret = wc_ed448_import_public(other_Buffer, other_BufferLen, &key->alt_key.ed448)) < 0) {
+                MADWOLF_DEBUG("ML-DSA COMPOSITE: failed to import ED448 component with code %d", ret);
+                return ret;
+            }
+        } break;
+
         default:
             MADWOLF_DEBUG("Unsupported ML-DSA Composite Type: %d", type);
             return BAD_FUNC_ARG;
@@ -2236,8 +2264,7 @@ int wc_mldsa_composite_export_public(mldsa_composite_key* key, byte* out, word32
 
     // Checks if the buffer is too small
     if (inLen < *outLen) {
-        MADWOLF_DEBUG("Output Signature Buffer too small (needed: %d, provided: %d)", *outLen, inLen);
-        WOLFSSL_MSG_VSNPRINTF("Output Signature Buffer too small (needed: %d, provided: %d)", *outLen, inLen);
+        MADWOLF_DEBUG("Output Public Key Buffer too small (needed: %d, provided: %d)", *outLen, inLen);
         return BAD_FUNC_ARG;
     }
 
