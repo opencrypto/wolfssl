@@ -795,8 +795,8 @@ int wc_mldsa_composite_sign_msg_ex(const byte* msg, word32 msgLen, byte* sig,
         // New Version
         // M' = Domain || IntToBytes(ctx, 1) || ctx || HASH(Message)
 
-    byte mldsaSig_buffer[DILITHIUM_ML_DSA_44_SIG_SIZE];
-    word32 mldsaSig_bufferLen = DILITHIUM_ML_DSA_44_SIG_SIZE;
+    byte mldsaSig_buffer[DILITHIUM_ML_DSA_87_SIG_SIZE];
+    word32 mldsaSig_bufferLen = DILITHIUM_ML_DSA_87_SIG_SIZE;
         // Buffer to hold the ML-DSA signature
 
     byte otherSig_buffer[MLDSA_COMPOSITE_MAX_OTHER_SIG_SZ];
@@ -825,19 +825,22 @@ int wc_mldsa_composite_sign_msg_ex(const byte* msg, word32 msgLen, byte* sig,
         return ret;
     }
 
+    MADWOLF_DEBUG("TBS message generated: tbsMsgLen=%d, sigBufferLen=%d", tbsMsgLen, mldsaSig_bufferLen);
+
     /* Sign the message with the ML-DSA key. */
-    ret = wc_dilithium_sign_ctx_msg(NULL,
-                                    0,
-                                    tbsMsg,
-                                    tbsMsgLen,
-                                    mldsaSig_buffer, 
-                                    &mldsaSig_bufferLen,
-                                    &key->mldsa_key,
-                                    rng);
+    if ((ret = wc_dilithium_sign_ctx_msg(NULL,
+                                         0,
+                                         tbsMsg,
+                                         tbsMsgLen,
+                                         mldsaSig_buffer, 
+                                         &mldsaSig_bufferLen,
+                                         &key->mldsa_key,
+                                         rng)) < 0) {
+        MADWOLF_DEBUG("wc_dilithium_sign_ctx_msg failed with %d", ret);
+        return ret;
+    }
 
-    if (ret != 0) return ret;
-
-MADWOLF_DEBUG0("ML-DSA signature generated");
+MADWOLF_DEBUG("ML-DSA signature generated: mldsaSig_bufferLen=%d", mldsaSig_bufferLen);
 
     // Sign The Traditional component
     switch (key->type) {
@@ -2347,7 +2350,7 @@ int wc_mldsa_composite_export_public(mldsa_composite_key* key, byte* out, word32
     }
 
     if (*outLen > inLen) {
-        WOLFSSL_MSG_VSNPRINTF("error outLen > tmpLen: %d > %d", *outLen, inLen);
+        WOLFSSL_MSG_VSNPRINTF("error outLen > inlen: %d > %d", *outLen, inLen);
         return BAD_STATE_E;
     }
 
@@ -2628,9 +2631,6 @@ int wc_mldsa_composite_export_private(mldsa_composite_key* key, byte* out, word3
     word32 other_BufferLen = MLDSA_COMPOSITE_MAX_OTHER_KEY_SZ;
         // Buffer to hold the public key of the other DSA component
 
-    word32 tmpLen = *outLen;
-        // Temporary length
-
     /* Validate parameters */
     if ((key == NULL) || (out == NULL) || (outLen == NULL || *outLen == 0)) {
         ret = BAD_FUNC_ARG;
@@ -2706,6 +2706,8 @@ int wc_mldsa_composite_export_private(mldsa_composite_key* key, byte* out, word3
             return ALGO_ID_E;
     }
 
+    MADWOLF_DEBUG("Exported Both ML-DSA and Other DSA Components (%d, %d)", mldsa_BufferLen, other_BufferLen);
+
     // Clear the memory
     XMEMSET(compPrivKeyASN, 0, sizeof(ASNSetData) * mldsaCompASN_Length);
 
@@ -2721,7 +2723,7 @@ int wc_mldsa_composite_export_private(mldsa_composite_key* key, byte* out, word3
     }
     
     if (encSz > (int)(*outLen)) {
-        MADWOLF_DEBUG("error encSz > : %d > %d", *outLen, tmpLen);
+        MADWOLF_DEBUG("error encoded size too big for output buffer : %d > %d", encSz, *outLen);
         return BAD_STATE_E;
     }
 
