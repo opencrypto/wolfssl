@@ -45538,7 +45538,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t mldsa_composite_test(void)
     };
 
     for (int idx = 0; idx < 13; idx++) {
-        if (idx == 0 || idx == 1 || idx == 4 || idx == 5 || idx == 6 || idx == 8 || idx == 11) continue;
+        if (idx == 0 || idx == 1 || idx == 5 || idx == 6) continue;
 
         printf("******** mldsa_composite_test: idx = %d\n", idx);
         ret = mldsa_composite_param_test(mldsa_composite_algos[idx], &rng);

@@ -283,23 +283,24 @@ MADWOLF_DEBUG0("wc_mldsa_composite_make_key - ML-DSA Key Generated");
         } break;
 
         case WC_MLDSA44_NISTP256_SHA256: {
+            int kSz = wc_ecc_get_curve_size_from_id(ECC_SECP256R1);
             if (wc_ecc_init_ex(&key->alt_key.ecc, key->heap, key->devId) < 0) {
                 return BAD_STATE_E;
             }
-            int kSz = wc_ecc_get_curve_size_from_id(ECC_SECP256R1);
-            if (wc_ecc_make_key(rng, kSz, &key->alt_key.ecc) < 0) {
+            if (wc_ecc_make_key_ex(rng, kSz, &key->alt_key.ecc, ECC_SECP256R1) < 0) {
                 return CRYPTGEN_E;
             }
         } break;
 
         case WC_MLDSA44_BPOOL256_SHA256: {
+            int kSz = wc_ecc_get_curve_size_from_id(ECC_BRAINPOOLP256R1);
             if (wc_ecc_init_ex(&key->alt_key.ecc, key->heap, key->devId) < 0) {
                 return BAD_STATE_E;
             }
-            int kSz = wc_ecc_get_curve_size_from_id(ECC_BRAINPOOLP256R1);
-            if (wc_ecc_make_key(rng, kSz, &key->alt_key.ecc) < 0) {
+            if (wc_ecc_make_key_ex(rng, kSz, &key->alt_key.ecc, ECC_BRAINPOOLP256R1) < 0) {
                 return CRYPTGEN_E;
             }
+            MADWOLF_DEBUG("Brainpool256 Key Generated ECC_BRAINPOOLP256R1->idx=%d, ecc.idx=%d", wc_ecc_get_curve_idx(ECC_BRAINPOOLP256R1), key->alt_key.ecc.idx);
         } break;
 
         // Level 3
@@ -314,21 +315,21 @@ MADWOLF_DEBUG0("wc_mldsa_composite_make_key - ML-DSA Key Generated");
         } break;
 
         case WC_MLDSA65_NISTP256_SHA512: {
+            int kSz = wc_ecc_get_curve_size_from_id(ECC_SECP256R1);
             if (wc_ecc_init_ex(&key->alt_key.ecc, key->heap, key->devId) < 0) {
                 return BAD_STATE_E;
             }
-            int kSz = wc_ecc_get_curve_size_from_id(ECC_SECP256R1);
-            if (wc_ecc_make_key(rng, kSz, &key->alt_key.ecc) < 0) {
+            if (wc_ecc_make_key_ex(rng, kSz, &key->alt_key.ecc, ECC_SECP256R1) < 0) {
                 return CRYPTGEN_E;
             }
         } break;
 
         case WC_MLDSA65_BPOOL256_SHA512: {
+            int kSz = wc_ecc_get_curve_size_from_id(ECC_BRAINPOOLP256R1);
             if (wc_ecc_init_ex(&key->alt_key.ecc, key->heap, key->devId) < 0) {
                 return BAD_STATE_E;
             }
-            int kSz = wc_ecc_get_curve_size_from_id(ECC_BRAINPOOLP256R1);
-            if (wc_ecc_make_key(rng, kSz, &key->alt_key.ecc) < 0) {
+            if (wc_ecc_make_key_ex(rng, kSz, &key->alt_key.ecc, ECC_BRAINPOOLP256R1) < 0) {
                 return CRYPTGEN_E;
             }
         } break;
@@ -345,21 +346,21 @@ MADWOLF_DEBUG0("wc_mldsa_composite_make_key - ML-DSA Key Generated");
         // Level 5
 
         case WC_MLDSA87_NISTP384_SHA512: {
+            int kSz = wc_ecc_get_curve_size_from_id(ECC_SECP384R1);
             if (wc_ecc_init_ex(&key->alt_key.ecc, key->heap, key->devId) < 0) {
                 return BAD_STATE_E;
             }
-            int kSz = wc_ecc_get_curve_size_from_id(ECC_SECP384R1);
-            if (wc_ecc_make_key(rng, kSz, &key->alt_key.ecc) < 0) {
+            if (wc_ecc_make_key_ex(rng, kSz, &key->alt_key.ecc, ECC_SECP384R1) < 0) {
                 return CRYPTGEN_E;
             }
         } break;
 
         case WC_MLDSA87_BPOOL384_SHA512: {
+            int kSz = wc_ecc_get_curve_size_from_id(ECC_BRAINPOOLP384R1);
             if (wc_ecc_init_ex(&key->alt_key.ecc, key->heap, key->devId) < 0) {
                 return BAD_STATE_E;
             }
-            int kSz = wc_ecc_get_curve_size_from_id(ECC_BRAINPOOLP384R1);
-            if (wc_ecc_make_key(rng, kSz, &key->alt_key.ecc) < 0) {
+            if (wc_ecc_make_key_ex(rng, kSz, &key->alt_key.ecc, ECC_BRAINPOOLP384R1) < 0) {
                 return CRYPTGEN_E;
             }
         } break;
@@ -521,6 +522,10 @@ int wc_mldsa_composite_verify_msg_ex(const byte* sig, word32 sigLen, const byte*
                 MADWOLF_DEBUG("ML-DSA key level error (%d vs. %d)", key->mldsa_key.level, WC_ML_DSA_44);
                 return SIG_VERIFY_E;
             }
+            if (key->alt_key.ecc.dp->id != ECC_SECP256R1) {
+                MADWOLF_DEBUG("ECDSA curve error (ecc.dp->id = %d vs. ECC_BRAINPOOL256R1 = %d)", key->alt_key.ecc.dp->id, ECC_SECP256R1);
+                // return SIG_VERIFY_E;
+            }
             // Checks the ECDSA curve (P-256)
             if (key->alt_key.ecc.dp->id != ECC_SECP256R1) {
                 MADWOLF_DEBUG("ECDSA curve error (%d vs. %d)", key->alt_key.ecc.dp->id, ECC_SECP256R1);
@@ -545,9 +550,13 @@ int wc_mldsa_composite_verify_msg_ex(const byte* sig, word32 sigLen, const byte*
                 MADWOLF_DEBUG("ML-DSA key level error (%d vs. %d)", key->mldsa_key.level, WC_ML_DSA_44);
                 return SIG_VERIFY_E;
             }
-            // Checks the ECDSA curve (P-256)
             if (key->alt_key.ecc.dp->id != ECC_BRAINPOOLP256R1) {
-                MADWOLF_DEBUG("ECDSA curve error (%d vs. %d)", key->alt_key.ecc.dp->id, ECC_BRAINPOOLP256R1);
+                MADWOLF_DEBUG("ECDSA curve error (ecc.dp->id = %d vs. ECC_BRAINPOOL256R1 = %d)", key->alt_key.ecc.dp->id, ECC_BRAINPOOLP256R1);
+                // return SIG_VERIFY_E;
+            }
+            // Checks the ECDSA curve (P-256)
+            if (key->alt_key.ecc.idx != wc_ecc_get_curve_idx(ECC_BRAINPOOLP256R1)) {
+                MADWOLF_DEBUG("ECDSA curve error (%d vs. %d) P256=%d", key->alt_key.ecc.idx, wc_ecc_get_curve_idx(ECC_BRAINPOOLP256R1), wc_ecc_get_curve_idx(ECC_SECP256R1));
                 return SIG_VERIFY_E;
             }
             // Cehcks the ECDSA signature size

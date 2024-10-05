@@ -1,4 +1,5 @@
 ./autogen.sh &&
-./configure --prefix=/opt/wolfssl --enable-opensslall --enable-certreq --enable-certgen --enable-keygen --enable-dilithium --enable-kyber --enable-ocsp --enable-ocspstapling --enable-experimental --enable-mldsa-composite --enable-ed25519 --enable-ed448 --enable-asynccrypt &&
+./configure --prefix=/opt/wolfssl --enable-opensslall --enable-certreq --enable-certgen --enable-keygen --enable-dilithium --enable-kyber --enable-ocsp --enable-ocspstapling --enable-experimental --enable-mldsa-composite --enable-ed25519 --enable-ed448 --enable-brainpool --enable-ecccustcurves &&
 make
 
+./configure --prefix=/opt/wolfssl --enable-opensslall --enable-certreq --enable-certgen --enable-keygen --enable-dilithium --enable-kyber --enable-ocsp --enable-ocspstapling --enable-experimental --enable-mldsa-composite --enable-ed25519 --enable-ed448 --enable-asynccrypt --enable-brainpool --enable-ecccustcurves &&
