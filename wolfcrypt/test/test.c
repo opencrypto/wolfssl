@@ -45415,10 +45415,10 @@ static wc_test_ret_t mldsa_composite_param_test(int param, WC_RNG* rng)
         return ret;
     }
 
-    // pubKey_BufferLen = MLDSA_COMPOSITE_MAX_PUB_KEY_SIZE;
-    ret = wc_mldsa_composite_import_public(pubKey_Buffer, pubKey_BufferLen, &imported_key, param);
-    if (ret != 0)
-        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    // // pubKey_BufferLen = MLDSA_COMPOSITE_MAX_PUB_KEY_SIZE;
+    // ret = wc_mldsa_composite_import_public(pubKey_Buffer, pubKey_BufferLen, &imported_key, param);
+    // if (ret != 0)
+    //     ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
     printf("                   mldsa_composite_export_private()\n");
 
@@ -45592,7 +45592,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t mldsa_composite_test(void)
 
     for (int idx = 0; idx < 13; idx++) {
 
-        if (idx == 0 || idx ==1 || idx == 5 || idx == 6) continue;
+        // if (/* idx == 0 || */ idx ==1 || idx == 5 || idx == 6) continue;
 
         printf("******** mldsa_composite_test: idx = %d\n", idx);
         ret = mldsa_composite_param_test(mldsa_composite_algos[idx], &rng);

@@ -47881,13 +47881,6 @@ EXPECT_DECLS;
     badKeyLen = 0;
     ExpectIntEQ(wc_mldsa_composite_export_private(key, privKey, &badKeyLen),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-// #ifndef WOLFSSL_NO_ML_DSA_44
-//     ExpectIntEQ(badKeyLen, DILITHIUM_LEVEL2_KEY_SIZE);
-// #elif !defined(WOLFSSL_NO_ML_DSA_65)
-//     ExpectIntEQ(badKeyLen, DILITHIUM_LEVEL3_KEY_SIZE);
-// #else
-//     ExpectIntEQ(badKeyLen, DILITHIUM_LEVEL5_KEY_SIZE);
-// #endif
     ExpectIntEQ(wc_mldsa_composite_export_private(key, privKey, &privKeyLen),
         0);
 #ifndef WOLFSSL_NO_MLDSA44_ED25519
@@ -47896,39 +47889,34 @@ EXPECT_DECLS;
     ExpectIntEQ(privKeyLen, MLDSA44_ED25519_PRV_KEY_SIZE);
 #endif
 
-/*
-    ExpectIntEQ(wc_dilithium_init(importKey), 0);
-    ExpectIntEQ(wc_dilithium_import_private(privKey, privKeyLen, importKey),
+    ExpectIntEQ(wc_mldsa_composite_init(importKey), 0);
+    ExpectIntEQ(wc_mldsa_composite_import_private(privKey, privKeyLen, importKey, 0),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-#ifndef WOLFSSL_NO_ML_DSA_44
-    ExpectIntEQ(wc_dilithium_set_level(importKey, WC_ML_DSA_44), 0);
-#elif !defined(WOLFSSL_NO_ML_DSA_65)
-    ExpectIntEQ(wc_dilithium_set_level(importKey, WC_ML_DSA_65), 0);
-#else
-    ExpectIntEQ(wc_dilithium_set_level(importKey, WC_ML_DSA_87), 0);
-#endif
-    ExpectIntEQ(wc_dilithium_import_private(NULL, 0, NULL),
-        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_dilithium_import_private(privKey, 0, NULL),
-        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_dilithium_import_private(NULL, privKeyLen, NULL),
-        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_dilithium_import_private(NULL, 0, importKey),
-        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_dilithium_import_private(NULL, privKeyLen, importKey),
-        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_dilithium_import_private(privKey, 0, importKey),
-        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_dilithium_import_private(privKey, privKeyLen, NULL),
-        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_dilithium_import_private(privKey, privKeyLen, importKey),
-        0);
-    ExpectIntEQ(wc_dilithium_sign_msg(msg, 32, sig, &sigLen, key, &rng), 0);
-#ifdef WOLFSSL_DILITHIUM_CHECK_KEY
-    ExpectIntEQ(wc_dilithium_check_key(importKey), WC_NO_ERR_TRACE(PUBLIC_KEY_E));
-#endif
 
-*/
+    // ExpectIntEQ(wc_mldsa_composite_set_type(importKey, WC_MLDSA44_NISTP256_SHA256), 0);
+    // ExpectIntEQ(wc_mldsa_composite_set_type(importKey, WC_MLDSA44_ED25519_SHA512), 0);
+    // ExpectIntEQ(wc_mldsa_composite_set_type(importKey, WC_MLDSA44_BPOOL256_SHA256), 0);
+    
+
+    ExpectIntEQ(wc_mldsa_composite_import_private(NULL, 0, NULL, 0),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_mldsa_composite_import_private(privKey, 0, NULL, 0),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_mldsa_composite_import_private(NULL, privKeyLen, NULL, 0),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_mldsa_composite_import_private(NULL, 0, importKey, 0),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_mldsa_composite_import_private(NULL, privKeyLen, importKey, 0),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_mldsa_composite_import_private(privKey, 0, importKey, 0),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_mldsa_composite_import_private(privKey, privKeyLen, NULL, 0),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wc_mldsa_composite_import_private(privKey, privKeyLen, importKey, 0), 0);
+    ExpectIntEQ(wc_mldsa_composite_sign_msg(msg, 32, sig, &sigLen, key, &rng), 0);
+#ifdef WOLFSSL_DILITHIUM_CHECK_KEY
+    ExpectIntEQ(wc_mldsa_composite_check_key(importKey), WC_NO_ERR_TRACE(PUBLIC_KEY_E));
+#endif
 
     wc_mldsa_composite_free(importKey);
 
