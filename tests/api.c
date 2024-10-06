@@ -47611,7 +47611,7 @@ static int test_wc_mldsa_composite(void)
     EXPECT_DECLS;
 #if defined(HAVE_MLDSA_COMPOSITE) && defined(WOLFSSL_WC_MLDSA_COMPOSITE)
     mldsa_composite_key* key;
-    byte level;
+    int level;
 #if !defined(WOLFSSL_MLDSA_COMPOSITE_NO_MAKE_KEY) || \
     !defined(WOLFSSL_MLDSA_COMPOSITE_NO_SIGN)
     WC_RNG rng;
@@ -47760,18 +47760,24 @@ static int test_wc_mldsa_composite_make_key(void)
     ExpectIntEQ(wc_InitRng(&rng), 0);
     ExpectIntEQ(wc_mldsa_composite_init(key), 0);
 
-    ExpectIntEQ(wc_mldsa_composite_make_key(key, &rng), BAD_STATE_E);
+    ExpectIntEQ(wc_mldsa_composite_make_key(key, 400, &rng), BAD_STATE_E);
 
 #ifndef WOLFSSL_NO_MLDSA44_ED25519
     ExpectIntEQ(wc_mldsa_composite_set_type(key, WC_MLDSA44_ED25519_SHA512), 0);
+    ExpectIntEQ(wc_mldsa_composite_make_key(key, 0, &rng), 0);
+    wc_mldsa_composite_free(key);
+
+    key = (mldsa_composite_key *)XMALLOC(sizeof(*key), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    ExpectIntEQ(wc_mldsa_composite_init(key), 0);
+
 #elif !defined(WOLFSSL_NO_MLDSA44_P256)
     ExpectIntEQ(wc_mldsa_composite_set_type(key, WC_MLDSA_COMPOSITE_TYPE_MLDSA44_P256), 0);
 #endif
 
-    ExpectIntEQ(wc_mldsa_composite_make_key(NULL, NULL), BAD_FUNC_ARG);
-    ExpectIntEQ(wc_mldsa_composite_make_key(key, NULL), BAD_FUNC_ARG);
-    ExpectIntEQ(wc_mldsa_composite_make_key(NULL, &rng), BAD_FUNC_ARG);
-    ExpectIntEQ(wc_mldsa_composite_make_key(key, &rng), 0);
+    ExpectIntEQ(wc_mldsa_composite_make_key(NULL, 0, NULL), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_mldsa_composite_make_key(key, 0, NULL), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_mldsa_composite_make_key(NULL, 0, &rng), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_mldsa_composite_make_key(key, WC_MLDSA44_NISTP256_SHA256, &rng), 0);
 
     wc_mldsa_composite_free(key);
     wc_FreeRng(&rng);
@@ -47830,7 +47836,7 @@ EXPECT_DECLS;
 #endif
 
 #ifndef WOLFSSL_MLDSA_COMPOSITE_NO_MAKE_KEY
-    ExpectIntEQ(wc_mldsa_composite_make_key(key, &rng), 0);
+    ExpectIntEQ(wc_mldsa_composite_make_key(key, WC_MLDSA44_ED25519_SHA512, &rng), 0);
 #endif
 
     ExpectIntEQ(wc_mldsa_composite_sign_msg(NULL, 32, NULL, NULL, NULL, NULL),

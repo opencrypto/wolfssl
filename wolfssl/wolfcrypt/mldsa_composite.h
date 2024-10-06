@@ -114,23 +114,23 @@
 #endif
 
 
-#define RSA2048_KEY_SIZE                384
-#define RSA2048_SIG_SIZE                384
-#define RSA2048_PUB_KEY_SIZE            384
-#define RSA2048_PRV_KEY_SIZE            384
+#define RSA2048_KEY_SIZE                512
+#define RSA2048_SIG_SIZE                256
+#define RSA2048_PUB_KEY_SIZE            512
+#define RSA2048_PRV_KEY_SIZE            1200
 
-#define RSA3072_KEY_SIZE                512
-#define RSA3072_SIG_SIZE                512
-#define RSA3072_PUB_KEY_SIZE            512
-#define RSA3072_PRV_KEY_SIZE            512
+#define RSA3072_KEY_SIZE                768
+#define RSA3072_SIG_SIZE                384
+#define RSA3072_PUB_KEY_SIZE            1767
+#define RSA3072_PRV_KEY_SIZE            1767
 
-#define RSA4096_KEY_SIZE                512
+#define RSA4096_KEY_SIZE                1024
 #define RSA4096_SIG_SIZE                512
-#define RSA4096_PUB_KEY_SIZE            512
-#define RSA4096_PRV_KEY_SIZE            512
+#define RSA4096_PUB_KEY_SIZE            2208
+#define RSA4096_PRV_KEY_SIZE            2208
 
 #define MLDSA44_RSA2048_KEY_SIZE        DILITHIUM_ML_DSA_44_KEY_SIZE + RSA2048_KEY_SIZE + 12
-#define MLDSA44_RSA2048_SIG_SIZE        DILITHIUM_ML_DSA_44_SIG_SIZE + RSA2048_SIG_SIZE + 12
+#define MLDSA44_RSA2048_SIG_SIZE        DILITHIUM_ML_DSA_44_SIG_SIZE + RSA2048_SIG_SIZE + 12 + 2
 #define MLDSA44_RSA2048_PUB_KEY_SIZE    DILITHIUM_ML_DSA_44_PUB_KEY_SIZE + RSA2048_KEY_SIZE + 12
 #define MLDSA44_RSA2048_PRV_KEY_SIZE    DILITHIUM_ML_DSA_44_KEY_SIZE + RSA2048_PRV_KEY_SIZE + 12
 
@@ -172,13 +172,13 @@
 #define MLDSA65_ED25519_PUB_KEY_SIZE   DILITHIUM_ML_DSA_65_PUB_KEY_SIZE + ED25519_PUB_KEY_SIZE + 16 + 7
 #define MLDSA65_ED25519_PRV_KEY_SIZE   DILITHIUM_ML_DSA_65_PRV_KEY_SIZE + ED25519_PRV_KEY_SIZE + 16 + 7
 
-#define MLDSA65_RSA3072_KEY_SIZE       DILITHIUM_ML_DSA_65_KEY_SIZE + RSA3072_KEY_SIZE + 16
-#define MLDSA65_RSA3072_SIG_SIZE       DILITHIUM_ML_DSA_65_SIG_SIZE + RSA3072_SIG_SIZE + 16
+#define MLDSA65_RSA3072_KEY_SIZE       DILITHIUM_ML_DSA_65_KEY_SIZE + RSA3072_KEY_SIZE + 16 + 2
+#define MLDSA65_RSA3072_SIG_SIZE       DILITHIUM_ML_DSA_65_SIG_SIZE + RSA3072_SIG_SIZE + 16 + 2
 #define MLDSA65_RSA3072_PUB_KEY_SIZE   DILITHIUM_ML_DSA_65_PUB_KEY_SIZE + RSA3072_PUB_KEY_SIZE + 16
 #define MLDSA65_RSA3072_PRV_KEY_SIZE   DILITHIUM_ML_DSA_65_PRV_KEY_SIZE + RSA3072_PRV_KEY_SIZE + 16
 
-#define MLDSA65_RSA4096_KEY_SIZE       DILITHIUM_ML_DSA_65_KEY_SIZE + RSA4096_KEY_SIZE + 16
-#define MLDSA65_RSA4096_SIG_SIZE       DILITHIUM_ML_DSA_65_SIG_SIZE + RSA4096_SIG_SIZE + 16
+#define MLDSA65_RSA4096_KEY_SIZE       DILITHIUM_ML_DSA_65_KEY_SIZE + RSA4096_KEY_SIZE + 16 + 2
+#define MLDSA65_RSA4096_SIG_SIZE       DILITHIUM_ML_DSA_65_SIG_SIZE + RSA4096_SIG_SIZE + 16 + 2
 #define MLDSA65_RSA4096_PUB_KEY_SIZE   DILITHIUM_ML_DSA_65_PUB_KEY_SIZE + RSA4096_PUB_KEY_SIZE + 16
 #define MLDSA65_RSA4096_PRV_KEY_SIZE   DILITHIUM_ML_DSA_65_PRV_KEY_SIZE + RSA4096_PRV_KEY_SIZE + 16
 
@@ -192,8 +192,8 @@
 #define MLDSA87_ED448_PUB_KEY_SIZE     DILITHIUM_ML_DSA_87_PUB_KEY_SIZE + ED448_PUB_KEY_SIZE + 16 + 7
 #define MLDSA87_ED448_PRV_KEY_SIZE     DILITHIUM_ML_DSA_87_PRV_KEY_SIZE + ED448_PRV_KEY_SIZE + 16 + 7
 
-#define MLDSA_COMPOSITE_MAX_OTHER_SIG_SZ 512 // ECC_MAX_SIG_SIZE = 141, RSA3072_SIG_SIZE = 384
-#define MLDSA_COMPOSITE_MAX_OTHER_KEY_SZ 512 // ECC_MAX_SIZE = 66, RSA3072_KEY_SIZE = 384
+#define MLDSA_COMPOSITE_MAX_OTHER_SIG_SZ RSA4096_SIG_SIZE 
+#define MLDSA_COMPOSITE_MAX_OTHER_KEY_SZ RSA4096_PRV_KEY_SIZE 
 
 #define MLDSA_COMPOSITE_MIN_KEY_SIZE   MLDSA_ED25519_KEY_SIZE
 #define MLDSA_COMPOSITE_MAX_KEY_SIZE   DILITHIUM_LEVEL5_KEY_SIZE + MLDSA_COMPOSITE_MAX_OTHER_KEY_SZ + 16 + 7
@@ -201,9 +201,9 @@
 #define MLDSA_COMPOSITE_MAX_SIG_SIZE   DILITHIUM_LEVEL5_SIG_SIZE + MLDSA_COMPOSITE_MAX_OTHER_SIG_SZ + 16 + 7
 
 #define MLDSA_COMPOSITE_MIN_PUB_KEY_SIZE MLDSA44_ED25519_PUB_KEY_SIZE
-#define MLDSA_COMPOSITE_MAX_PUB_KEY_SIZE DILITHIUM_LEVEL5_PUB_KEY_SIZE + MLDSA_COMPOSITE_MAX_OTHER_KEY_SZ + 16
+#define MLDSA_COMPOSITE_MAX_PUB_KEY_SIZE DILITHIUM_ML_DSA_87_PUB_KEY_SIZE + MLDSA_COMPOSITE_MAX_OTHER_KEY_SZ + 16 + 7
 #define MLDSA_COMPOSITE_MIN_PRV_KEY_SIZE MLDSA44_ED25519_PRV_KEY_SIZE
-#define MLDSA_COMPOSITE_MAX_PRV_KEY_SIZE DILITHIUM_LEVEL5_PRV_KEY_SIZE + MLDSA_COMPOSITE_MAX_OTHER_KEY_SZ + 16
+#define MLDSA_COMPOSITE_MAX_PRV_KEY_SIZE DILITHIUM_ML_DSA_87_PRV_KEY_SIZE + MLDSA_COMPOSITE_MAX_OTHER_KEY_SZ + 16 + 7 + 300
 
 #ifdef WOLF_PRIVATE_KEY_ID
 #define MLDSA_COMPOSITE_MAX_ID_LEN    32
@@ -216,8 +216,9 @@
 
 
 enum mldsa_composite_type {
+    WC_MLDSA_COMPOSITE_UNDEF = 0,
     // Level 1
-    WC_MLDSA44_RSA2048_SHA256 = 0,
+    WC_MLDSA44_RSA2048_SHA256 = 1,
     WC_MLDSA44_RSAPSS2048_SHA256,
     WC_MLDSA44_ED25519_SHA512,
     WC_MLDSA44_NISTP256_SHA256,
@@ -356,12 +357,15 @@ struct mldsa_composite_key {
 /* Make a key from a random seed.
  *
  * @param [in, out] key  Dilithium key.
+ * @param [in]      type ML-DSA composite type.
  * @param [in]      rng  Random number generator.
  * @return  0 on success.
  * @return  MEMORY_E when memory allocation fails.
  * @return  Other negative when an error occurs.
  */
-WOLFSSL_API int wc_mldsa_composite_make_key(mldsa_composite_key* key, WC_RNG* rng);
+WOLFSSL_API int wc_mldsa_composite_make_key(mldsa_composite_key       * key, 
+                                            enum mldsa_composite_type   type, 
+                                            WC_RNG                    * rng);
 #endif /* ! WOLFSSL_MLDSA_COMPOSITE_NO_MAKE_KEY */
 
 #ifndef WOLFSSL_MLDSA_COMPOSITE_NO_VERIFY
@@ -477,7 +481,7 @@ int wc_mldsa_composite_init_label(mldsa_composite_key* key, const char* label, v
  * level [in]   One of WC_MLDSA_COMPOSITE_TYPE_* values.
  * returns BAD_FUNC_ARG when key is NULL or level is a bad values.
  */
-WOLFSSL_API int wc_mldsa_composite_set_type(mldsa_composite_key* key, byte type);
+WOLFSSL_API int wc_mldsa_composite_set_type(mldsa_composite_key* key, int type);
 
 /* Get the level of the MlDsaComposite private/public key.
  *
@@ -485,7 +489,16 @@ WOLFSSL_API int wc_mldsa_composite_set_type(mldsa_composite_key* key, byte type)
  * level [out] The level.
  * returns BAD_FUNC_ARG when key is NULL or level has not been set.
  */
-WOLFSSL_API int wc_mldsa_composite_get_type(mldsa_composite_key* key, byte* type);
+WOLFSSL_API int wc_mldsa_composite_get_type(mldsa_composite_key* key, int* type);
+
+/* Get the key type of the MlDsaComposite private/public key.
+ *
+ * type         [in]  ML-DSA Composite Type (e.g., key->type)
+ * keytype_sum  [out] Key type (e.g., MLDSA44_NISTP256k)
+ * returns 0 on success.
+ * returns BAD_FUNC_ARG when keytype is NULL or type is not supported.
+ */
+WOLFSSL_API int wc_mldsa_composite_get_keytype(enum mldsa_composite_type type, int* keytype_sum);
 
 /* Clears the MlDsaComposite key data
  *
@@ -571,13 +584,13 @@ WOLFSSL_API int wc_mldsa_composite_check_key(mldsa_composite_key* key);
  *
  * @param [in]      in     Array holding public key.
  * @param [in]      inLen  Number of bytes of data in array.
- * @param [in]      type   ML-DSA Composite Type (WC_MLDSA_COMPOSITE_TYPE_*)
+ * @param [in]      type   ML-DSA Composite Type (e.g., WC_MLDSA44_NISTP256_SHA256)
  * @param [in, out] key    MlDsaComposite public key.
  * @return  0 on success.
  * @return  BAD_FUNC_ARG when in or key is NULL or key format is not supported.
  */
 WOLFSSL_API int wc_mldsa_composite_import_public(const byte* in, word32 inLen,
-    mldsa_composite_key* key, word32 type);
+    mldsa_composite_key* key, enum mldsa_composite_type type);
 
 /* Export the MlDsaComposite public key.
  *
@@ -628,12 +641,13 @@ WOLFSSL_API int wc_mldsa_composite_export_private(mldsa_composite_key* key, byte
  * @param [in] pub     Array holding public key (or NULL).
  * @param [in] pubSz   Number of bytes of data in public key array (or 0).
  * @param [in] key     mldsa_composite private/public key.
+ * @param [in] type    ML-DSA Composite Type (e.g., WC_MLDSA44_NISTP256_SHA256)
  * @return  0 on success.
  * @return  BAD_FUNC_ARG when a required parameter is NULL an invalid
  *          combination of keys/lengths is supplied.
  */
 WOLFSSL_API int wc_mldsa_composite_import_key(const byte* priv, word32 privSz,
-    const byte* pub, word32 pubSz, mldsa_composite_key* key);
+    const byte* pub, word32 pubSz, mldsa_composite_key* key, enum mldsa_composite_type type);
 
 /* Export the mldsa_composite private and public key.
  *
@@ -681,13 +695,15 @@ WOLFSSL_API int wc_MlDsaComposite_PrivateKeyDecode(const byte* input,
  *                            On out, index into array after DER encoding.
  * @param [in, out] key       mldsa_composite key to store key.
  * @param [in]      inSz      Total size of data in array.
+ * @param [in]      type      ML-DSA Composite Type (e.g., WC_MLDSA44_NISTP256_SHA256)
+ *                            or WC_MLDSA_COMPOSITE_UNDEF to use the type in the key.
  * @return  0 on success.
  * @return  BAD_FUNC_ARG when input, inOutIdx or key is NULL or inSz is 0.
  * @return  BAD_FUNC_ARG when level not set.
  * @return  Other negative on parse error.
  */
 WOLFSSL_API int wc_MlDsaComposite_PublicKeyDecode(const byte* input,
-    word32* inOutIdx, mldsa_composite_key* key, word32 inSz);
+    word32* inOutIdx, mldsa_composite_key* key, word32 inSz, enum mldsa_composite_type type);
 #endif /* WOLFSSL_MLDSA_COMPOSITE_PUBLIC_KEY */
 
 #ifndef WOLFSSL_MLDSA_COMPOSITE_NO_ASN1
