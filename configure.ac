@@ -1237,7 +1237,7 @@ AC_ARG_WITH([liboqs],
                 tryliboqsdir="/usr/local"
             fi
 
-            CPPFLAGS="$AM_CPPFLAGS -DHAVE_LIBOQS -DHAVE_TLS_EXTENSIONS -I$tryliboqsdir/include"
+            CPPFLAGS="$AM_CPPFLAGS -DHAVE_LIBOQS -DHAVE_TLS_EXTENSIONS -I$tryliboqsdir/include -pthread"
             LDFLAGS="$AM_LDFLAGS $LDFLAGS -L$tryliboqsdir/lib"
 
             AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <oqs/common.h>]], [[ OQS_init(); ]])], [ liboqs_linked=yes ],[ liboqs_linked=no ])
@@ -3071,6 +3071,7 @@ then
             AM_CCASFLAGS="$AM_CCASFLAGS -DEXTERNAL_OPTS_OPENVPN"
             ENABLED_ARMASM_CRYPTO=yes
             ENABLED_ARMASM_NEON=yes
+            ENABLED_ARM_64=yes
 
             # Check for and set -mstrict-align compiler flag
             # Used to set assumption that Aarch64 systems will not handle
@@ -3096,6 +3097,7 @@ then
             ENABLED_ARMASM_CRYPTO=no
             ENABLED_AESGCM_STREAM=no # not yet implemented
             ENABLED_ARMASM_NEON=yes
+            ENABLED_ARM_32=yes
             AC_MSG_NOTICE([32bit ARMv7-a found, setting mfpu to neon])
             if test "$ENABLED_FIPS" != "no" ||
                 test "$HAVE_FIPS_VERSION_MAJOR" -ge 5;
@@ -3114,6 +3116,8 @@ then
             ENABLED_ARMASM_CRYPTO=no
             ENABLED_AESGCM_STREAM=no # not yet implemented
             ENABLED_ARMASM_NEON=no
+            ENABLED_ARM_THUMB=yes
+            ENABLED_ARM_32=yes
             AC_MSG_NOTICE([32bit ARMv7-m found])
             if test "$ENABLED_FIPS" != "no" ||
                 test "$HAVE_FIPS_VERSION_MAJOR" -ge 5;
@@ -3130,6 +3134,7 @@ then
             ENABLED_ARMASM_CRYPTO=no
             ENABLED_AESGCM_STREAM=no # not yet implemented
             ENABLED_ARMASM_NEON=no
+            ENABLED_ARM_32=yes
             AC_MSG_NOTICE([32bit ARMv6 found])
             ;;
         armv4*)
@@ -3138,6 +3143,7 @@ then
             ENABLED_ARMASM_CRYPTO=no
             ENABLED_AESGCM_STREAM=no # not yet implemented
             ENABLED_ARMASM_NEON=no
+            ENABLED_ARM_32=yes
             AC_MSG_NOTICE([32bit ARMv4 found])
             ;;
         *)
@@ -3146,6 +3152,7 @@ then
             AM_CCASFLAGS="$AM_CCASFLAGS -DEXTERNAL_OPTS_OPENVPN"
             ENABLED_ARMASM_CRYPTO=yes
             ENABLED_ARMASM_NEON=yes
+            ENABLED_ARM_32=yes
             AC_MSG_NOTICE([32bit ARMv8 found, setting mfpu to crypto-neon-fp-armv8])
             ;;
         esac
@@ -8443,6 +8450,7 @@ if test "$ENABLED_SP_ASM" = "yes" && test "$ENABLED_SP" = "yes"; then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_ARM_CORTEX_M_ASM"
     AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_SP_ARM_CORTEX_M_ASM"
     ENABLED_SP_ARM_CORTEX_ASM=yes
+    ENABLED_ARM_THUMB=yes
     ;;
   *armv6*)
     if test "$ENABLED_ARMASM" = "no"; then
@@ -9021,6 +9029,7 @@ case $host_cpu in
   *arm*)
     if test "$host_alias" = "thumb" || test "$ARM_TARGET" = "thumb"; then
       AM_CFLAGS="$AM_CFLAGS -mthumb -march=armv6"
+      ENABLED_ARM_THUMB=yes
     else
       if test "$host_alias" = "cortex" || test "$ARM_TARGET" = "cortex"; then
         AM_CFLAGS="$AM_CFLAGS -mcpu=cortex-r5"
@@ -9841,6 +9850,10 @@ AM_CONDITIONAL([BUILD_ARMASM],[test "x$ENABLED_ARMASM" = "xyes"])
 AM_CONDITIONAL([BUILD_ARMASM_INLINE],[test "x$ENABLED_ARMASM_INLINE" = "xyes"])
 AM_CONDITIONAL([BUILD_ARMASM_CRYPTO],[test "x$ENABLED_ARMASM_CRYPTO" = "xyes"])
 AM_CONDITIONAL([BUILD_ARMASM_NEON],[test "x$ENABLED_ARMASM_NEON" = "xyes"])
+AM_CONDITIONAL([BUILD_ARM_THUMB],[test "$ENABLED_ARM_THUMB" = "yes"  || test "$ENABLED_USERSETTINGS" = "yes"])
+AM_CONDITIONAL([BUILD_ARM_NONTHUMB],[test "$ENABLED_ARM_THUMB" != "yes"  || test "$ENABLED_USERSETTINGS" = "yes"])
+AM_CONDITIONAL([BUILD_ARM_32],[test "$ENABLED_ARM_32" = "yes"  || test "$ENABLED_USERSETTINGS" = "yes"])
+AM_CONDITIONAL([BUILD_ARM_64],[test "$ENABLED_ARM_64" = "yes"  || test "$ENABLED_USERSETTINGS" = "yes"])
 AM_CONDITIONAL([BUILD_RISCV_ASM],[test "x$ENABLED_RISCV_ASM" = "xyes"])
 AM_CONDITIONAL([BUILD_XILINX],[test "x$ENABLED_XILINX" = "xyes"])
 AM_CONDITIONAL([BUILD_AESNI],[test "x$ENABLED_AESNI" = "xyes"])

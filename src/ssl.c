@@ -4866,6 +4866,20 @@ int wolfSSL_GetVersion(const WOLFSSL* ssl)
                 break;
         }
     }
+#ifdef WOLFSSL_DTLS
+    if (ssl->version.major == DTLS_MAJOR) {
+        switch (ssl->version.minor) {
+            case DTLS_MINOR :
+                return WOLFSSL_DTLSV1;
+            case DTLSv1_2_MINOR :
+                return WOLFSSL_DTLSV1_2;
+            case DTLSv1_3_MINOR :
+                return WOLFSSL_DTLSV1_3;
+            default:
+                break;
+        }
+    }
+#endif /* WOLFSSL_DTLS */
 
     return VERSION_ERROR;
 }
@@ -8983,11 +8997,11 @@ int wolfSSL_dtls_got_timeout(WOLFSSL* ssl)
     int result = WOLFSSL_SUCCESS;
     WOLFSSL_ENTER("wolfSSL_dtls_got_timeout");
 
-    if (ssl == NULL)
+    if (ssl == NULL || !ssl->options.dtls)
         return WOLFSSL_FATAL_ERROR;
 
 #ifdef WOLFSSL_DTLS13
-    if (ssl->options.dtls && IsAtLeastTLSv1_3(ssl->version)) {
+    if (IsAtLeastTLSv1_3(ssl->version)) {
         result = Dtls13RtxTimeout(ssl);
         if (result < 0) {
             if (result == WC_NO_ERR_TRACE(WANT_WRITE))
@@ -9001,7 +9015,8 @@ int wolfSSL_dtls_got_timeout(WOLFSSL* ssl)
     }
 #endif /* WOLFSSL_DTLS13 */
 
-    if ((IsSCR(ssl) || !ssl->options.handShakeDone)) {
+    /* Do we have any 1.2 messages stored? */
+    if (ssl->dtls_tx_msg_list != NULL || ssl->dtls_tx_msg != NULL) {
         if (DtlsMsgPoolTimeout(ssl) < 0){
             ssl->error = SOCKET_ERROR_E;
             WOLFSSL_ERROR(ssl->error);
@@ -13176,6 +13191,10 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
         }
         ssl->keys.encryptionOn = 0;
         XMEMSET(&ssl->msgsReceived, 0, sizeof(ssl->msgsReceived));
+
+        FreeCiphers(ssl);
+        InitCiphers(ssl);
+        InitCipherSpecs(&ssl->specs);
 
         if (InitSSL_Suites(ssl) != WOLFSSL_SUCCESS)
             return WOLFSSL_FAILURE;
@@ -20410,7 +20429,22 @@ WOLFSSL_CTX* wolfSSL_set_SSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
     ssl->buffers.certChainCnt = ctx->certChainCnt;
 #endif
 #ifndef WOLFSSL_BLIND_PRIVATE_KEY
+#ifdef WOLFSSL_COPY_KEY
+    if (ctx->privateKey != NULL) {
+        if (ssl->buffers.key != NULL) {
+            FreeDer(&ssl->buffers.key);
+        }
+        AllocCopyDer(&ssl->buffers.key, ctx->privateKey->buffer,
+            ctx->privateKey->length, ctx->privateKey->type,
+            ctx->privateKey->heap);
+        ssl->buffers.weOwnKey = 1;
+    }
+    else {
+        ssl->buffers.key      = ctx->privateKey;
+    }
+#else
     ssl->buffers.key      = ctx->privateKey;
+#endif
 #else
     if (ctx->privateKey != NULL) {
         AllocCopyDer(&ssl->buffers.key, ctx->privateKey->buffer,
@@ -23984,7 +24018,7 @@ int wolfSSL_RAND_seed(const void* seed, int len)
  */
 const char* wolfSSL_RAND_file_name(char* fname, unsigned long len)
 {
-#if !defined(NO_FILESYSTEM) && defined(XGETENV)
+#if !defined(NO_FILESYSTEM) && defined(XGETENV) && !defined(NO_GETENV)
     char* rt;
 
     WOLFSSL_ENTER("wolfSSL_RAND_file_name");
@@ -23995,6 +24029,7 @@ const char* wolfSSL_RAND_file_name(char* fname, unsigned long len)
 
     XMEMSET(fname, 0, len);
 
+/* // NOLINTBEGIN(concurrency-mt-unsafe) */
     if ((rt = XGETENV("RANDFILE")) != NULL) {
         if (len > XSTRLEN(rt)) {
             XMEMCPY(fname, rt, XSTRLEN(rt));
@@ -24004,6 +24039,7 @@ const char* wolfSSL_RAND_file_name(char* fname, unsigned long len)
             rt = NULL;
         }
     }
+/* // NOLINTEND(concurrency-mt-unsafe) */
 
     /* $RANDFILE was not set or is too large, check $HOME */
     if (rt == NULL) {
@@ -24011,6 +24047,7 @@ const char* wolfSSL_RAND_file_name(char* fname, unsigned long len)
 
         WOLFSSL_MSG("Environment variable RANDFILE not set");
 
+/* // NOLINTBEGIN(concurrency-mt-unsafe) */
         if ((rt = XGETENV("HOME")) == NULL) {
             #ifdef XALTHOMEVARNAME
             if ((rt = XGETENV(XALTHOMEVARNAME)) == NULL) {
@@ -24023,6 +24060,7 @@ const char* wolfSSL_RAND_file_name(char* fname, unsigned long len)
             return NULL;
             #endif
         }
+/* // NOLINTEND(concurrency-mt-unsafe) */
 
         if (len > XSTRLEN(rt) + XSTRLEN(ap)) {
             fname[0] = '\0';
