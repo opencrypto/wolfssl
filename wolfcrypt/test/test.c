@@ -45414,11 +45414,11 @@ out:
 }
 #endif /* HAVE_DILITHIUM */
 
+#ifdef HAVE_MLDSA_COMPOSITE
 #ifndef WOLFSSL_MLDSA_COMPOSITE_NO_MAKE_KEY
 static wc_test_ret_t mldsa_composite_param_test(int param, WC_RNG* rng)
 {
     wc_test_ret_t ret = 0;
-#ifdef HAVE_MLDSA_COMPOSITE
     mldsa_composite_key * key;
     mldsa_composite_key imported_key;
     byte* sig = NULL;
@@ -45602,7 +45602,9 @@ out:
     wc_mldsa_composite_free(key);
     XFREE(sig, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(key, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+
+    (void)param;
+    (void)rng;
     return ret;
 }
 #endif
@@ -45610,7 +45612,6 @@ out:
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t mldsa_composite_test(void)
 {
     wc_test_ret_t ret = 0;
-#ifdef HAVE_MLDSA_COMPOSITE
     WC_RNG rng;
 
 #ifndef HAVE_FIPS
@@ -45665,11 +45666,10 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t mldsa_composite_test(void)
 out:
 #endif
     wc_FreeRng(&rng);
-#endif 
+#endif
     return ret;
 }
 #endif /* HAVE_MLDSA_COMPOSITE */
-
 
 #if defined(WOLFSSL_HAVE_XMSS) && !defined(WOLFSSL_XMSS_VERIFY_ONLY)
 static enum wc_XmssRc xmss_write_key_mem(const byte * priv, word32 privSz,
