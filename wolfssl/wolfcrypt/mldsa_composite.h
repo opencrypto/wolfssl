@@ -116,17 +116,17 @@
 
 #define RSA2048_KEY_SIZE                512
 #define RSA2048_SIG_SIZE                256
-#define RSA2048_PUB_KEY_SIZE            512
+#define RSA2048_PUB_KEY_SIZE            256 + 14
 #define RSA2048_PRV_KEY_SIZE            1200
 
 #define RSA3072_KEY_SIZE                768
 #define RSA3072_SIG_SIZE                384
-#define RSA3072_PUB_KEY_SIZE            1767
+#define RSA3072_PUB_KEY_SIZE            384 + 14
 #define RSA3072_PRV_KEY_SIZE            1767
 
 #define RSA4096_KEY_SIZE                1024
 #define RSA4096_SIG_SIZE                512
-#define RSA4096_PUB_KEY_SIZE            2408
+#define RSA4096_PUB_KEY_SIZE            512
 #define RSA4096_PRV_KEY_SIZE            2408
 
 #define MLDSA44_RSA2048_KEY_SIZE        DILITHIUM_ML_DSA_44_KEY_SIZE + RSA2048_KEY_SIZE + 12

@@ -1753,6 +1753,7 @@ int GetASN_Items(const ASNItem* asn, ASNGetData *data, int count, int complete,
                 WOLFSSL_MSG_VSNPRINTF(
                     "More data in constructed item at depth: %d", j - 1);
             #endif
+                printf("More data in constructed item at depth: %d\n", j - 1);
                 return ASN_PARSE_E;
             }
         }
@@ -1764,6 +1765,7 @@ int GetASN_Items(const ASNItem* asn, ASNGetData *data, int count, int complete,
         #ifdef WOLFSSL_DEBUG_ASN_TEMPLATE
             WOLFSSL_MSG_VSNPRINTF("No choice seen: %d", j + 2);
         #endif
+            printf("No choice seen: %d\n", j + 2);
             return ASN_PARSE_E;
         }
     }
