@@ -67,6 +67,13 @@
 
 #ifdef WOLFSSL_WC_KYBER
 
+#ifdef NO_INLINE
+    #include <wolfssl/wolfcrypt/misc.h>
+#else
+    #define WOLFSSL_MISC_INCLUDED
+    #include <wolfcrypt/src/misc.c>
+#endif
+
 /* Declared in wc_kyber.c to stop compiler optimizer from simplifying. */
 extern volatile sword16 kyber_opt_blocker;
 
@@ -166,8 +173,16 @@ const sword16 zetas_inv[KYBER_N / 2] = {
     3127, 3042, 1907, 1836, 1517,  359,  758, 1441
 };
 
+#define KYBER_BARRETT(a)                            \
+        "SMULWB     r10, r14, " #a "\n\t"           \
+        "SMULWT     r11, r14, " #a "\n\t"           \
+        "SMULBT     r10, r12, r10\n\t"              \
+        "SMULBT     r11, r12, r11\n\t"              \
+        "PKHBT      r10, r10, r11, LSL #16\n\t"     \
+        "SSUB16     " #a ", " #a ", r10\n\t"
 
-#if !(defined(__aarch64__) && defined(WOLFSSL_ARMASM))
+
+#if !defined(WOLFSSL_ARMASM)
 /* Number-Theoretic Transform.
  *
  * @param  [in, out]  r  Polynomial to transform.
@@ -932,15 +947,16 @@ static void kyber_basemul(sword16* r, const sword16* a, const sword16* b,
  */
 static void kyber_basemul_mont(sword16* r, const sword16* a, const sword16* b)
 {
-    unsigned int i;
     const sword16* zeta = zetas + 64;
 
-#ifdef WOLFSSL_KYBER_SMALL
+#if defined(WOLFSSL_KYBER_SMALL)
+    unsigned int i;
     for (i = 0; i < KYBER_N; i += 4, zeta++) {
         kyber_basemul(r + i + 0, a + i + 0, b + i + 0,  zeta[0]);
         kyber_basemul(r + i + 2, a + i + 2, b + i + 2, -zeta[0]);
     }
 #elif defined(WOLFSSL_KYBER_NO_LARGE_CODE)
+    unsigned int i;
     for (i = 0; i < KYBER_N; i += 8, zeta += 2) {
         kyber_basemul(r + i + 0, a + i + 0, b + i + 0,  zeta[0]);
         kyber_basemul(r + i + 2, a + i + 2, b + i + 2, -zeta[0]);
@@ -948,6 +964,7 @@ static void kyber_basemul_mont(sword16* r, const sword16* a, const sword16* b)
         kyber_basemul(r + i + 6, a + i + 6, b + i + 6, -zeta[1]);
     }
 #else
+    unsigned int i;
     for (i = 0; i < KYBER_N; i += 16, zeta += 4) {
         kyber_basemul(r + i +  0, a + i +  0, b + i +  0,  zeta[0]);
         kyber_basemul(r + i +  2, a + i +  2, b + i +  2, -zeta[0]);
@@ -970,10 +987,10 @@ static void kyber_basemul_mont(sword16* r, const sword16* a, const sword16* b)
 static void kyber_basemul_mont_add(sword16* r, const sword16* a,
     const sword16* b)
 {
-    unsigned int i;
     const sword16* zeta = zetas + 64;
 
-#ifdef WOLFSSL_KYBER_SMALL
+#if defined(WOLFSSL_KYBER_SMALL)
+    unsigned int i;
     for (i = 0; i < KYBER_N; i += 4, zeta++) {
         sword16 t0[2];
         sword16 t2[2];
@@ -987,6 +1004,7 @@ static void kyber_basemul_mont_add(sword16* r, const sword16* a,
         r[i + 3] += t2[1];
     }
 #elif defined(WOLFSSL_KYBER_NO_LARGE_CODE)
+    unsigned int i;
     for (i = 0; i < KYBER_N; i += 8, zeta += 2) {
         sword16 t0[2];
         sword16 t2[2];
@@ -1008,6 +1026,7 @@ static void kyber_basemul_mont_add(sword16* r, const sword16* a,
         r[i + 7] += t6[1];
     }
 #else
+    unsigned int i;
     for (i = 0; i < KYBER_N; i += 16, zeta += 4) {
         sword16 t0[2];
         sword16 t2[2];
@@ -1560,14 +1579,11 @@ static int kyber_gen_matrix_k3_avx2(sword16* a, byte* seed, int transposed)
         a += 4 * KYBER_N;
     }
 
-    state[0] = ((word64*)seed)[0];
-    state[1] = ((word64*)seed)[1];
-    state[2] = ((word64*)seed)[2];
-    state[3] = ((word64*)seed)[3];
+    readUnalignedWords64(state, seed, 4);
     /* Transposed value same as not. */
     state[4] = 0x1f0000 + (2 << 8) + 2;
     XMEMSET(state + 5, 0, sizeof(*state) * (25 - 5));
-    state[20] = 0x8000000000000000UL;
+    state[20] = W64LIT(0x8000000000000000);
     for (i = 0; i < GEN_MATRIX_SIZE; i += SHA3_128_BYTES) {
         if (IS_INTEL_BMI2(cpuid_flags)) {
             sha3_block_bmi2(state);
@@ -1748,14 +1764,11 @@ static int kyber_gen_matrix_k2_aarch64(sword16* a, byte* seed, int transposed)
 
     a += 3 * KYBER_N;
 
-    state[0] = ((word64*)seed)[0];
-    state[1] = ((word64*)seed)[1];
-    state[2] = ((word64*)seed)[2];
-    state[3] = ((word64*)seed)[3];
+    readUnalignedWords64(state, seed, 4);
     /* Transposed value same as not. */
     state[4] = 0x1f0000 + (1 << 8) + 1;
     XMEMSET(state + 5, 0, sizeof(*state) * (25 - 5));
-    state[20] = 0x8000000000000000UL;
+    state[20] = W64LIT(0x8000000000000000);
     BlockSha3(state);
     p = (byte*)state;
     ctr0 = kyber_rej_uniform_neon(a, KYBER_N, p, XOF_BLOCK_SIZE);
@@ -1899,14 +1912,11 @@ static int kyber_gen_matrix_k4_aarch64(sword16* a, byte* seed, int transposed)
         a += 3 * KYBER_N;
     }
 
-    state[0] = ((word64*)seed)[0];
-    state[1] = ((word64*)seed)[1];
-    state[2] = ((word64*)seed)[2];
-    state[3] = ((word64*)seed)[3];
+    readUnalignedWords64(state, seed, 4);
     /* Transposed value same as not. */
     state[4] = 0x1f0000 + (3 << 8) + 3;
     XMEMSET(state + 5, 0, sizeof(*state) * (25 - 5));
-    state[20] = 0x8000000000000000UL;
+    state[20] = W64LIT(0x8000000000000000);
     BlockSha3(state);
     p = (byte*)state;
     ctr0 = kyber_rej_uniform_neon(a, KYBER_N, p, XOF_BLOCK_SIZE);
@@ -2047,18 +2057,15 @@ static int kyber_prf(wc_Shake* shake256, byte* out, unsigned int outLen,
     const byte* key)
 {
 #ifdef USE_INTEL_SPEEDUP
-    int i;
     word64 state[25];
 
     (void)shake256;
 
-    for (i = 0; i < KYBER_SYM_SZ / 8; i++) {
-        state[i] = ((word64*)key)[i];
-    }
+    readUnalignedWords64(state, key, KYBER_SYM_SZ / sizeof(word64));
     state[KYBER_SYM_SZ / 8] = 0x1f00 | key[KYBER_SYM_SZ];
     XMEMSET(state + KYBER_SYM_SZ / 8 + 1, 0,
         (25 - KYBER_SYM_SZ / 8 - 1) * sizeof(word64));
-    state[WC_SHA3_256_COUNT - 1] = 0x8000000000000000UL;
+    state[WC_SHA3_256_COUNT - 1] = W64LIT(0x8000000000000000);
 
     if (IS_INTEL_BMI2(cpuid_flags)) {
         sha3_block_bmi2(state);
@@ -2098,15 +2105,12 @@ static int kyber_prf(wc_Shake* shake256, byte* out, unsigned int outLen,
 int kyber_kdf(byte* seed, int seedLen, byte* out, int outLen)
 {
     word64 state[25];
-    int i;
-    int len64 = seedLen / 8;
+    word32 len64 = seedLen / 8;
 
-    for (i = 0; i < len64; i++) {
-        state[i] = ((word64*)seed)[i];
-    }
+    readUnalignedWords64(state, seed, len64);
     state[len64] = 0x1f;
     XMEMSET(state + len64 + 1, 0, (25 - len64 - 1) * sizeof(word64));
-    state[WC_SHA3_256_COUNT - 1] = 0x8000000000000000UL;
+    state[WC_SHA3_256_COUNT - 1] = W64LIT(0x8000000000000000);
 
     if (IS_INTEL_BMI2(cpuid_flags)) {
         sha3_block_bmi2(state);
@@ -2136,15 +2140,12 @@ int kyber_kdf(byte* seed, int seedLen, byte* out, int outLen)
 int kyber_kdf(byte* seed, int seedLen, byte* out, int outLen)
 {
     word64 state[25];
-    int i;
-    int len64 = seedLen / 8;
+    word32 len64 = seedLen / 8;
 
-    for (i = 0; i < len64; i++) {
-        state[i] = ((word64*)seed)[i];
-    }
+    readUnalignedWords64(state, seed, len64);
     state[len64] = 0x1f;
     XMEMSET(state + len64 + 1, 0, (25 - len64 - 1) * sizeof(word64));
-    state[WC_SHA3_256_COUNT - 1] = 0x8000000000000000UL;
+    state[WC_SHA3_256_COUNT - 1] = W64LIT(0x8000000000000000);
 
     BlockSha3(state);
     XMEMCPY(out, state, outLen);
@@ -2153,7 +2154,7 @@ int kyber_kdf(byte* seed, int seedLen, byte* out, int outLen)
 }
 #endif
 
-#if !(defined(WOLFSSL_ARMASM) && defined(__aarch64__))
+#if !defined(WOLFSSL_ARMASM)
 /* Rejection sampling on uniform random bytes to generate uniform random
  * integers mod q.
  *
@@ -2199,10 +2200,11 @@ static unsigned int kyber_rej_uniform_c(sword16* p, unsigned int len,
     i = 0;
     for (j = 0; j < minJ; j += 6) {
         /* Use 48 bits (6 bytes) as four 12-bit integers. */
-        sword16 v0 =  (*(word64*)r)        & 0xfff;
-        sword16 v1 = ((*(word64*)r) >> 12) & 0xfff;
-        sword16 v2 = ((*(word64*)r) >> 24) & 0xfff;
-        sword16 v3 = ((*(word64*)r) >> 36) & 0xfff;
+        word64 r_word = readUnalignedWord64(r);
+        sword16 v0 =  r_word        & 0xfff;
+        sword16 v1 = (r_word >> 12) & 0xfff;
+        sword16 v2 = (r_word >> 24) & 0xfff;
+        sword16 v3 = (r_word >> 36) & 0xfff;
 
         p[i] = v0 & (0 - (v0 < KYBER_Q));
         i += v0 < KYBER_Q;
@@ -2219,10 +2221,11 @@ static unsigned int kyber_rej_uniform_c(sword16* p, unsigned int len,
     if (j < rLen) {
         for (; (i + 4 < len) && (j < rLen); j += 6) {
             /* Use 48 bits (6 bytes) as four 12-bit integers. */
-            sword16 v0 =  (*(word64*)r)        & 0xfff;
-            sword16 v1 = ((*(word64*)r) >> 12) & 0xfff;
-            sword16 v2 = ((*(word64*)r) >> 24) & 0xfff;
-            sword16 v3 = ((*(word64*)r) >> 36) & 0xfff;
+            word64 r_word = readUnalignedWord64(r);
+            sword16 v0 =  r_word        & 0xfff;
+            sword16 v1 = (r_word >> 12) & 0xfff;
+            sword16 v2 = (r_word >> 24) & 0xfff;
+            sword16 v3 = (r_word >> 36) & 0xfff;
 
             p[i] = v0;
             i += v0 < KYBER_Q;
@@ -2238,10 +2241,11 @@ static unsigned int kyber_rej_uniform_c(sword16* p, unsigned int len,
         }
         for (; (i < len) && (j < rLen); j += 6) {
             /* Use 48 bits (6 bytes) as four 12-bit integers. */
-            sword16 v0 =  (*(word64*)r)        & 0xfff;
-            sword16 v1 = ((*(word64*)r) >> 12) & 0xfff;
-            sword16 v2 = ((*(word64*)r) >> 24) & 0xfff;
-            sword16 v3 = ((*(word64*)r) >> 36) & 0xfff;
+            word64 r_word = readUnalignedWord64(r);
+            sword16 v0 =  r_word        & 0xfff;
+            sword16 v1 = (r_word >> 12) & 0xfff;
+            sword16 v2 = (r_word >> 24) & 0xfff;
+            sword16 v3 = (r_word >> 36) & 0xfff;
 
             /* Reject first 12-bit integer if greater than or equal to q. */
             if (v0 < KYBER_Q) {
@@ -2511,9 +2515,9 @@ static void kyber_cbd_eta2(sword16* p, const byte* r)
     #endif
         /* Take the next 8 bytes, little endian, as a 64 bit value. */
     #ifdef BIG_ENDIAN_ORDER
-        word64 t = ByteReverseWord64(*(word64*)r);
+        word64 t = ByteReverseWord64(readUnalignedWord64(r));
     #else
-        word64 t = *(word64*)r;
+        word64 t = readUnalignedWord64(r);
     #endif
         word64 d;
         /* Add second bits to first. */
@@ -3023,7 +3027,7 @@ static void kyber_get_noise_eta3_aarch64(byte* rand, byte* seed, byte o)
     state[3] = ((word64*)seed)[3];
     state[4] = 0x1f00 + o;
     XMEMSET(state + 5, 0, sizeof(*state) * (25 - 5));
-    state[16] = 0x8000000000000000UL;
+    state[16] = W64LIT(0x8000000000000000);
     BlockSha3(state);
     XMEMCPY(rand                 , state, SHA3_256_BYTES);
     BlockSha3(state);
@@ -3083,7 +3087,7 @@ static void kyber_get_noise_eta2_aarch64(byte* rand, byte* seed, byte o)
     /* Transposed value same as not. */
     state[4] = 0x1f00 + o;
     XMEMSET(state + 5, 0, sizeof(*state) * (25 - 5));
-    state[16] = 0x8000000000000000UL;
+    state[16] = W64LIT(0x8000000000000000);
     BlockSha3(state);
 }
 
@@ -3346,7 +3350,7 @@ int kyber_cmp(const byte* a, const byte* b, int sz)
 
 /******************************************************************************/
 
-#if !(defined(__aarch64__) && defined(WOLFSSL_ARMASM))
+#if !defined(WOLFSSL_ARMASM)
 
 /* Conditional subtraction of q to each coefficient of a polynomial.
  *
@@ -3363,9 +3367,17 @@ static KYBER_NOINLINE void kyber_csubq_c(sword16* p)
     }
 }
 
-#else
+#elif defined(__aarch64__)
 
 #define kyber_csubq_c   kyber_csubq_neon
+
+#elif defined(__thumb__)
+
+#define kyber_csubq_c   kyber_thumb2_csubq
+
+#else
+
+#define kyber_csubq_c   kyber_arm32_csubq
 
 #endif
 
