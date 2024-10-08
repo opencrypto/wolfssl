@@ -508,7 +508,16 @@ WOLFSSL_API int wc_mldsa_composite_get_type(mldsa_composite_key* key, int* type)
  * returns 0 on success.
  * returns BAD_FUNC_ARG when keytype is NULL or type is not supported.
  */
-WOLFSSL_API int wc_mldsa_composite_get_keytype(enum mldsa_composite_type type, int* keytype_sum);
+WOLFSSL_API int wc_mldsa_composite_get_keytype(const enum mldsa_composite_type type, enum Key_Sum * keytype_sum);
+
+/* Get the MLDSA Composite Type from the key type sum.
+ *
+ * keytype_sum  [in]  Key type (e.g., MLDSA44_NISTP256k)
+ * type         [out] ML-DSA Composite Type (e.g., key->type)
+ * returns 0 on success.
+ * returns BAD_FUNC_ARG when type is NULL or keytype is not supported.
+ */
+WOLFSSL_API int wc_mldsa_composite_keytype_to_type(const enum Key_Sum keytype_sum, enum mldsa_composite_type * type);
 
 /* Clears the MlDsaComposite key data
  *
@@ -693,7 +702,8 @@ WOLFSSL_API int wc_mldsa_composite_export_key(mldsa_composite_key* key, byte* pr
  * @return  Other negative on parse error.
  */
 WOLFSSL_API int wc_MlDsaComposite_PrivateKeyDecode(const byte* input,
-    word32* inOutIdx, mldsa_composite_key* key, word32 inSz);
+    word32* inOutIdx, mldsa_composite_key* key, word32 inSz, enum mldsa_composite_type type);
+
 #endif /* WOLFSSL_MLDSA_COMPOSITE_PRIVATE_KEY */
 #endif /* WOLFSSL_MLDSA_COMPOSITE_NO_ASN1 */
 

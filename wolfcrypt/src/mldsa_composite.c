@@ -1469,7 +1469,7 @@ int wc_mldsa_composite_get_type(mldsa_composite_key* key, int* type)
     return ret;
 }
 
-int wc_mldsa_composite_get_keytype(enum mldsa_composite_type type, int* keytype_sum) {
+int wc_mldsa_composite_get_keytype(const enum mldsa_composite_type type, enum Key_Sum * keytype_sum) {
     int ret = 0;
 
     /* Validate parameters. */
@@ -1537,6 +1537,56 @@ int wc_mldsa_composite_get_keytype(enum mldsa_composite_type type, int* keytype_
 
     return ret;
 }
+
+int wc_mldsa_composite_keytype_to_type(const enum Key_Sum keytype_sum, enum mldsa_composite_type * type) {
+    int ret = 0;
+
+    /* Validate parameters. */
+    if (keytype_sum <= 0 || !type) {
+        ret = BAD_FUNC_ARG;
+    }
+
+    /* Only recognized combinations are returned */
+    if (ret == 0) {
+        // Level 1
+        if (keytype_sum == MLDSA44_RSA2048k) {
+            *type = WC_MLDSA44_RSA2048_SHA256;
+        } else if (keytype_sum == MLDSA44_RSAPSS2048k) {
+            *type = WC_MLDSA44_RSAPSS2048_SHA256;
+        } else if (keytype_sum == MLDSA44_ED25519k) {
+            *type = WC_MLDSA44_ED25519_SHA512;
+        } else if (keytype_sum == MLDSA44_NISTP256k) {
+            *type = WC_MLDSA44_NISTP256_SHA256;
+        } else if (keytype_sum == MLDSA44_BPOOL256k) {
+            *type = WC_MLDSA44_BPOOL256_SHA256;
+        // Level 3
+        } else if (keytype_sum == MLDSA65_RSAPSS3072k) {
+            *type = WC_MLDSA65_RSAPSS3072_SHA512;
+        } else if (keytype_sum == MLDSA65_RSA3072k) {
+            *type = WC_MLDSA65_RSA3072_SHA512;
+        } else if (keytype_sum == MLDSA65_ED25519k) {
+            *type = WC_MLDSA65_ED25519_SHA512;
+        } else if (keytype_sum == MLDSA65_NISTP256k) {
+            *type = WC_MLDSA65_NISTP256_SHA512;
+        } else if (keytype_sum == MLDSA65_BPOOL256k) {
+            *type = WC_MLDSA65_BPOOL256_SHA512;
+        // Level 5
+        } else if (keytype_sum == MLDSA87_NISTP384k) {
+            *type = WC_MLDSA87_NISTP384_SHA512;
+        } else if (keytype_sum == MLDSA87_BPOOL384k) {
+            *type = WC_MLDSA87_BPOOL384_SHA512;
+        } else if (keytype_sum == MLDSA87_ED448k) {
+            *type = WC_MLDSA87_ED448_SHA512;
+        // Error
+        } else {
+            *type = 0;
+            ret = BAD_FUNC_ARG;
+        }
+    }
+
+    return ret;
+}
+
 
 /* Clears the MlDsaComposite key data
  *
@@ -3056,22 +3106,25 @@ int wc_mldsa_composite_export_key(mldsa_composite_key* key, byte* priv, word32 *
 #ifndef WOLFSSL_MLDSA_COMPOSITE_NO_ASN1
 #if defined(WOLFSSL_MLDSA_COMPOSITE_PRIVATE_KEY)
 int wc_MlDsaComposite_PrivateKeyDecode(const byte* input, word32* inOutIdx,
-    mldsa_composite_key* key, word32 inSz)
+    mldsa_composite_key* key, word32 inSz, enum mldsa_composite_type type)
 {
     int ret = 0;
     const byte* privKey = NULL;
     const byte* pubKey = NULL;
     word32 privKeyLen = 0;
     word32 pubKeyLen = 0;
-    int keytype = 0;
+    enum Key_Sum keytype = 0;
 
     /* Validate parameters. */
     if ((input == NULL) || (inOutIdx == NULL) || (key == NULL) || (inSz == 0)) {
         ret = BAD_FUNC_ARG;
     }
 
+    // Get the key type
+    if (type <= 0) type = key->type;
+
     /* Retrieves the OID SUM for the key type*/
-    if ((ret = wc_mldsa_composite_get_keytype(key->type, &keytype)) < 0) {
+    if ((ret = wc_mldsa_composite_get_keytype(type, &keytype)) < 0) {
         WOLFSSL_MSG_VSNPRINTF("error cannot get ML-DSA Composite type");
         return ret;
     }
@@ -3110,13 +3163,13 @@ int wc_MlDsaComposite_PrivateKeyDecode(const byte* input, word32* inOutIdx,
 #endif
         {
             /* No public key data, only import private key data. */
-            ret = wc_mldsa_composite_import_private(privKey, privKeyLen, key, keytype);
+            ret = wc_mldsa_composite_import_private(privKey, privKeyLen, key, type);
         }
 #if defined(WOLFSSL_DILITHIUM_PUBLIC_KEY)
         else {
             /* Import private and public key data. */
             ret = wc_mldsa_composite_import_key(privKey, privKeyLen, pubKey,
-                pubKeyLen, key, keytype);
+                pubKeyLen, key, type);
         }
 #endif
     }
@@ -3338,7 +3391,7 @@ int wc_MlDsaComposite_PrivateKeyToDer(mldsa_composite_key* key, byte* output, wo
 
     /* Validate parameters and check private key set. */
     if ((key != NULL) && key->prvKeySet) {
-        int keytype = 0;
+        enum Key_Sum keytype = 0;
         int privkey_sz = 0;
 
         // Gets the key type (SUM)
@@ -3391,7 +3444,7 @@ int wc_MlDsaComposite_KeyToDer(mldsa_composite_key* key, byte* output, word32 le
 
     /* Validate parameters and check private key set. */
     if ((key != NULL) && key->prvKeySet && key->pubKeySet) {
-        int keytype = 0;
+        enum Key_Sum keytype = 0;
         int privkey_sz = 0;
 
         // Gets the key type (SUM)
