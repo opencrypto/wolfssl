@@ -45488,24 +45488,8 @@ printf("imported_key: %p\n", &imported_key);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
-printf("privKey_BufferLen: %d\n", privKey_BufferLen);
-
     XMEMSET(&imported_key, 0, sizeof(imported_key));
     wc_mldsa_composite_free(&imported_key);
-
-    // do {
-    //     char privKeyFileName[200];
-    //     snprintf(privKeyFileName, sizeof(privKeyFileName), "privkey_%d.der", param);
-    //     FILE * f = fopen(privKeyFileName, "wb");
-    //     if (f == NULL) {
-    //         printf("Failed to open file\n");
-    //         break;
-    //     }
-    //     fwrite(privKey_Buffer, 1, privKey_BufferLen, f);
-    //     fclose(f);
-    // } while (0);
-
-    printf("Trying to import -> privKey_BufferLen: %d, pubKey_BufferLen: %d\n", privKey_BufferLen, pubKey_BufferLen);
 
     ret = wc_mldsa_composite_import_private(privKey_Buffer, privKey_BufferLen, &imported_key, param);
     if (ret != 0)
@@ -45517,19 +45501,9 @@ printf("privKey_BufferLen: %d\n", privKey_BufferLen);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
-    // printf("                    wc_MlDsaComposite_PrivateKeyToDer()\n");
-
-    // if (key->type == WC_MLDSA44_RSA2048_SHA256 || key->type == WC_MLDSA65_RSA3072_SHA512) {
-    //     printf("testC: RSA component is of type: %d\n", key->alt_key.rsa.type);
-    // }
-
     ret = wc_MlDsaComposite_PrivateKeyToDer(key, NULL, 0);
     if (ret <= 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
-
-    if (key->type == WC_MLDSA44_RSA2048_SHA256 || key->type == WC_MLDSA65_RSA3072_SHA512) {
-        printf("testD: RSA component is of type: %d\n", key->alt_key.rsa.type);
-    }
 
     printf("                    wc_MlDsaComposite_PrivateKeyToDer(): ret = %d\n", ret);
 
@@ -45539,6 +45513,18 @@ printf("privKey_BufferLen: %d\n", privKey_BufferLen);
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
     printf("                    wc_MlDsaComposite_PrivateKeyToDer(): ret = %d\n", ret);
+
+    // do {
+    //     char privKeyFileName[200];
+    //     snprintf(privKeyFileName, sizeof(privKeyFileName), "privkey_%d.der", param);
+    //     FILE * f = fopen(privKeyFileName, "wb");
+    //     if (f == NULL) {
+    //         printf("Failed to open file\n");
+    //         break;
+    //     }
+    //     fwrite(exportKey_Buffer, 1, ret, f);
+    //     fclose(f);
+    // } while (0);
 
     ret = wc_MlDsaComposite_KeyToDer(key, NULL, 0);
     if (ret <= 0)
@@ -45552,6 +45538,18 @@ printf("privKey_BufferLen: %d\n", privKey_BufferLen);
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
     printf("                    wc_MlDsaComposite_PrivateKeyToDer(): ret = %d\n", ret);
+
+    // do {
+    //     char privKeyFileName[200];
+    //     snprintf(privKeyFileName, sizeof(privKeyFileName), "key_%d.der", param);
+    //     FILE * f = fopen(privKeyFileName, "wb");
+    //     if (f == NULL) {
+    //         printf("Failed to open file\n");
+    //         break;
+    //     }
+    //     fwrite(exportKey_Buffer, 1, ret, f);
+    //     fclose(f);
+    // } while (0);
 
     (void)imported_key;
     (void)res;

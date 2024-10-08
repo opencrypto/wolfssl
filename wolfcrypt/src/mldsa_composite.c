@@ -2188,8 +2188,6 @@ int wc_mldsa_composite_import_public(const byte* inBuffer, word32 inLen,
         return ret;
     }
 
-    MADWOLF_DEBUG0("ML-DSA Public Key Imported Successfully - Importing the other DSA component");
-
    // Verify Individual DSA Components: 
     switch (type) {
 
@@ -2214,12 +2212,11 @@ int wc_mldsa_composite_import_public(const byte* inBuffer, word32 inLen,
         } break;
 
         case WC_MLDSA44_ED25519_SHA512: {
-            MADWOLF_DEBUG0("ML-DSA COMPOSITE: ED25519 public key import");
-            // // Cehcks the ED25519 pubkey buffer size
-            // if (other_BufferLen != ED25519_PUB_KEY_SIZE) {
-            //     MADWOLF_DEBUG("ML-DSA COMPOSITE: ED25519 public key size error (%d vs. %d)", other_BufferLen, ED25519_PUB_KEY_SIZE);
-            //     return BUFFER_E;
-            // }
+            // Cehcks the ED25519 pubkey buffer size
+            if (other_BufferLen != ED25519_PUB_KEY_SIZE) {
+                MADWOLF_DEBUG("ML-DSA COMPOSITE: ED25519 public key size error (%d vs. %d)", other_BufferLen, ED25519_PUB_KEY_SIZE);
+                return BUFFER_E;
+            }
             // Import ED25519 Component
             XMEMSET(&key->alt_key.ed25519, 0, sizeof(key->alt_key.ed25519));
             if ((ret = wc_ed25519_import_public(other_Buffer, other_BufferLen, &key->alt_key.ed25519)) < 0) {
@@ -2282,16 +2279,14 @@ int wc_mldsa_composite_import_public(const byte* inBuffer, word32 inLen,
                 MADWOLF_DEBUG("ML-DSA COMPOSITE: RSA component size error (%d vs. %d)", ret, RSA3072_SIG_SIZE);
                 return ret;
             }
-            MADWOLF_DEBUG("ML-DSA COMPOSITE: RSA public key imported successfully (idx=%d)", idx);
         } break;
 
         case WC_MLDSA65_ED25519_SHA512: {
-            MADWOLF_DEBUG0("ML-DSA COMPOSITE: ED25519 public key import");
-            // // Cehcks the ED25519 pubkey buffer size
-            // if (other_BufferLen != ED25519_PUB_KEY_SIZE) {
-            //     MADWOLF_DEBUG("ML-DSA COMPOSITE: ED25519 public key size error (%d vs. %d)", other_BufferLen, ED25519_PUB_KEY_SIZE);
-            //     return BUFFER_E;
-            // }
+            // Cehcks the ED25519 pubkey buffer size
+            if (other_BufferLen != ED25519_PUB_KEY_SIZE) {
+                MADWOLF_DEBUG("ML-DSA COMPOSITE: ED25519 public key size error (%d vs. %d)", other_BufferLen, ED25519_PUB_KEY_SIZE);
+                return BUFFER_E;
+            }
             // Import ED25519 Component
             XMEMSET(&key->alt_key.ed25519, 0, sizeof(key->alt_key.ed25519));
             if ((ret = wc_ed25519_import_public(other_Buffer, other_BufferLen, &key->alt_key.ed25519)) < 0) {
@@ -2302,7 +2297,6 @@ int wc_mldsa_composite_import_public(const byte* inBuffer, word32 inLen,
         } break;
 
         case WC_MLDSA65_NISTP256_SHA512: {
-            MADWOLF_DEBUG0("ML-DSA COMPOSITE: ECDSA public key import");
             // Cehcks the ECDSA signature size
             XMEMSET(&key->alt_key.ecc, 0, sizeof(key->alt_key.ecc));
             if ((ret = wc_ecc_import_unsigned(&key->alt_key.ecc, 
@@ -2318,7 +2312,6 @@ int wc_mldsa_composite_import_public(const byte* inBuffer, word32 inLen,
         } break;
 
         case WC_MLDSA65_BPOOL256_SHA512: {
-            MADWOLF_DEBUG0("ML-DSA COMPOSITE: ECDSA public key import");
             // Cehcks the ECDSA signature size
             XMEMSET(&key->alt_key.ecc, 0, sizeof(key->alt_key.ecc));
             if ((ret = wc_ecc_import_unsigned(&key->alt_key.ecc, 
@@ -2334,7 +2327,6 @@ int wc_mldsa_composite_import_public(const byte* inBuffer, word32 inLen,
         } break;
 
         case WC_MLDSA87_NISTP384_SHA512: {
-            MADWOLF_DEBUG0("ML-DSA COMPOSITE: ECDSA public key import");
             // Cehcks the ECDSA signature size
             XMEMSET(&key->alt_key.ecc, 0, sizeof(key->alt_key.ecc));
             if ((ret = wc_ecc_import_unsigned(&key->alt_key.ecc, 
@@ -2350,7 +2342,6 @@ int wc_mldsa_composite_import_public(const byte* inBuffer, word32 inLen,
         } break;
 
         case WC_MLDSA87_BPOOL384_SHA512: {
-            MADWOLF_DEBUG0("ML-DSA COMPOSITE: ECDSA public key import");
             // Cehcks the ECDSA signature size
             XMEMSET(&key->alt_key.ecc, 0, sizeof(key->alt_key.ecc));
             if ((ret = wc_ecc_import_unsigned(&key->alt_key.ecc, 
@@ -2366,7 +2357,11 @@ int wc_mldsa_composite_import_public(const byte* inBuffer, word32 inLen,
         } break;
 
         case WC_MLDSA87_ED448_SHA512: {
-            MADWOLF_DEBUG0("ML-DSA COMPOSITE: ED448 public key import");
+            // Cehcks the ED25519 pubkey buffer size
+            if (other_BufferLen != ED448_PUB_KEY_SIZE) {
+                MADWOLF_DEBUG("ML-DSA COMPOSITE: ED448 public key size error (%d vs. %d)", other_BufferLen, ED448_PUB_KEY_SIZE);
+                return BUFFER_E;
+            }
             // Import ED448 Component
             XMEMSET(&key->alt_key.ed448, 0, sizeof(key->alt_key.ed448));
             if ((ret = wc_ed448_import_public(other_Buffer, other_BufferLen, &key->alt_key.ed448)) < 0) {
@@ -2380,8 +2375,6 @@ int wc_mldsa_composite_import_public(const byte* inBuffer, word32 inLen,
             MADWOLF_DEBUG("Unsupported ML-DSA Composite Type: %d", type);
             return BAD_FUNC_ARG;
     }
-
-    MADWOLF_DEBUG0("ML-DSA Composite Public Key Imported Successfully");
 
     // If here, we have successfully imported the public key
     ret = 0;
@@ -2622,8 +2615,6 @@ int wc_mldsa_composite_import_private(const byte* priv, word32 privSz,
         return BAD_FUNC_ARG;
     }
 
-MADWOLF_DEBUG("Importing ML-DSA Composite Private Key (type: %d)", type);
-
     // Sets the buffers to 0
     XMEMSET(compPrivKeyASN, 0, sizeof(*compPrivKeyASN) * mldsaCompASN_Length);
 
@@ -2639,8 +2630,6 @@ MADWOLF_DEBUG("Importing ML-DSA Composite Private Key (type: %d)", type);
 
     // If no passed type, let's check the key type
     if (type <= 0) type = key->type;
-
-MADWOLF_DEBUG0("Importing ML-DSA Composite Private Key");
 
     // Import the ML-DSA private key 
     switch (type) {
@@ -2704,8 +2693,6 @@ MADWOLF_DEBUG0("Importing ML-DSA Composite Private Key");
         default:
             return BAD_FUNC_ARG;
     }
-
-MADWOLF_DEBUG0("ML-DSA Private Key Imported Successfully - Importing the other DSA component");
 
     // import the other DSA component
     switch (type) {
@@ -2812,7 +2799,6 @@ MADWOLF_DEBUG0("ML-DSA Private Key Imported Successfully - Importing the other D
 
         case WC_MLDSA65_RSAPSS3072_SHA512:
         case WC_MLDSA65_RSA3072_SHA512: {
-MADWOLF_DEBUG0("ML-DSA COMPOSITE: RSA private key import");
             // Import the RSA component
             word32 rsaSz = 0;
             int sz = 0;
@@ -2837,11 +2823,6 @@ MADWOLF_DEBUG0("ML-DSA COMPOSITE: RSA private key import");
                 MADWOLF_DEBUG("ML-DSA COMPOSITE: ED448 signature size error (%d vs. %d)", other_BufferLen, ED448_KEY_SIZE);
                 return BUFFER_E;
             }
-            // // Import ED448 Component
-            // if ((ret = wc_ed448_import_private_key(other_Buffer, ED448_KEY_SIZE, NULL, 0, &key->alt_key.ed448)) < 0) {
-            //     MADWOLF_DEBUG("ML-DSA COMPOSITE: failed to import ED448 component with code %d", ret);
-            //     return ret;
-            // }
             // Import ED448 Component
             if ((ret = wc_ed448_import_private_only(other_Buffer, other_BufferLen, &key->alt_key.ed448)) < 0) {
                 MADWOLF_DEBUG("ML-DSA COMPOSITE: failed to import ED448 component with code %d", ret);
@@ -2855,8 +2836,6 @@ MADWOLF_DEBUG0("ML-DSA COMPOSITE: RSA private key import");
             MADWOLF_DEBUG("Unsupported ML-DSA Composite Type: %d", type);
             return BAD_FUNC_ARG;
     }
-
-MADWOLF_DEBUG("ML-DSA Composite Private Key Imported Successfully (type: %d)", type);
 
     // Set the type of key
     key->type = type;
@@ -3014,8 +2993,8 @@ int wc_mldsa_composite_export_private(mldsa_composite_key* key, byte* out, word3
         return BAD_STATE_E;
     }
 
-    MADWOLF_DEBUG("Exported ML-DSA Composite Private Key Components (%d, %d)", mldsa_BufferLen, other_BufferLen);
-    MADWOLF_DEBUG("Exported ML-DSA Composite Private Key %d (sz: %d) (mldsa: %d, secondary: %d), ret = %d", *outLen, encSz, mldsa_BufferLen, other_BufferLen, ret);
+    // MADWOLF_DEBUG("Exported ML-DSA Composite Private Key Components (%d, %d)", mldsa_BufferLen, other_BufferLen);
+    // MADWOLF_DEBUG("Exported ML-DSA Composite Private Key %d (sz: %d) (mldsa: %d, secondary: %d), ret = %d", *outLen, encSz, mldsa_BufferLen, other_BufferLen, ret);
 
     return ret;
 }
@@ -3362,17 +3341,9 @@ int wc_MlDsaComposite_PrivateKeyToDer(mldsa_composite_key* key, byte* output, wo
         int keytype = 0;
         int privkey_sz = 0;
 
-        if (key->type == WC_MLDSA44_RSA2048_SHA256 || key->type == WC_MLDSA65_RSA3072_SHA512) {
-            MADWOLF_DEBUG("RSA component is of type: %d", key->alt_key.rsa.type);
-        }
-
         // Gets the key type (SUM)
         if (wc_mldsa_composite_get_keytype(key->type, &keytype) < 0) {
             return BAD_FUNC_ARG;
-        }
-
-        if (key->type == WC_MLDSA44_RSA2048_SHA256 || key->type == WC_MLDSA65_RSA3072_SHA512) {
-            MADWOLF_DEBUG("RSA component is of type: %d", key->alt_key.rsa.type);
         }
 
         // Export the private key
@@ -3428,14 +3399,10 @@ int wc_MlDsaComposite_KeyToDer(mldsa_composite_key* key, byte* output, word32 le
             return BAD_FUNC_ARG;
         }
 
-        MADWOLF_DEBUG("Exporting ML-DSA Composite Key (type: %d)", key->type);
-
         // Export the public key
         if ((ret = wc_mldsa_composite_export_key(key, privKey_Buffer, &privKey_BufferLen, pubKey_Buffer, &pubKey_BufferLen)) < 0) {
             return MEMORY_E;
         }
-
-        MADWOLF_DEBUG("Exported ML-DSA Composite Key (type: %d, pub: %d, priv: %d)", key->type, pubKey_BufferLen, privKey_BufferLen);
 
         // Check the private key buffer size
         if ((privkey_sz = SetAsymKeyDer(privKey_Buffer, privKey_BufferLen, pubKey_Buffer, pubKey_BufferLen, NULL, 0, keytype)) < 0) {
