@@ -3399,7 +3399,7 @@ int wc_MlDsaComposite_KeyToDer(mldsa_composite_key* key, byte* output, word32 le
             return BAD_FUNC_ARG;
         }
 
-        // Export the public key
+        // Export the public and private components
         if ((ret = wc_mldsa_composite_export_key(key, privKey_Buffer, &privKey_BufferLen, pubKey_Buffer, &pubKey_BufferLen)) < 0) {
             return MEMORY_E;
         }

@@ -4265,6 +4265,35 @@ static word32 SetBitString16Bit(word16 val, byte* output)
     static const byte sigMlDsa_Level5Oid[] =
         {96, 134, 72, 1, 101, 3, 4, 3, 19};
 #endif /* HAVE_DILITHIUM */
+#ifdef HAVE_MLDSA_COMPOSITE
+    /* ML-DSA Composite Level 2: 2.16.840. */
+    static const byte sigMlDsa44_Rsa2048_Sha256Oid[] =
+        { 0x99, 0x11, 0x11, 0x11, 0x11, 0x11 };
+    static const byte sigMlDsa44_RsaPss2048_Sha256Oid[] =
+        { 0x98, 0x22, 0x22, 0x22, 0x22, 0x22 };
+    // static const byte sigMlDsa44_NistP256_Sha256Oid[] =
+    //     { 0x0, 0x0, 0x0, 0x0, 0x0, 0x0 };
+    // static const byte sigMlDsa44_Ed25519_Sha256Oid[] =
+    //     { 0x0, 0x0, 0x0, 0x0, 0x0, 0x0 };
+    // static const byte sigMlDsa44_BrainP256_Sha256Oid[] =
+    //     { 0x0, 0x0, 0x0, 0x0, 0x0, 0x0 };
+    // static const byte sigMlDsa65_Rsa3072_Sha512Oid[] =
+    //     { 0x0, 0x0, 0x0, 0x0, 0x0, 0x0 };
+    // static const byte sigMlDsa65_RsaPss3072_Sha512Oid[] =
+    //     { 0x0, 0x0, 0x0, 0x0, 0x0, 0x0 };
+    // static const byte sigMlDsa65_NistP384_Sha512Oid[] =
+    //     { 0x0, 0x0, 0x0, 0x0, 0x0, 0x0 };
+    // static const byte sigMlDsa65_BrainP384_Sha512Oid[] =
+    //     { 0x0, 0x0, 0x0, 0x0, 0x0, 0x0 };
+    // static const byte sigMlDsa65_Ed25519_Sha512Oid[] =
+    //     { 0x0, 0x0, 0x0, 0x0, 0x0, 0x0 };
+    // static const byte sigMlDsa87_NistP384_Sha512Oid[] =
+    //     { 0x0, 0x0, 0x0, 0x0, 0x0, 0x0 };
+    // static const byte sigMlDsa87_BrainP384_Sha512Oid[] =
+    //     { 0x0, 0x0, 0x0, 0x0, 0x0, 0x0 };
+    // static const byte sigMlDsa87_Ed448_Sha512Oid[] =
+    //     { 0x0, 0x0, 0x0, 0x0, 0x0, 0x0 };
+#endif /* HAVE_MLDSA_COMPOSITE */
 #ifdef HAVE_SPHINCS
     /* Sphincs Fast Level 1: 1 3 9999 6 7 4 */
     static const byte sigSphincsFast_Level1Oid[] =
@@ -4353,6 +4382,14 @@ static word32 SetBitString16Bit(word16 val, byte* output)
     static const byte keyMlDsa_Level5Oid[] =
         {96, 134, 72, 1, 101, 3, 4, 3, 19};
 #endif /* HAVE_DILITHIUM */
+#ifdef HAVE_MLDSA_COMPOSITE
+    /* ML-DSA Composite Level 2: 2.16.840. */
+    static const byte keyMlDsa44_Rsa2048_Sha256Oid[] =
+        { 0x99, 0x11, 0x11, 0x11, 0x11, 0x11 };
+    static const byte keyMlDsa44_RsaPss2048_Sha256Oid[] =
+        { 0x98, 0x22, 0x22, 0x22, 0x22, 0x22 };
+#endif /* HAVE_MLDSA_COMPOSITE */
+
 #ifdef HAVE_SPHINCS
     /* Sphincs Fast Level 1: 1 3 9999 6 7 4 */
     static const byte keySphincsFast_Level1Oid[] =
@@ -4923,6 +4960,16 @@ const byte* OidFromId(word32 id, word32 type, word32* oidSz)
                     *oidSz = sizeof(sigMlDsa_Level5Oid);
                     break;
             #endif /* HAVE_DILITHIUM */
+                #ifdef HAVE_MLDSA_COMPOSITE
+                case CTC_MLDSA44_RSA2048:
+                    oid = sigMlDsa44_Rsa2048_Sha256Oid;
+                    *oidSz = sizeof(sigMlDsa44_Rsa2048_Sha256Oid);
+                    break;
+                case CTC_MLDSA44_RSAPSS2048:
+                    oid = sigMlDsa44_RsaPss2048_Sha256Oid;
+                    *oidSz = sizeof(sigMlDsa44_RsaPss2048_Sha256Oid);
+                    break;
+                #endif /* HAVE_MLDSA_COMPOSITE */
                 #ifdef HAVE_SPHINCS
                 case CTC_SPHINCS_FAST_LEVEL1:
                     oid = sigSphincsFast_Level1Oid;
@@ -5048,6 +5095,16 @@ const byte* OidFromId(word32 id, word32 type, word32* oidSz)
                     *oidSz = sizeof(keyMlDsa_Level5Oid);
                     break;
             #endif /* HAVE_DILITHIUM */
+            #ifdef HAVE_MLDSA_COMPOSITE
+                case MLDSA44_RSA2048k:
+                    oid = keyMlDsa44_Rsa2048_Sha256Oid;
+                    *oidSz = sizeof(keyMlDsa44_Rsa2048_Sha256Oid);
+                    break;
+                case MLDSA44_RSAPSS2048k:
+                    oid = keyMlDsa44_RsaPss2048_Sha256Oid;
+                    *oidSz = sizeof(keyMlDsa44_RsaPss2048_Sha256Oid);
+                    break;
+            #endif
                 #ifdef HAVE_SPHINCS
                 case SPHINCS_FAST_LEVEL1k:
                     oid = keySphincsFast_Level1Oid;

@@ -45477,11 +45477,8 @@ static wc_test_ret_t mldsa_composite_param_test(int param, WC_RNG* rng)
 
     pubKey_BufferLen = MLDSA_COMPOSITE_MAX_PUB_KEY_SIZE;
     ret = wc_mldsa_composite_import_public(pubKey_Buffer, pubKey_BufferLen, &imported_key, param);
-printf("imported_key ret: %d\n", ret);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
-
-printf("imported_key: %p\n", &imported_key);
 
     privKey_BufferLen = MLDSA_COMPOSITE_MAX_PRV_KEY_SIZE;
     ret = wc_mldsa_composite_export_private(key, privKey_Buffer, &privKey_BufferLen);
@@ -45514,17 +45511,17 @@ printf("imported_key: %p\n", &imported_key);
 
     printf("                    wc_MlDsaComposite_PrivateKeyToDer(): ret = %d\n", ret);
 
-    // do {
-    //     char privKeyFileName[200];
-    //     snprintf(privKeyFileName, sizeof(privKeyFileName), "privkey_%d.der", param);
-    //     FILE * f = fopen(privKeyFileName, "wb");
-    //     if (f == NULL) {
-    //         printf("Failed to open file\n");
-    //         break;
-    //     }
-    //     fwrite(exportKey_Buffer, 1, ret, f);
-    //     fclose(f);
-    // } while (0);
+    do {
+        char privKeyFileName[200];
+        snprintf(privKeyFileName, sizeof(privKeyFileName), "privkey_%d.der", param);
+        FILE * f = fopen(privKeyFileName, "wb");
+        if (f == NULL) {
+            printf("Failed to open file\n");
+            break;
+        }
+        fwrite(exportKey_Buffer, 1, ret, f);
+        fclose(f);
+    } while (0);
 
     ret = wc_MlDsaComposite_KeyToDer(key, NULL, 0);
     if (ret <= 0)
