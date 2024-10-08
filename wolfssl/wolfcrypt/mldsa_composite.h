@@ -113,26 +113,28 @@
     #define WOLFSSL_MLDSA_COMPOSITE_CHECK_KEY
 #endif
 
-
 #define RSA2048_KEY_SIZE                512
 #define RSA2048_SIG_SIZE                256
-#define RSA2048_PUB_KEY_SIZE            256 + 14
-#define RSA2048_PRV_KEY_SIZE            1200
+#define RSA2048_PUB_KEY_SIZE            270
+#define RSA2048_PRV_KEY_SIZE            1191
 
 #define RSA3072_KEY_SIZE                768
 #define RSA3072_SIG_SIZE                384
-#define RSA3072_PUB_KEY_SIZE            384 + 14
+#define RSA3072_PUB_KEY_SIZE            398
 #define RSA3072_PRV_KEY_SIZE            1767
 
 #define RSA4096_KEY_SIZE                1024
 #define RSA4096_SIG_SIZE                512
-#define RSA4096_PUB_KEY_SIZE            512
-#define RSA4096_PRV_KEY_SIZE            2408
+#define RSA4096_PUB_KEY_SIZE            526
+#define RSA4096_PRV_KEY_SIZE            2349
+
+// Sizes Returned by the API Functions
+// TODO: @madwolf Values need to be checked
 
 #define MLDSA44_RSA2048_KEY_SIZE        DILITHIUM_ML_DSA_44_KEY_SIZE + RSA2048_KEY_SIZE + 12
 #define MLDSA44_RSA2048_SIG_SIZE        DILITHIUM_ML_DSA_44_SIG_SIZE + RSA2048_SIG_SIZE + 12 + 2
-#define MLDSA44_RSA2048_PUB_KEY_SIZE    DILITHIUM_ML_DSA_44_PUB_KEY_SIZE + RSA2048_KEY_SIZE + 12
-#define MLDSA44_RSA2048_PRV_KEY_SIZE    DILITHIUM_ML_DSA_44_KEY_SIZE + RSA2048_PRV_KEY_SIZE + 12
+#define MLDSA44_RSA2048_PUB_KEY_SIZE    DILITHIUM_ML_DSA_44_PUB_KEY_SIZE + RSA2048_PUB_KEY_SIZE + 14
+#define MLDSA44_RSA2048_PRV_KEY_SIZE    DILITHIUM_ML_DSA_44_KEY_SIZE + RSA2048_PRV_KEY_SIZE + 14 + 2
 
 #define MLDSA44_NISTP256_KEY_SIZE       DILITHIUM_ML_DSA_44_KEY_SIZE + 32 + 12
 #define MLDSA44_NISTP256_SIG_SIZE       DILITHIUM_ML_DSA_44_SIG_SIZE + 72 + 12
@@ -465,6 +467,14 @@ WOLFSSL_API int wc_mldsa_composite_init(mldsa_composite_key* key);
  * @return  BAD_FUNC_ARG when key is NULL
  */
 WOLFSSL_API int wc_mldsa_composite_init_ex(mldsa_composite_key* key, void* heap, int devId);
+
+/* Clears the memory associated with the internals of a mldsa composite key.
+ *
+ * @param [in, out] key     ML-DSA composite key.
+ * @return  0 on success.
+ * @return  BAD_FUNC_ARG when key is NULL
+ */
+WOLFSSL_API int wc_mldsa_composite_clear(mldsa_composite_key* key);
 
 #ifdef WOLF_PRIVATE_KEY_ID
 WOLFSSL_API

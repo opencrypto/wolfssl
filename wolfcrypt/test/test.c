@@ -45477,22 +45477,39 @@ static wc_test_ret_t mldsa_composite_param_test(int param, WC_RNG* rng)
 
     pubKey_BufferLen = MLDSA_COMPOSITE_MAX_PUB_KEY_SIZE;
     ret = wc_mldsa_composite_import_public(pubKey_Buffer, pubKey_BufferLen, &imported_key, param);
+printf("imported_key ret: %d\n", ret);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+printf("imported_key: %p\n", &imported_key);
 
     privKey_BufferLen = MLDSA_COMPOSITE_MAX_PRV_KEY_SIZE;
     ret = wc_mldsa_composite_export_private(key, privKey_Buffer, &privKey_BufferLen);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
-    // XMEMSET(&imported_key, 0, sizeof(imported_key));
-    // wc_mldsa_composite_init(&imported_key);
+printf("privKey_BufferLen: %d\n", privKey_BufferLen);
 
-    // printf("Trying to import -> privKey_BufferLen: %d, pubKey_BufferLen: %d\n", privKey_BufferLen, pubKey_BufferLen);
+    XMEMSET(&imported_key, 0, sizeof(imported_key));
+    wc_mldsa_composite_free(&imported_key);
 
-    // ret = wc_mldsa_composite_import_private(privKey_Buffer, privKey_BufferLen, &imported_key, param);
-    // if (ret != 0)
-    //     ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    // do {
+    //     char privKeyFileName[200];
+    //     snprintf(privKeyFileName, sizeof(privKeyFileName), "privkey_%d.der", param);
+    //     FILE * f = fopen(privKeyFileName, "wb");
+    //     if (f == NULL) {
+    //         printf("Failed to open file\n");
+    //         break;
+    //     }
+    //     fwrite(privKey_Buffer, 1, privKey_BufferLen, f);
+    //     fclose(f);
+    // } while (0);
+
+    printf("Trying to import -> privKey_BufferLen: %d, pubKey_BufferLen: %d\n", privKey_BufferLen, pubKey_BufferLen);
+
+    ret = wc_mldsa_composite_import_private(privKey_Buffer, privKey_BufferLen, &imported_key, param);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
     privKey_BufferLen = MLDSA_COMPOSITE_MAX_PRV_KEY_SIZE;
     pubKey_BufferLen = MLDSA_COMPOSITE_MAX_PUB_KEY_SIZE;
