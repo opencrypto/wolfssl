@@ -76,6 +76,12 @@ This library defines the interface APIs for X509 certificates.
     typedef struct dilithium_key dilithium_key;
     #define WC_DILITHIUMKEY_TYPE_DEFINED
 #endif
+#ifndef WC_MLDSA_COMPOSITEKEY_TYPE_DEFINED
+    typedef struct mldsa_composite_key mldsa_composite_key;
+    typedef enum wc_mldsa_composite_type wc_MlDsaCompositeType;
+    typedef struct mldsa_composite_params wc_MlDsaCompositeParams;
+    #define WC_MLDSA_COMPOSITEKEY_TYPE_DEFINED
+#endif
 #ifndef WC_SPHINCSKEY_TYPE_DEFINED
     typedef struct sphincs_key sphincs_key;
     #define WC_SPHINCSKEY_TYPE_DEFINED
@@ -180,6 +186,13 @@ enum CertType {
     SPHINCS_SMALL_LEVEL1_TYPE,
     SPHINCS_SMALL_LEVEL3_TYPE,
     SPHINCS_SMALL_LEVEL5_TYPE,
+    // Composite Types
+    MLDSA44_RSA2048_SHA256_TYPE,
+    MLDSA44_RSAPSS2048_SHA256_TYPE,
+    MLDSA44_NISTP256_SHA256_TYPE,
+    MLDSA44_BPOOL256_SHA256_TYPE,
+    MLDSA44_ED25519_SHA256_TYPE,
+    // End Composite Types
     ECC_PARAM_TYPE,
     CHAIN_CERT_TYPE,
     PKCS7_TYPE
@@ -235,7 +248,23 @@ enum Ctc_SigType {
     CTC_SPHINCS_FAST_LEVEL5  = 282,
     CTC_SPHINCS_SMALL_LEVEL1 = 287,
     CTC_SPHINCS_SMALL_LEVEL3 = 285,
-    CTC_SPHINCS_SMALL_LEVEL5 = 286
+    CTC_SPHINCS_SMALL_LEVEL5 = 286,
+
+    CTC_MLDSA44_RSAPSS2048_SHA256   = 998,
+    CTC_MLDSA44_RSA2048_SHA256      = 999,
+    CTC_MLDSA44_ED25519_SHA512      = 1000,
+    CTC_MLDSA44_NISTP256_SHA256     = 1001,
+    CTC_MLDSA44_BPOOL256_SHA256     = 1002,
+
+    CTC_MLDSA65_RSAPSS3072_SHA512   = 1003,
+    CTC_MLDSA65_RSA3072_SHA512      = 1004,
+    CTC_MLDSA65_NISTP256_SHA512     = 1005,
+    CTC_MLDSA65_BPOOL256_SHA512     = 1006,
+    CTC_MLDSA65_ED25519_SHA512      = 1007,
+
+    CTC_MLDSA87_NISTP384_SHA512     = 1008,
+    CTC_MLDSA87_BPOOL384_SHA512     = 1009,
+    CTC_MLDSA87_ED448_SHA512        = 1010
 };
 
 enum Ctc_Encoding {
@@ -805,7 +834,7 @@ WOLFSSL_API int wc_DhPrivKeyToDer(DhKey* key, byte* out, word32* outSz);
      (defined(HAVE_CURVE25519) && defined(HAVE_CURVE25519_KEY_EXPORT)) || \
      (defined(HAVE_ED448)      && defined(HAVE_ED448_KEY_EXPORT)) || \
      (defined(HAVE_CURVE448)   && defined(HAVE_CURVE448_KEY_EXPORT)) || \
-     (defined(HAVE_FALCON) || defined(HAVE_DILITHIUM) || defined(HAVE_SPHINCS)))
+     (defined(HAVE_FALCON) || defined(HAVE_DILITHIUM) || defined(HAVE_SPHINCS) || defined(HAVE_MLDSA_COMPOSITE)))
     #define WC_ENABLE_ASYM_KEY_EXPORT
 #endif
 
@@ -814,7 +843,7 @@ WOLFSSL_API int wc_DhPrivKeyToDer(DhKey* key, byte* out, word32* outSz);
      (defined(HAVE_CURVE25519) && defined(HAVE_CURVE25519_KEY_IMPORT)) || \
      (defined(HAVE_ED448)      && defined(HAVE_ED448_KEY_IMPORT)) || \
      (defined(HAVE_CURVE448)   && defined(HAVE_CURVE448_KEY_IMPORT)) || \
-     (defined(HAVE_FALCON) || defined(HAVE_DILITHIUM) || defined(HAVE_SPHINCS)))
+     (defined(HAVE_FALCON) || defined(HAVE_DILITHIUM) || defined(HAVE_SPHINCS) || defined(HAVE_MLDSA_COMPOSITE)))
     #define WC_ENABLE_ASYM_KEY_IMPORT
 #endif
 
