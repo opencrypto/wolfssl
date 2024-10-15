@@ -1435,7 +1435,6 @@ then
 fi
 
 # MlDsaComposite
-#  - Dilithium
 AC_ARG_ENABLE([mldsa-composite],
     [AS_HELP_STRING([--enable-mldsa-composite],[Enable MLDSA_COMPOSITE (requires --enable-dilithium) (default: disabled)])],
     [ ENABLED_MLDSA_COMPOSITE=$enableval ],
@@ -1443,9 +1442,11 @@ AC_ARG_ENABLE([mldsa-composite],
     )
 
 ENABLED_MLDSA_COMPOSITE_OPTS=$ENABLED_MLDSA_COMPOSITE
-ENABLED_MLDSA_COMPOSITE_MAKE_KEY=no
-ENABLED_MLDSA_COMPOSITE_SIGN=no
-ENABLED_MLDSA_COMPOSITE_VERIFY=no
+ENABLED_MLDSA_COMPOSITE_MAKE_KEY=yes
+ENABLED_MLDSA_COMPOSITE_SIGN=yes
+ENABLED_MLDSA_COMPOSITE_VERIFY=yes
+ENABLED_MLDSA_COMPOSITE_DRAFT_2=no
+ENABLED_MLDSA_COMPOSITE_DRAFT_3=yes
 for v in `echo $ENABLED_MLDSA_COMPOSITE_OPTS | tr "," " "`
 do
   case $v in
@@ -1478,11 +1479,13 @@ do
     ENABLED_MLDSA_COMPOSITE_VERIFY=yes
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_MLDSA_COMPOSITE_VERIFY_ONLY"
     ;;
-  mldsa44_p256)
-    ENABLED_MLDSA44_P256=yes
+  draft2)
+    ENABLED_MLDSA_COMPOSITE_DRAFT_2=yes
+    ENABLED_MLDSA_COMPOSITE_DRAFT_3=no
     ;;
-  mldsa44_ed25519)
-    ENABLED_MLDSA44_ED25519=yes
+  draft3)
+    ENABLED_MLDSA_COMPOSITE_DRAFT_2=no
+    ENABLED_MLDSA_COMPOSITE_DRAFT_3=yes
     ;;
   *)
     AC_MSG_ERROR([Invalid choice for MLDSA_COMPOSITE [all,make,sign,verify,verify-only,mldsa44_p256,mldsa44_ed25519]: $ENABLED_MLDSA_COMPOSITE.])
@@ -1495,13 +1498,6 @@ then
     AS_IF([ test "$ENABLED_EXPERIMENTAL" != "yes" ],[ AC_MSG_ERROR([MLDSA_COMPOSITE requires --enable-experimental.]) ])
     AM_CFLAGS="$AM_CFLAGS -DHAVE_MLDSA_COMPOSITE -DWOLFSSL_WC_MLDSA_COMPOSITE"
 
-    if test "$ENABLED_MLDSA44_P256" = ""; then
-        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_MLDSA44_P256"
-    fi
-    if test "$ENABLED_MLDSA44_ED25519" = ""; then
-        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_MLDSA44_ED25519"
-    fi
-
     if test "$ENABLED_MLDSA_COMPOSITE_MAKE_KEY" = "no"; then
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_MLDSA_COMPOSITE_NO_MAKE_KEY"
     fi
@@ -1511,12 +1507,11 @@ then
     if test "$ENABLED_MLDSA_COMPOSITE_VERIFY" = "no"; then
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_MLDSA_COMPOSITE_NO_VERIFY"
     fi
-
-    if test "$ENABLED_LIBOQS" = "no"; then
-        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_WC_DILITHIUM"
-        test "$enable_sha3" = "" && enable_sha3=yes
-        test "$enable_shake128" = "" && enable_shake128=yes
-        test "$enable_shake256" = "" && enable_shake256=yes
+    if test "$ENABLED_MLDSA_COMPOSITE_DRAFT_2" = "yes"; then
+        AM_CFLAGS="$AM_CFLAGS -DHAVE_MLDSA_COMPOSITE_DRAFT_2"
+    fi
+    if test "$ENABLED_MLDSA_COMPOSITE_DRAFT_3" = "yes"; then
+        AM_CFLAGS="$AM_CFLAGS -DHAVE_MLDSA_COMPOSITE_DRAFT_3"
     fi
 fi
 

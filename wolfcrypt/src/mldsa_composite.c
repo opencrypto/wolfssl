@@ -3134,27 +3134,6 @@ int wc_MlDsaComposite_PrivateKeyDecode(const byte* input, word32* inOutIdx,
         ret = DecodeAsymKey_Assign(input, inOutIdx, inSz, &privKey, &privKeyLen,
             &pubKey, &pubKeyLen, keytype);
     }
-    // if ((ret == 0) && (pubKey == NULL) && (pubKeyLen == 0)) {
-    //     // /* Check if the public key is included in the private key. */
-    //     // if ((key->level == WC_ML_DSA_44) &&
-    //     //     (privKeyLen == DILITHIUM_LEVEL2_PRV_KEY_SIZE)) {
-    //     //     pubKey = privKey + DILITHIUM_LEVEL2_KEY_SIZE;
-    //     //     pubKeyLen = DILITHIUM_LEVEL2_PUB_KEY_SIZE;
-    //     //     privKeyLen -= DILITHIUM_LEVEL2_PUB_KEY_SIZE;
-    //     // }
-    //     // else if ((key->level == WC_ML_DSA_65) &&
-    //     //          (privKeyLen == DILITHIUM_LEVEL3_PRV_KEY_SIZE)) {
-    //     //     pubKey = privKey + DILITHIUM_LEVEL3_KEY_SIZE;
-    //     //     pubKeyLen = DILITHIUM_LEVEL3_PUB_KEY_SIZE;
-    //     //     privKeyLen -= DILITHIUM_LEVEL3_PUB_KEY_SIZE;
-    //     // }
-    //     // else if ((key->level == WC_ML_DSA_87) &&
-    //     //          (privKeyLen == DILITHIUM_LEVEL5_PRV_KEY_SIZE)) {
-    //     //     pubKey = privKey + DILITHIUM_LEVEL5_KEY_SIZE;
-    //     //     pubKeyLen = DILITHIUM_LEVEL5_PUB_KEY_SIZE;
-    //     //     privKeyLen -= DILITHIUM_LEVEL5_PUB_KEY_SIZE;
-    //     // }
-    // }
 
     if (ret == 0) {
         /* Check whether public key data was found. */
