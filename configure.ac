@@ -5298,6 +5298,12 @@ AC_ARG_ENABLE([aeskeywrap],
     )
 
 # FIPS feature and macro setup
+
+AS_IF([test "$FIPS_VERSION" = "dev"],
+    [AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_FIPS_DEV"])
+AS_IF([test "$FIPS_VERSION" = "ready"],
+    [AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_FIPS_READY"])
+
 AS_CASE([$FIPS_VERSION],
     [v6|ready|dev],[ # FIPS 140-3 SRTP-KDF
         AM_CFLAGS="$AM_CFLAGS \
@@ -6076,10 +6082,27 @@ fi
 
 # Certificate Status Request : a.k.a. OCSP Stapling
 AC_ARG_ENABLE([ocspstapling],
-    [AS_HELP_STRING([--enable-ocspstapling],[Enable OCSP Stapling (default: disabled)])],
+    [AS_HELP_STRING([--enable-ocspstapling],[Enable OCSP Stapling ((options: yes, no-multi, no, disabled default: disabled)])],
     [ ENABLED_CERTIFICATE_STATUS_REQUEST=$enableval ],
     [ ENABLED_CERTIFICATE_STATUS_REQUEST=no ]
     )
+AS_CASE([$ENABLED_CERTIFICATE_STATUS_REQUEST],
+    [no],[
+        ENABLED_CERTIFICATE_STATUS_REQUEST="no"
+        ENABLED_TLS_OCSP_MULTI="no"
+    ],
+    [disabled],[
+        ENABLED_CERTIFICATE_STATUS_REQUEST="no"
+        ENABLED_TLS_OCSP_MULTI="no"
+    ],
+    [yes],[
+        ENABLED_CERTIFICATE_STATUS_REQUEST="yes"
+        ENABLED_TLS_OCSP_MULTI="yes"
+    ],
+    [no-multi],[
+        ENABLED_CERTIFICATE_STATUS_REQUEST="yes"
+        ENABLED_TLS_OCSP_MULTI="no"
+    ])
 
 if test "x$ENABLED_NGINX" = "xyes" || test "x$ENABLED_WPAS" = "xyes" || \
    test "x$ENABLED_HAPROXY" = "xyes" || test "x$ENABLED_LIGHTY" = "xyes" || \
@@ -9661,7 +9684,17 @@ if test "$ENABLED_DH" != "no" && test "$ENABLED_DH" != "const"; then
    LT_LIB_M
 fi
 
-
+# mulitple OCSP stapling for TLS 1.3 Certificate extension
+if test "$ENABLED_CERTIFICATE_STATUS_REQUEST" = "yes"
+then
+    if test "$ENABLED_TLS13" = "yes"
+    then
+        if test "$ENABLED_TLS_OCSP_MULTI" = "yes"
+        then
+            AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_TLS_OCSP_MULTI"
+        fi
+    fi
+fi
 ################################################################################
 
 # USER SETTINGS
@@ -9917,6 +9950,7 @@ AM_CONDITIONAL([BUILD_SM4],[test "x$ENABLED_SM4" != "xno" || test "x$ENABLED_USE
 AM_CONDITIONAL([BUILD_INLINE],[test "x$ENABLED_INLINE" = "xyes"])
 AM_CONDITIONAL([BUILD_OCSP],[test "x$ENABLED_OCSP" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_OCSP_STAPLING],[test "x$ENABLED_CERTIFICATE_STATUS_REQUEST" = "xyes"])
+AM_CONDITIONAL([BUILD_OCSP_STAPLING_MULTI],[test "x$ENABLED_CERTIFICATE_STATUS_REQUEST" = "xyes" && test "x$ENABLED_TLS13" = "xyes" && test "x$ENABLED_TLS_OCSP_MULTI" = "xyes"])
 AM_CONDITIONAL([BUILD_OCSP_STAPLING_V2],[test "x$ENABLED_CERTIFICATE_STATUS_REQUEST_V2" = "xyes"])
 AM_CONDITIONAL([BUILD_CRL],[test "x$ENABLED_CRL" != "xno" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_CRL_MONITOR],[test "x$ENABLED_CRL_MONITOR" = "xyes"])

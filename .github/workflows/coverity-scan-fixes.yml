@@ -1,17 +1,14 @@
-name: Coverity Scan master branch on a weekly basis
+name: Coverity Scan master branch on a daily basis
 
 on:
   workflow_dispatch:
   schedule:
-    - cron: "0 0,12 * * *"
-#    - cron: "0 0 * * 1"
-#on:
-#  push:
-#    branches: [ 'master', 'main', 'release/**' ]
+    - cron: "0 0 * * *"
 
 jobs:
   coverity:
-    runs-on: ubuntu-latest
+    if: github.repository_owner == 'wolfssl'
+    runs-on: ubuntu-22.04
     steps:
     - uses: actions/checkout@v4
       with:
