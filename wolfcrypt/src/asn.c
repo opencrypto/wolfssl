@@ -27014,6 +27014,224 @@ int wc_RsaKeyToDer(RsaKey* key, byte* output, word32 inLen)
 
 #endif /* (WOLFSSL_KEY_GEN || OPENSSL_EXTRA) && !NO_RSA */
 
+/* Returns the KeySum information from the provided name.
+ *
+ * @param name    [in] The name of the key type.
+ * @return        BAD_FUNC_ARG if the name is invalid, or the Key_Sum value.
+*/
+int wc_KeySum_get(const char * name) {
+
+    int ret = 0;
+
+    // Input Checks
+    if (!name) {
+        ret = BAD_FUNC_ARG;
+    }
+    if (ret == 0) {
+
+        if (!XSTRNCMP(name, "DSA", 3) ||
+            !XSTRNCMP(name, "dsa", 3)) {
+            ret = DSAk;
+        } else if (!XSTRNCMP(name, "RSAPSS", 6) ||
+                   !XSTRNCMP(name, "rsapss", 6 ||
+                   !XSTRNCMP(name, "pss", 3) ||
+                   !XSTRNCMP(name, "pss", 3))) {
+            ret = RSAPSSk;
+        } else if (!XSTRNCMP(name, "RSA", 3) ||
+                   !XSTRNCMP(name, "rsa", 3)) {
+            ret = RSAk;
+        } else if (!XSTRNCMP(name, "EC", 2) ||
+                   !XSTRNCMP(name, "ec", 2)) {
+            ret = ECDSAk;
+        } else if (!XSTRNCMP(name, "ED25519", 7) ||
+                   !XSTRNCMP(name, "ed25519", 7)) {
+            ret = ED25519k;
+        } else if (!XSTRNCMP(name, "X25519", 6) ||
+                   !XSTRNCMP(name, "x25519", 6)) {
+            ret = X25519k;
+        } else if (!XSTRNCMP(name, "ED448", 5) ||
+                   !XSTRNCMP(name, "ed448", 5)) {
+            ret = ED448k;
+        } else if (!XSTRNCMP(name, "X448", 4) ||
+                   !XSTRNCMP(name, "x448", 4)) {
+            ret = X448k;
+        } else if (!XSTRNCMP(name, "FN-DSA-512", 10) ||
+                   !XSTRNCMP(name, "fn-dsa-512", 10) ||
+                   !XSTRNCMP(name, "FNDSA-512", 9) ||
+                   !XSTRNCMP(name, "fndsa-512", 9)) {
+            ret = FALCON_LEVEL1k;
+        } else if (!XSTRNCMP(name, "FN-DSA-1024", 11) ||
+                   !XSTRNCMP(name, "fn-dsa-1024", 11) ||
+                   !XSTRNCMP(name, "FNDSA-1024", 10) ||
+                   !XSTRNCMP(name, "fndsa-1024", 10)) {
+            ret = FALCON_LEVEL5k;
+        } else if (!XSTRNCMP(name, "MLDSA44-RSAPSS", 14) ||
+                   !XSTRNCMP(name, "mldsa44-rsapss", 14) ||
+                   !XSTRNCMP(name, "MLDSA44-PSS", 11) ||
+                   !XSTRNCMP(name, "mldsa44-pss", 11)) {
+            ret = MLDSA44_RSAPSS2048k;
+        } else if (!XSTRNCMP(name, "MLDSA65-RSA", 11) ||
+                   !XSTRNCMP(name, "mldsa65-rsa", 11)) {
+            ret = MLDSA44_RSA2048k;
+        } else if (!XSTRNCMP(name, "MLDSA44-ED25519", 15) ||
+                   !XSTRNCMP(name, "mldsa44-ed25519", 15)) {
+            ret = MLDSA44_ED25519k;
+        } else if (!XSTRNCMP(name, "MLDSA44-NISTP256", 16) ||
+                   !XSTRNCMP(name, "mldsa44-nistp256", 16)) {
+            ret = MLDSA44_NISTP256k;
+        } else if (!XSTRNCMP(name, "MLDSA44-BPOOL256", 16) ||
+                   !XSTRNCMP(name, "mldsa44-bpool256", 16)) {
+            ret = MLDSA44_BPOOL256k;
+        } else if (!XSTRNCMP(name, "MLDSA65-RSAPSS", 14) ||
+                   !XSTRNCMP(name, "mldsa65-rsapss", 14)) {
+            ret = MLDSA65_RSAPSS3072k;
+        } else if (!XSTRNCMP(name, "MLDSA65-RSA", 11) ||
+                   !XSTRNCMP(name, "mldsa65-rsa", 11)) {
+            ret = MLDSA65_RSA3072k;
+        } else if (!XSTRNCMP(name, "MLDSA65-ED25519", 15) ||
+                   !XSTRNCMP(name, "mldsa65-ed25519", 15)) {
+            ret = MLDSA65_ED25519k;
+        } else if (!XSTRNCMP(name, "MLDSA65-NISTP256", 16) ||
+                   !XSTRNCMP(name, "mldsa65-nistp256", 16)) {
+            ret = MLDSA65_NISTP256k;
+        } else if (!XSTRNCMP(name, "MLDSA65-BPOOL256", 16) ||
+                   !XSTRNCMP(name, "mldsa65-bpool256", 16)) {
+            ret = MLDSA65_BPOOL256k;
+        } else if (!XSTRNCMP(name, "MLDSA87-NISTP384", 16) ||
+                   !XSTRNCMP(name, "mldsa87-nistp384", 16)) {
+            ret = MLDSA87_NISTP384k;
+        } else if (!XSTRNCMP(name, "MLDSA87-BPOOL384", 16) ||
+                   !XSTRNCMP(name, "mldsa87-bpool384", 16)) {
+            ret = MLDSA87_BPOOL384k;
+        } else if (!XSTRNCMP(name, "MLDSA87-ED448", 14) ||
+                   !XSTRNCMP(name, "mldsa87-ed448", 14)) {
+            ret = MLDSA87_ED448k;
+        } else if (!XSTRNCMP(name, "ML-DSA-44", 9) ||
+                   !XSTRNCMP(name, "ml-dsa-44", 9) ||
+                   !XSTRNCMP(name, "MLDSA44", 7) ||
+                   !XSTRNCMP(name, "mldsa44", 7)) {
+            ret = ML_DSA_LEVEL2k;
+        } else if (!XSTRNCMP(name, "ML-DSA-65", 9) ||
+                   !XSTRNCMP(name, "ml-dsa-65", 9) ||
+                   !XSTRNCMP(name, "MLDSA65", 7) ||
+                   !XSTRNCMP(name, "mldsa65", 7)) {
+            ret = ML_DSA_LEVEL3k;
+        } else if (!XSTRNCMP(name, "ML-DSA-87", 9) ||
+                   !XSTRNCMP(name, "ml-dsa-87", 9) ||
+                   !XSTRNCMP(name, "MLDSA87", 7) ||
+                   !XSTRNCMP(name, "mldsa87", 7)) {
+            ret = ML_DSA_LEVEL5k;
+        } else {
+            ret = BAD_FUNC_ARG;
+        }
+    }
+
+    return ret;
+}
+
+const char * wc_KeySum_name(const int keySum) {
+
+    if (keySum <= 0) {
+        return NULL;
+    }
+
+    switch (keySum) {
+
+        // Traditional Crypto
+        case DSAk:
+            return "DSA";
+            break;
+        case RSAk:
+            return "RSA";
+            break;
+        case RSAPSSk:
+            return "RSAPSS";
+            break;
+        case ECDSAk:
+            return "ECC";
+            break;
+        case ED25519k:
+            return "ED25519";
+            break;
+        case X25519k:
+            return "X25519";
+            break;
+        case ED448k:
+            return "ED448";
+            break;
+        case X448k:
+            return "X448";
+            break;
+
+        // PQ Cryptography
+        case FALCON_LEVEL1k:
+            return "FN-DSA-512";
+            break;
+        case FALCON_LEVEL5k:
+            return "FN-DSA-1024";
+            break;
+
+        case ML_DSA_LEVEL2k:
+            return "ML-DSA-44";
+            break;
+        case ML_DSA_LEVEL3k:
+            return "ML-DSA-65";
+            break;
+        case ML_DSA_LEVEL5k:
+            return "ML-DSA-87";
+            break;
+
+        // Composite Cryptography
+        case MLDSA44_RSAPSS2048k:
+            return "MLDSA44-RSAPSS2048";
+            break;
+        case MLDSA44_RSA2048k:
+            return "MLDSA65-RSA2048";
+            break;
+        case MLDSA44_ED25519k:
+            return "MLDSA44-ED25519";
+            break;
+        case MLDSA44_NISTP256k:
+            return "MLDSA44-NISTP256";
+            break;
+        case MLDSA44_BPOOL256k:
+            return "MLDSA44-BPOOL256";
+            break;
+        
+        case MLDSA65_RSAPSS3072k:
+            return "MLDSA65-RSAPSS3072";
+            break;
+        case MLDSA65_RSA3072k:
+            return "MLDSA65-RSA3072";
+            break;
+        case MLDSA65_ED25519k:
+            return "MLDSA65-ED25519";
+            break;
+        case MLDSA65_NISTP256k:
+            return "MLDSA65-NISTP256";
+            break;
+        case MLDSA65_BPOOL256k:
+            return "MLDSA65-BPOOL256";
+            break;
+
+        case MLDSA87_NISTP384k:
+            return "MLDSA87-NISTP384";
+            break;
+        case MLDSA87_BPOOL384k:
+            return "MLDSA87-BPOOL384";
+            break;
+        case MLDSA87_ED448k:
+            return "MLDSA87-ED448";
+            break;
+        
+        default:
+            return NULL;
+    }
+
+    // Error
+    return NULL;
+}
+
 #ifndef NO_CERTS
 
 #ifdef WOLFSSL_CERT_GEN

@@ -232,10 +232,36 @@ int main(int argc, char** argv)
     printf("Please compile wolfSSL with --enable-certreq --enable-certgen --enable-certext --enable-keygen\n");
     return 0;
 #else
+    enum Key_Sum keySum = RSAk;
+    int verbose = 0;
+    int debug = 0;
+    int i = 1;
+
+    while (i < argc) {
+        if (XSTRNCMP(argv[i], "-v", 2) == 0) {
+            verbose = 1;
+        } else if (XSTRNCMP(argv[i], "-d", 2) == 0) {
+            debug = 1;
+        } else if (XSTRNCMP(argv[i], "-h", 2) == 0) {
+            usage();
+            return 1;
+        } else if (XSTRNCMP(argv[i++], "-algor", 6) == 0) {
+            keySum = wc_KeySum_get(argv[i]);
+            if ( keySum < 0) {
+                printf("Invalid algorithm type\n");
+                return 1;
+            }
+            printf("Algorithm type: %d (%s)\n", keySum, wc_KeySum_name(keySum));
+        }
+        i++;
+    }
+
     if (argc != 2) {
-        usage();
+        if (verbose) usage();
         return 1;
     }
+
+    (void)debug;
 
     return gen_csr(argv[1]);
 #endif

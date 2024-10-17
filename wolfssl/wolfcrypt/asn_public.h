@@ -187,6 +187,8 @@ enum CertType {
     SPHINCS_SMALL_LEVEL3_TYPE,
     SPHINCS_SMALL_LEVEL5_TYPE,
     // Composite Types
+#ifdef HAVE_MLDSA_COMPOSITE
+#ifdef HAVE_MLDSA_COMPOSITE_DRAFT_2
     MLDSA44_RSAPSS2048_SHA256_TYPE,
     MLDSA44_RSA2048_SHA256_TYPE,
     MLDSA44_NISTP256_SHA256_TYPE,
@@ -201,6 +203,8 @@ enum CertType {
     MLDSA87_BPOOL384_SHA512_TYPE,
     MLDSA87_ED448_SHA512_TYPE,
     // End Composite Types
+# endif
+#endif
     ECC_PARAM_TYPE,
     CHAIN_CERT_TYPE,
     PKCS7_TYPE
@@ -596,6 +600,20 @@ typedef struct Cert {
 #endif
 } Cert;
 
+/* Returns the KeySum information from the provided name or keyType.
+ *
+ * @param name    [in, out] The name of the key type.
+ * @param keyType [in, out] The key type.
+ * @return        BAD_FUNC_ARG if the name or keyType is invalid, else 0.
+*/
+WOLFSSL_ABI WOLFSSL_API const char * wc_KeySum_name(const int keySum);
+
+/* Returns the KeySum information from the provided name.
+ *
+ * @param name    [in] The name of the key type.
+ * @return        BAD_FUNC_ARG if the name is invalid, or the Key_Sum value.
+*/
+WOLFSSL_ABI WOLFSSL_API int wc_KeySum_get(const char * name);
 
 /* Initialize and Set Certificate defaults:
    version    = 3 (0x2)
