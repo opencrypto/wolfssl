@@ -3605,7 +3605,7 @@ int wc_MlDsaComposite_PrivateKeyToDer(mldsa_composite_key* key, byte* output, wo
                 return BAD_FUNC_ARG;
             }
             // Export the private key (if any output is provided)
-            ret = SetAsymKeyDer(privKey_Buffer, privKey_BufferLen, NULL, 0, output, len, keytype);
+            ret = SetAsymKeyDer(privKey_Buffer, privKey_BufferLen, NULL, 0, output, privkey_sz, keytype);
             if (ret < 0) {
                 return ret;
             }
