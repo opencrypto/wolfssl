@@ -45600,6 +45600,18 @@ static wc_test_ret_t mldsa_composite_param_test(int param, WC_RNG* rng)
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
+    do {
+        char privKeyFileName[200];
+        snprintf(privKeyFileName, sizeof(privKeyFileName), "private_key_%d.der", param);
+        FILE * f = fopen(privKeyFileName, "wb");
+        if (f == NULL) {
+            printf("Failed to open file\n");
+            break;
+        }
+        fwrite(privKey_Buffer, privKey_BufferLen, 1, f);
+        fclose(f);
+    } while (0);
+
     XMEMSET(&imported_key, 0, sizeof(imported_key));
     wc_mldsa_composite_free(&imported_key);
 
@@ -45778,7 +45790,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t mldsa_composite_test(void)
 
     for (int idx = 0; idx < 13; idx++) {
 
-        // if ( idx == 0 /* || idx ==1 || idx == 4 || idx == 5 || idx == 6 || idx==7 || idx == 8 */) continue;
+        if ( idx == 0 || idx ==1 /* || idx == 4 || idx == 5 || idx == 6 || idx==7 || idx == 8 */) continue;
 
         printf("******** mldsa_composite_test: idx = %d\n", idx);
         ret = mldsa_composite_param_test(mldsa_composite_algos[idx], &rng);
