@@ -3599,6 +3599,7 @@ int wc_MlDsaComposite_PrivateKeyToDer(mldsa_composite_key* key, byte* output, wo
             return MEMORY_E;
         }
 
+        // If output is provided, export the private key
         if (output) {
             if ((word32)privkey_sz > len) {
                 MADWOLF_DEBUG("Private Key Export Buffer (needed: %d, provided: %d, type: %d)", privkey_sz, len, key->type);

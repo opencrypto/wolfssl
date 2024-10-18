@@ -45600,17 +45600,17 @@ static wc_test_ret_t mldsa_composite_param_test(int param, WC_RNG* rng)
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
-    do {
-        char privKeyFileName[200];
-        snprintf(privKeyFileName, sizeof(privKeyFileName), "private_key_%d.der", param);
-        FILE * f = fopen(privKeyFileName, "wb");
-        if (f == NULL) {
-            printf("Failed to open file\n");
-            break;
-        }
-        fwrite(privKey_Buffer, privKey_BufferLen, 1, f);
-        fclose(f);
-    } while (0);
+    // do {
+    //     char privKeyFileName[200];
+    //     snprintf(privKeyFileName, sizeof(privKeyFileName), "private_key_%d.der", param);
+    //     FILE * f = fopen(privKeyFileName, "wb");
+    //     if (f == NULL) {
+    //         printf("Failed to open file\n");
+    //         break;
+    //     }
+    //     fwrite(privKey_Buffer, privKey_BufferLen, 1, f);
+    //     fclose(f);
+    // } while (0);
 
     XMEMSET(&imported_key, 0, sizeof(imported_key));
     wc_mldsa_composite_free(&imported_key);
@@ -45663,17 +45663,17 @@ static wc_test_ret_t mldsa_composite_param_test(int param, WC_RNG* rng)
 
     printf("                    wc_MlDsaComposite_PrivateKeyToDer(): ret = %d\n", ret);
 
-    // do {
-    //     char privKeyFileName[200];
-    //     snprintf(privKeyFileName, sizeof(privKeyFileName), "key_%d.der", param);
-    //     FILE * f = fopen(privKeyFileName, "wb");
-    //     if (f == NULL) {
-    //         printf("Failed to open file\n");
-    //         break;
-    //     }
-    //     fwrite(exportKey_Buffer, 1, ret, f);
-    //     fclose(f);
-    // } while (0);
+    do {
+        char privKeyFileName[200];
+        snprintf(privKeyFileName, sizeof(privKeyFileName), "key_%d.p8", param);
+        FILE * f = fopen(privKeyFileName, "wb");
+        if (f == NULL) {
+            printf("Failed to open file\n");
+            break;
+        }
+        fwrite(exportKey_Buffer, 1, ret, f);
+        fclose(f);
+    } while (0);
 
     (void)imported_key;
     (void)res;

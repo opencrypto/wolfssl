@@ -8,7 +8,8 @@ static void usage(void) {
     printf("Where [ options ] are:\n");
     printf(" -v ...............: verbose\n");
     printf(" -d ...............: debug\n");
-    printf(" -algor <name> ....: use the named algorithm (e.g., rsa, mldsa44, mldsa65-ed25519\n");
+    printf(" -algor <name> ....: use the named algorithm (e.g., rsa, ec, mldsa44, falcon-512, mldsa65-ed25519)\n");
+    printf(" -curve <name> ....: use the named curve (e.g., nistp256, nistp384, nistp521, bpool256, bpool384, bpool512)\n");
     printf("\n");
     exit(1);
 }
@@ -226,7 +227,7 @@ static void usage(void) {
 //     return ret;
 // }
 
-static int gen_keypair(int type, const char * out) {
+static int gen_keypair(int type, int param, const char * out) {
 
     if (type < 0 || !out) {
         printf("Invalid key type\n");
@@ -234,6 +235,7 @@ static int gen_keypair(int type, const char * out) {
     }
 
     int ret;
+    int outSz = 0;
 #ifndef NO_RSA
     RsaKey rsaKey;
 #endif
@@ -260,6 +262,9 @@ static int gen_keypair(int type, const char * out) {
 #endif
     void* keyPtr = NULL;
     WC_RNG rng;
+
+    byte der[MLDSA_COMPOSITE_MAX_PRV_KEY_SIZE];
+        // buffer to hold the key in DER format
     
     ret = wc_InitRng(&rng);
     if (ret != 0) {
@@ -286,8 +291,18 @@ static int gen_keypair(int type, const char * out) {
     case ECDSAk:
         keyPtr = &ecKey;
         ret = wc_ecc_init(&ecKey);
+        int keySz = 32;
+        if (param <= 0)
+            param = ECC_SECP256R1;
         if (ret == 0)
-            ret = wc_ecc_make_key_ex(&rng, 32, keyPtr, ECC_SECP256R1);
+        if ((keySz = wc_ecc_get_curve_size_from_id(param)) < 0)
+            ret = keySz;
+        if (ret == 0)
+            ret = wc_ecc_make_key_ex(&rng, keySz, keyPtr, param);
+        if (ret == 0)
+            outSz = wc_EccKeyToDer(&ecKey, der, sizeof(der));
+        if (outSz < 0)
+            ret = outSz;
         break;
 #endif
 #ifdef HAVE_ED25519
@@ -295,12 +310,36 @@ static int gen_keypair(int type, const char * out) {
         keyPtr = &ed25519Key;
         ret = wc_ed25519_init(&ed25519Key);
         if (ret == 0)
-            ret = wc_ed25519_make_key(&rng, 32, keyPtr);
+            ret = wc_ed25519_make_key(&rng, ED25519_KEY_SIZE, keyPtr);
+        if (ret == 0)
+            outSz = wc_Ed25519KeyToDer(&ed25519Key, der, sizeof(der));
+        if (outSz < 0)
+            ret = outSz;
+        break;
+#endif
+#ifdef HAVE_ED448
+    case ED448k:
+        keyPtr = &ed448Key;
+        ret = wc_ed448_init(&ed448Key);
+        if (ret == 0)
+            ret = wc_ed448_make_key(&rng, ED448_KEY_SIZE, keyPtr);
+        if (ret == 0)
+            outSz = wc_Ed448KeyToDer(&ed448Key, der, sizeof(der));
+        if (outSz < 0)
+            ret = outSz;
         break;
 #endif
 
         default:
             return BAD_FUNC_ARG;
+    }
+
+    if (outSz > 0) {
+        FILE* file = fopen(out, "wb");
+        if (file) {
+            ret = (int)fwrite(der, 1, outSz, file);
+            fclose(file);
+        }
     }
 
     (void)keyPtr;
@@ -322,6 +361,7 @@ int main(int argc, char** argv)
     int debug = 0;
     const char * out = "key.der";
     int i = 1;
+    int param = ECC_SECP256R1;
 
     while (i < argc) {
         if (XSTRNCMP(argv[i], "-v", 2) == 0) {
@@ -338,6 +378,31 @@ int main(int argc, char** argv)
                 return 1;
             }
             printf("Algorithm type: %d (%s)\n", keySum, wc_KeySum_name(keySum));
+        } else if (XSTRNCMP(argv[i++], "-curve", 6) == 0) {
+
+                   if (!XSTRNCMP(argv[i], "nistp256", 8) ||
+                       !XSTRNCMP(argv[i], "NISTP256", 8)) {
+                param = ECC_SECP256R1;
+            } else if (!XSTRNCMP(argv[i], "nistp384", 8) ||
+                       !XSTRNCMP(argv[i], "NISTP384", 8)) {
+                param = ECC_SECP384R1;
+            } else if (!XSTRNCMP(argv[i], "nistp521", 8) ||
+                       !XSTRNCMP(argv[i], "NISTP521", 8)) {
+                param = ECC_SECP521R1;
+            } else if (!XSTRNCMP(argv[i], "bpool256", 8) ||
+                       !XSTRNCMP(argv[i], "BPOOL256", 8)) {
+                param = ECC_BRAINPOOLP256R1;
+            } else if (XSTRNCMP(argv[i], "bpool384", 8) ||
+                       !XSTRNCMP(argv[i], "BPOOL384", 8)) {
+                param = ECC_BRAINPOOLP384R1;
+            } else if (XSTRNCMP(argv[i], "bpool512", 8) ||
+                       !XSTRNCMP(argv[i], "BPOOL512", 8)) {
+                param = ECC_BRAINPOOLP512R1;
+            } else {
+                printf("Invalid curve type\n");
+                return 1;
+            }
+            printf("Algorithm type: %d (%s)\n", keySum, wc_KeySum_name(keySum));
         } else if (XSTRNCMP(argv[i++], "-out", 4) == 0) {
             out = argv[i];
         } else {
@@ -347,7 +412,7 @@ int main(int argc, char** argv)
         i++;
     }
 
-    return gen_keypair(keySum, out);
+    return gen_keypair(keySum, param, out);
 
     (void)debug;
     (void)verbose;
