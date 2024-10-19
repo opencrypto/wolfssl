@@ -251,8 +251,8 @@ static int gen_keypair(int type, int param, const char * out) {
 #ifdef HAVE_ED448
     ed448_key ed448Key;
 #endif
-#ifdef HAVE_DILITHIUM
-    dilithium_key dilithiumKey;
+#ifdef HAVE_MLDSA
+    MlDsaKey mldsaKey;
 #endif
 #ifdef HAVE_FALCON
     falcon_key falconKey;
@@ -263,7 +263,11 @@ static int gen_keypair(int type, int param, const char * out) {
     void* keyPtr = NULL;
     WC_RNG rng;
 
+#ifdef HAVE_MLDSA_COMPOSITE
     byte der[MLDSA_COMPOSITE_MAX_PRV_KEY_SIZE];
+#else
+    byte der[10192]; /* 10k */
+#endif
         // buffer to hold the key in DER format
     
     ret = wc_InitRng(&rng);
@@ -285,6 +289,10 @@ static int gen_keypair(int type, int param, const char * out) {
         ret = wc_InitRsaKey(&rsaKey, NULL);
         if (ret == 0)
             ret = wc_MakeRsaKey(&rsaKey, 2048, WC_RSA_EXPONENT, &rng);
+        if (ret == 0)
+            outSz = wc_RsaKeyToDer(&rsaKey, der, sizeof(der));
+        if (outSz < 0)
+            ret = outSz;
         break;
 #endif
 #ifdef HAVE_ECC
@@ -343,9 +351,28 @@ static int gen_keypair(int type, int param, const char * out) {
     }
 
     (void)keyPtr;
+#ifdef HAVE_MLDSA_COMPOSITE
     (void)mldsa_compositeKey;
-    (void)dilithiumKey;
+#endif
+#ifdef HAVE_MLDSA
+    (void)mldsaKey;
+#endif
+#ifdef HAVE_ED448
     (void)ed448Key;
+#endif
+#ifdef HAVE_ED25519
+    (void)ed25519Key;
+#endif
+#ifdef HAVE_ECC
+    (void)ecKey;
+#endif
+#ifndef NO_RSA
+    (void)rsaKey;
+#endif
+#ifdef HAVE_DSA
+    (void)dsaKey;
+#endif
+    wc_FreeRng(&rng);
 
     return 0;
 }
