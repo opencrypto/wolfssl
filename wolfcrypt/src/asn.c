@@ -8658,7 +8658,42 @@ int wc_GetKeyOID(byte* key, word32 keySz, const byte** curveOID, word32* oidSz,
         }
         XFREE(dilithium, heap, DYNAMIC_TYPE_TMP_BUFFER);
     }
-#endif /* HAVE_DILITHIUM && !WOLFSSL_DILITHIUM_VERIFY_ONLY */
+#endif /* HAVE_MLDSA_CPOMPOSITE && !WOLFSSL_MLDSA_COMPOSITE_VERIFY_ONLY */
+#if defined(HAVE_MLDSA_COMPOSITE) && !defined(WOLFSSL_MLDSA_COMPOSITE_NO_SIGN) && \
+    !defined(WOLFSSL_MLDSA_COMPOSITE_NO_VERIFY) && !defined(WOLFSSL_MLDSA_COMPOSITE_NO_ASN1)
+    if (*algoID == 0) {
+        mldsa_composite_key *mldsa_comp = (mldsa_composite_key *)XMALLOC(sizeof(*mldsa_comp),
+             heap, DYNAMIC_TYPE_TMP_BUFFER);
+        if (mldsa_comp == NULL)
+            return MEMORY_E;
+
+        if (wc_mldsa_composite_init(mldsa_comp) != 0) {
+            tmpIdx = 0;
+            for (int i = MLDSA_COMPOSITE_TYPE_MIN; i <= MLDSA_COMPOSITE_TYPE_MAX; i++) {
+                if (wc_mldsa_composite_set_type(mldsa_comp, i) == 0) {
+                    tmpIdx = keySz;
+                    if (wc_MlDsaComposite_PrivateKeyDecode(key, &tmpIdx, mldsa_comp, keySz, i) == 0) {
+                        int type = 0;
+                        if (wc_mldsa_composite_get_type(mldsa_comp, &type) < 0) {
+                            WOLFSSL_MSG("GetKeyOID mldsa_composite_get_type failed");
+                            break;
+                        }
+                        if (wc_mldsa_composite_get_keytype(type, (enum Key_Sum *)algoID) < 0) {
+                            WOLFSSL_ERROR_MSG("GetKeyOID mldsa_composite_get_keytype failed");   
+                        } else { WOLFSSL_ERROR_MSG("Found MlDsaComposite DER key");
+                            break;
+                        }
+                    }
+                    else {
+                        WOLFSSL_MSG("Not MlDsaComposite DER key");
+                    }
+                }
+            }
+            wc_mldsa_composite_free(mldsa_comp);
+        }
+        XFREE(mldsa_comp, heap, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+#endif /* HAVE_MLDSA_COMPOSITE && !WOLFSSL_MLDSA_COMPOSITE_VERIFY_ONLY */
 #if defined(HAVE_SPHINCS)
     if (*algoID == 0) {
         sphincs_key *sphincs = (sphincs_key *)XMALLOC(sizeof(*sphincs),
