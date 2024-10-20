@@ -1434,6 +1434,86 @@ then
     fi
 fi
 
+# MlDsaComposite
+AC_ARG_ENABLE([mldsa-composite],
+    [AS_HELP_STRING([--enable-mldsa-composite],[Enable MLDSA_COMPOSITE (requires --enable-dilithium) (default: disabled)])],
+    [ ENABLED_MLDSA_COMPOSITE=$enableval ],
+    [ ENABLED_MLDSA_COMPOSITE=no ]
+    )
+
+ENABLED_MLDSA_COMPOSITE_OPTS=$ENABLED_MLDSA_COMPOSITE
+# ENABLED_MLDSA_COMPOSITE_MAKE_KEY=yes
+# ENABLED_MLDSA_COMPOSITE_SIGN=yes
+# ENABLED_MLDSA_COMPOSITE_VERIFY=yes
+
+# Default to draft 3
+ENABLED_MLDSA_COMPOSITE_DRAFT_2=no
+ENABLED_MLDSA_COMPOSITE_DRAFT_3=yes
+for v in `echo $ENABLED_MLDSA_COMPOSITE_OPTS | tr "," " "`
+do
+  case $v in
+  yes)
+    ENABLED_MLDSA_COMPOSITE=yes
+    ;;
+  no)
+    ;;
+  all)
+    ENABLED_MLDSA_COMPOSITE=yes
+    # ENABLED_MLDSA_COMPOSITE_MAKE_KEY=yes
+    # ENABLED_MLDSA_COMPOSITE_SIGN=yes
+    # ENABLED_MLDSA_COMPOSITE_VERIFY=yes
+    ;;
+#   make)
+#     ENABLED_MLDSA_COMPOSITE_MAKE_KEY=yes
+#     ;;
+#   sign)
+#     ENABLED_MLDSA_COMPOSITE_SIGN=yes
+#     ;;
+#   verify)
+#     ENABLED_MLDSA_COMPOSITE_VERIFY=yes
+#     ;;
+#   verify-only)
+#     ENABLED_MLDSA_COMPOSITE_MAKE_KEY=no
+#     ENABLED_MLDSA_COMPOSITE_SIGN=no
+#     ENABLED_MLDSA_COMPOSITE_VERIFY=yes
+#     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_MLDSA_COMPOSITE_VERIFY_ONLY"
+#     ;;
+  draft2)
+    ENABLED_MLDSA_COMPOSITE_DRAFT_2=yes
+    ENABLED_MLDSA_COMPOSITE_DRAFT_3=no
+    ;;
+  draft3)
+    ENABLED_MLDSA_COMPOSITE_DRAFT_2=no
+    ENABLED_MLDSA_COMPOSITE_DRAFT_3=yes
+    ;;
+  *)
+    AC_MSG_ERROR([Invalid choice for MLDSA_COMPOSITE [all,make,sign,verify,verify-only,mldsa44_p256,mldsa44_ed25519]: $ENABLED_MLDSA_COMPOSITE.])
+    break;;
+  esac
+done
+
+if test "$ENABLED_MLDSA_COMPOSITE" != "no"
+then
+    AS_IF([ test "$ENABLED_EXPERIMENTAL" != "yes" ],[ AC_MSG_ERROR([MLDSA_COMPOSITE requires --enable-experimental.]) ])
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_MLDSA_COMPOSITE -DWOLFSSL_WC_MLDSA_COMPOSITE"
+
+    # if test "$ENABLED_MLDSA_COMPOSITE_MAKE_KEY" = "no"; then
+    #     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_MLDSA_COMPOSITE_NO_MAKE_KEY"
+    # fi
+    # if test "$ENABLED_MLDSA_COMPOSITE_SIGN" = "no"; then
+    #     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_MLDSA_COMPOSITE_NO_SIGN"
+    # fi
+    # if test "$ENABLED_MLDSA_COMPOSITE_VERIFY" = "no"; then
+    #     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_MLDSA_COMPOSITE_NO_VERIFY"
+    # fi
+    if test "$ENABLED_MLDSA_COMPOSITE_DRAFT_2" = "yes"; then
+        AM_CFLAGS="$AM_CFLAGS -DHAVE_MLDSA_COMPOSITE_DRAFT_2"
+    fi
+    if test "$ENABLED_MLDSA_COMPOSITE_DRAFT_3" = "yes"; then
+        AM_CFLAGS="$AM_CFLAGS -DHAVE_MLDSA_COMPOSITE_DRAFT_3"
+    fi
+fi
+
 # XMSS
 AC_ARG_ENABLE([xmss],
     [AS_HELP_STRING([--enable-xmss],[Enable stateful XMSS/XMSS^MT signatures (default: disabled)])],
@@ -9842,6 +9922,7 @@ AM_CONDITIONAL([BUILD_WC_LMS],[test "x$ENABLED_WC_LMS" != "xno" || test "x$ENABL
 AM_CONDITIONAL([BUILD_WC_XMSS],[test "x$ENABLED_WC_XMSS" != "xno" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_WC_KYBER],[test "x$ENABLED_WC_KYBER" != "xno" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_DILITHIUM],[test "x$ENABLED_DILITHIUM" != "xno" || test "x$ENABLED_USERSETTINGS" = "xyes"])
+AM_CONDITIONAL([BUILD_MLDSA_COMPOSITE],[test "x$ENABLED_MLDSA_COMPOSITE" != "xno" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_ECCSI],[test "x$ENABLED_ECCSI" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_SAKKE],[test "x$ENABLED_SAKKE" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_MEMORY],[test "x$ENABLED_MEMORY" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
@@ -9895,6 +9976,7 @@ AM_CONDITIONAL([BUILD_HEAPMATH],[test "x$ENABLED_HEAPMATH" = "xyes" || test "x$E
 AM_CONDITIONAL([BUILD_EXAMPLE_SERVERS],[test "x$ENABLED_EXAMPLES" = "xyes" && test "x$ENABLED_LEANTLS" = "xno"])
 AM_CONDITIONAL([BUILD_EXAMPLE_CLIENTS],[test "x$ENABLED_EXAMPLES" = "xyes"])
 AM_CONDITIONAL([BUILD_EXAMPLE_ASN1],[test "x$ENABLED_EXAMPLES" = "xyes" && test "x$ENABLED_ASN_PRINT" = "xyes" && test "$ENABLED_ASN" != "no"])
+AM_CONDITIONAL([BUILD_EXAMPLE_PKTOOL],[test "x$ENABLED_EXAMPLES" = "xyes"])
 AM_CONDITIONAL([BUILD_TESTS],[test "x$ENABLED_EXAMPLES" = "xyes"])
 AM_CONDITIONAL([BUILD_THREADED_EXAMPLES],[test "x$ENABLED_SINGLETHREADED" = "xno" && test "x$ENABLED_EXAMPLES" = "xyes" && test "x$ENABLED_LEANTLS" = "xno"])
 AM_CONDITIONAL([BUILD_WOLFCRYPT_TESTS],[test "x$ENABLED_CRYPT_TESTS" = "xyes"])
@@ -10345,6 +10427,7 @@ fi
 echo "   * KYBER:                      $ENABLED_KYBER"
 echo "   * KYBER wolfSSL impl:         $ENABLED_WC_KYBER"
 echo "   * DILITHIUM:                  $ENABLED_DILITHIUM"
+echo "   * MLDSA_COMPOSITE:            $ENABLED_MLDSA_COMPOSITE"
 echo "   * ECCSI                       $ENABLED_ECCSI"
 echo "   * SAKKE                       $ENABLED_SAKKE"
 echo "   * ASN:                        $ENABLED_ASN"
