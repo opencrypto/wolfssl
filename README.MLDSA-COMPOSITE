@@ -14,7 +14,8 @@ make
 
 ./autogen.sh && \
 ./configure --prefix=/opt/wolfssl --enable-opensslall \
-    --enable-dilithium --enable-kyber --enable-ocsp --enable-ocspstapling \
+    --enable-dilithium --enable-kyber --enable-falcon \
+    --enable-ocsp --enable-ocspstapling \
     --enable-experimental --enable-mldsa-composite=draft3 \
     --enable-rsapss --enable-ed25519 --enable-curve25519 \
     --enable-ed448 --enable-curve448 --enable-psk \
