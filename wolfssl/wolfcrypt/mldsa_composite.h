@@ -55,7 +55,6 @@
 #endif
 
 #if defined(HAVE_MLDSA_COMPOSITE)
-
 #include <wolfssl/wolfcrypt/dilithium.h>
 
 #if defined(HAVE_ECC)
@@ -68,6 +67,10 @@
 
 #if defined(HAVE_ED448)
 #include <wolfssl/wolfcrypt/ed448.h>
+#endif
+
+#if defined(HAVE_FALCON)
+#include <wolfssl/wolfcrypt/falcon.h>
 #endif
 
 #ifndef NO_RSA
