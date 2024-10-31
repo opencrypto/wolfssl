@@ -7,7 +7,7 @@
 #
 AC_COPYRIGHT([Copyright (C) 2006-2024 wolfSSL Inc.])
 AC_PREREQ([2.69])
-AC_INIT([wolfssl],[5.7.2],[https://github.com/wolfssl/wolfssl/issues],[wolfssl],[https://www.wolfssl.com])
+AC_INIT([wolfssl],[5.7.4],[https://github.com/wolfssl/wolfssl/issues],[wolfssl],[https://www.wolfssl.com])
 AC_CONFIG_AUX_DIR([build-aux])
 
 # The following sets CFLAGS to empty if unset on command line.  We do not
@@ -51,7 +51,7 @@ WOLFSSL_LIBRARY_VERSION_FIRST=42
 
 # increment if interfaces have been added
 # set to zero if WOLFSSL_LIBRARY_VERSION_FIRST is incremented
-WOLFSSL_LIBRARY_VERSION_SECOND=2
+WOLFSSL_LIBRARY_VERSION_SECOND=3
 
 # increment if source code has changed
 # set to zero if WOLFSSL_LIBRARY_VERSION_FIRST is incremented or
@@ -573,16 +573,15 @@ then
         AM_CFLAGS="$AM_CFLAGS -ffile-prefix-map=\$(abs_top_srcdir)/= -ffile-prefix-map=\$(top_srcdir)/="
     fi
 
-    # opportunistically use linker option --build-id=none
-
-    if "$CC" -Wl,--build-id=none -x c - -o /dev/null >/dev/null 2>&1 <<'        EOF'
+    # opportunistically force linker option --build-id=sha1 (usually the default)
+    if "$CC" -Wl,--build-id=sha1 -x c - -o /dev/null >/dev/null 2>&1 <<'        EOF'
         #include <stdlib.h>
         int main(int argc, char **argv) {
             (void)argc; (void)argv; return 0;
         }
         EOF
     then
-        AM_LDFLAGS="$AM_LDFLAGS -Wl,--build-id=none"
+        AM_LDFLAGS="$AM_LDFLAGS -Wl,--build-id=sha1"
     fi
 fi
 
@@ -1156,7 +1155,8 @@ then
         test "$enable_dsa" = "" && test "$enable_sha" != "no" && enable_dsa=yes
         if test "$ENABLED_FIPS" = "no" || test "$HAVE_FIPS_VERSION" -le 5; then
             test "$enable_ecccustcurves" = "" && enable_ecccustcurves=yes
-            test "$enable_brainpool" = "" && enable_brainpool=yes
+            test "$enable_ecccustcurves" != "no" && test "$enable_brainpool" = "" && enable_brainpool=yes
+            test "$enable_ecccustcurves" != "no" && AM_CFLAGS="$AM_CFLAGS -DHAVE_ECC_CDH -DHAVE_ECC_KOBLITZ -DHAVE_ECC_SECPR2 -DHAVE_ECC_SECPR3"
         fi
         test "$enable_srp" = "" && enable_srp=yes
     fi
@@ -1195,6 +1195,7 @@ then
 
     if test "$ENABLED_FIPS" = "no" || test "$HAVE_FIPS_VERSION" -le 5; then
         test "$enable_des3" = "" && enable_des3=yes
+        test "$enable_des3" != "no" && AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DES_ECB"
     fi
 
     AM_CFLAGS="$AM_CFLAGS -DHAVE_AES_DECRYPT -DHAVE_AES_ECB -DWOLFSSL_ALT_NAMES"

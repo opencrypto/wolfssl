@@ -5535,13 +5535,15 @@ int AddCA(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int type, int verify)
         }
     }
 
-    if (ret == 0 && cert->isCA == 0 && type != WOLFSSL_USER_CA) {
+    if (ret == 0 && cert->isCA == 0 && type != WOLFSSL_USER_CA &&
+        type != WOLFSSL_TEMP_CA) {
         WOLFSSL_MSG("\tCan't add as CA if not actually one");
         ret = NOT_CA_ERROR;
     }
 #ifndef ALLOW_INVALID_CERTSIGN
     else if (ret == 0 && cert->isCA == 1 && type != WOLFSSL_USER_CA &&
-        !cert->selfSigned && (cert->extKeyUsage & KEYUSE_KEY_CERT_SIGN) == 0) {
+        type != WOLFSSL_TEMP_CA && !cert->selfSigned &&
+        (cert->extKeyUsage & KEYUSE_KEY_CERT_SIGN) == 0) {
         /* Intermediate CA certs are required to have the keyCertSign
         * extension set. User loaded root certs are not. */
         WOLFSSL_MSG("\tDoesn't have key usage certificate signing");
@@ -5567,6 +5569,29 @@ int AddCA(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int type, int verify)
         row = HashSigner(signer->subjectNameHash);
     #endif
 
+    #if defined(WOLFSSL_RENESAS_TSIP_TLS) || defined(WOLFSSL_RENESAS_FSPSM_TLS)
+        /* Verify CA by TSIP so that generated tsip key is going to          */
+        /* be able to be used for peer's cert verification                   */
+        /* TSIP is only able to handle USER CA, and only one CA.             */
+        /* Therefore, it doesn't need to call TSIP again if there is already */
+        /* verified CA.                                                      */
+        if ( ret == 0 && signer != NULL ) {
+            signer->cm_idx = row;
+            if (type == WOLFSSL_USER_CA) {
+                if ((ret = wc_Renesas_cmn_RootCertVerify(cert->source,
+                        cert->maxIdx,
+                        cert->sigCtx.CertAtt.pubkey_n_start,
+                        cert->sigCtx.CertAtt.pubkey_n_len - 1,
+                        cert->sigCtx.CertAtt.pubkey_e_start,
+                        cert->sigCtx.CertAtt.pubkey_e_len - 1,
+                     row/* cm index */))
+                    < 0)
+                    WOLFSSL_MSG("Renesas_RootCertVerify() failed");
+                else
+                    WOLFSSL_MSG("Renesas_RootCertVerify() succeed or skipped");
+            }
+        }
+    #endif /* TSIP or SCE */
 
         if (ret == 0 && wc_LockMutex(&cm->caLock) == 0) {
             signer->next = cm->caTable[row];
@@ -5580,28 +5605,6 @@ int AddCA(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int type, int verify)
             ret = BAD_MUTEX_E;
         }
     }
-#if defined(WOLFSSL_RENESAS_TSIP_TLS) || defined(WOLFSSL_RENESAS_FSPSM_TLS)
-    /* Verify CA by TSIP so that generated tsip key is going to be able to */
-    /* be used for peer's cert verification                                */
-    /* TSIP is only able to handle USER CA, and only one CA.               */
-    /* Therefore, it doesn't need to call TSIP again if there is already   */
-    /* verified CA.                                                        */
-    if ( ret == 0 && signer != NULL ) {
-        signer->cm_idx = row;
-        if (type == WOLFSSL_USER_CA) {
-            if ((ret = wc_Renesas_cmn_RootCertVerify(cert->source, cert->maxIdx,
-                 cert->sigCtx.CertAtt.pubkey_n_start,
-                 cert->sigCtx.CertAtt.pubkey_n_len - 1,
-                 cert->sigCtx.CertAtt.pubkey_e_start,
-                cert->sigCtx.CertAtt.pubkey_e_len - 1,
-                 row/* cm index */))
-                < 0)
-                WOLFSSL_MSG("Renesas_RootCertVerify() failed");
-            else
-                WOLFSSL_MSG("Renesas_RootCertVerify() succeed or skipped");
-        }
-    }
-#endif /* TSIP or SCE */
 
     WOLFSSL_MSG("\tFreeing Parsed CA");
     FreeDecodedCert(cert);
@@ -15108,7 +15111,7 @@ static WC_INLINE const char* wolfssl_mac_to_string(int mac)
             macStr = "SHA1";
             break;
 #endif
-#ifdef HAVE_SHA224
+#ifdef WOLFSSL_SHA224
         case sha224_mac:
             macStr = "SHA224";
             break;
@@ -15118,12 +15121,12 @@ static WC_INLINE const char* wolfssl_mac_to_string(int mac)
             macStr = "SHA256";
             break;
 #endif
-#ifdef HAVE_SHA384
+#ifdef WOLFSSL_SHA384
         case sha384_mac:
             macStr = "SHA384";
             break;
 #endif
-#ifdef HAVE_SHA512
+#ifdef WOLFSSL_SHA512
         case sha512_mac:
             macStr = "SHA512";
             break;
