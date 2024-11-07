@@ -29,12 +29,7 @@
  | Includes
  *----------------------------------------------------------------------------*/
 
-#ifdef HAVE_CONFIG_H
-    #include <config.h>
-#endif
-
-#include <wolfssl/wolfcrypt/settings.h>
-#undef TEST_OPENSSL_COEXIST /* can't use this option with this example */
+#include <tests/unit.h>
 
 #include <wolfssl/wolfcrypt/logging.h>
 #include <wolfssl/wolfcrypt/hash.h>
@@ -60,7 +55,6 @@
 #include <wolfssl/error-ssl.h>
 
 #include <wolfssl/test.h>
-#include <tests/unit.h>
 #include <tests/utils.h>
 
 /* for testing compatibility layer callbacks */
@@ -20154,7 +20148,7 @@ static int test_wc_AesGcmEncryptDecrypt(void)
 } /* END test_wc_AesGcmEncryptDecrypt */
 
 /*
- * test function for mixed (one-shot encrpytion + stream decryption) AES GCM
+ * test function for mixed (one-shot encryption + stream decryption) AES GCM
  * using a long IV (older FIPS does NOT support long IVs).  Relates to zd15423
  */
 static int test_wc_AesGcmMixedEncDecLongIV(void)
@@ -33012,7 +33006,7 @@ static int test_wc_dilithium_verify(void)
         ExpectIntEQ(res, 0);
         sig[100] ^= 0x80;
 
-        /* Set all indeces to 0. */
+        /* Set all indices to 0. */
         XMEMSET(sig + sigLen - 4, 0, 4);
         ExpectIntEQ(wc_dilithium_verify_msg(sig, sigLen, msg, 32, &res, key),
             WC_NO_ERR_TRACE(SIG_VERIFY_E));
@@ -61436,7 +61430,7 @@ static int test_X509_STORE_untrusted(void)
     ExpectIntEQ(test_X509_STORE_untrusted_certs(untrusted3, 1, 0, 1),
             TEST_SUCCESS);
     /* Still needs properly loaded CA, while including it in untrusted
-     * list is not an error, it also doesnt count for verify */
+     * list is not an error, it also doesn't count for verify */
     ExpectIntEQ(test_X509_STORE_untrusted_certs(untrusted3, 0,
                 X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT_LOCALLY, 0),
             TEST_SUCCESS);
@@ -62452,7 +62446,7 @@ static int test_wolfSSL_X509_NID(void)
 #if (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)) && \
     !defined(NO_RSA) && defined(USE_CERT_BUFFERS_2048) && !defined(NO_ASN)
     int   sigType;
-    int   nameSz;
+    int   nameSz = 0;
 
     X509*  cert = NULL;
     EVP_PKEY*  pubKeyTmp = NULL;
@@ -72037,10 +72031,10 @@ static int test_wolfSSL_SESSION(void)
         char buf[64] = {0};
         word32 bufSz = (word32)sizeof(buf);
 
-        ExpectIntEQ(SSL_SUCCESS,
+        ExpectIntEQ(WOLFSSL_SUCCESS,
             wolfSSL_set_SessionTicket(ssl, (byte *)ticket,
                 (word32)XSTRLEN(ticket)));
-        ExpectIntEQ(SSL_SUCCESS,
+        ExpectIntEQ(WOLFSSL_SUCCESS,
             wolfSSL_get_SessionTicket(ssl, (byte *)buf, &bufSz));
         ExpectStrEQ(ticket, buf);
     }

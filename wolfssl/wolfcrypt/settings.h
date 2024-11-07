@@ -1358,10 +1358,13 @@
         #define NO_SESSION_CACHE
 #endif
 
-/* Micrium will use Visual Studio for compilation but not the Win32 API */
+/* For platforms where the target OS is not Windows, but compilation is
+ * done on Windows/Visual Studio, enable a way to disable USE_WINDOWS_API.
+ * Examples: Micrium, TenAsus INtime, uTasker, FreeRTOS simulator */
 #if defined(_WIN32) && !defined(MICRIUM) && !defined(FREERTOS) && \
     !defined(FREERTOS_TCP) && !defined(EBSNET) && !defined(WOLFSSL_EROAD) && \
-    !defined(WOLFSSL_UTASKER) && !defined(INTIME_RTOS)
+    !defined(WOLFSSL_UTASKER) && !defined(INTIME_RTOS) && \
+    !defined(WOLFSSL_NOT_WINDOWS_API)
     #define USE_WINDOWS_API
 #endif
 
@@ -3168,6 +3171,14 @@ extern void uITRON4_free(void *p) ;
     #undef NO_DH
 #endif
 
+/* CryptoCell defines */
+#ifdef WOLFSSL_CRYPTOCELL
+    #if defined(HAVE_ECC) && defined(HAVE_ECC_SIGN)
+        /* Don't attempt to sign/verify an all-zero digest in wolfCrypt tests */
+        #define WC_TEST_NO_ECC_SIGN_VERIFY_ZERO_DIGEST
+    #endif /* HAVE_ECC && HAVE_ECC_SIGN */
+#endif
+
 /* Asynchronous Crypto */
 #ifdef WOLFSSL_ASYNC_CRYPT
     #if !defined(HAVE_CAVIUM) && !defined(HAVE_INTEL_QA) && \
@@ -3192,6 +3203,12 @@ extern void uITRON4_free(void *p) ;
          * but not required */
         #define ECC_CACHE_CURVE
     #endif
+
+    #if defined(HAVE_ECC) && defined(HAVE_ECC_SIGN)
+        /* Don't attempt to sign/verify an all-zero digest in wolfCrypt tests */
+        #define WC_TEST_NO_ECC_SIGN_VERIFY_ZERO_DIGEST
+    #endif /* HAVE_ECC && HAVE_ECC_SIGN */
+
 #endif /* WOLFSSL_ASYNC_CRYPT */
 #ifndef WC_ASYNC_DEV_SIZE
     #define WC_ASYNC_DEV_SIZE 0
@@ -3477,6 +3494,7 @@ extern void uITRON4_free(void *p) ;
     #undef HAVE_STRINGS_H
     #undef HAVE_ERRNO_H
     #undef HAVE_THREAD_LS
+    #undef HAVE_ATEXIT
     #undef WOLFSSL_HAVE_MIN
     #undef WOLFSSL_HAVE_MAX
     #define SIZEOF_LONG         8
@@ -3537,7 +3555,7 @@ extern void uITRON4_free(void *p) ;
  * OpenSSL compat layer
  * ---------------------------------------------------------------------------
  */
-#if defined(OPENSSL_EXTRA) && !defined(OPENSSL_COEXIST)
+#ifdef OPENSSL_EXTRA
     #undef  WOLFSSL_ALWAYS_VERIFY_CB
     #define WOLFSSL_ALWAYS_VERIFY_CB
 
@@ -3561,7 +3579,7 @@ extern void uITRON4_free(void *p) ;
 
     #undef WOLFSSL_SESSION_ID_CTX
     #define WOLFSSL_SESSION_ID_CTX
-#endif /* OPENSSL_EXTRA && !OPENSSL_COEXIST */
+#endif /* OPENSSL_EXTRA */
 
 #ifdef OPENSSL_EXTRA_X509_SMALL
     #undef WOLFSSL_NO_OPENSSL_RAND_CB
@@ -4177,9 +4195,8 @@ extern void uITRON4_free(void *p) ;
     #endif
 #endif
 
-#if (defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)) && \
-    defined(OPENSSL_COEXIST)
-    #error "OPENSSL_EXTRA can not be defined with OPENSSL_COEXIST"
+#if defined(OPENSSL_ALL) && defined(OPENSSL_COEXIST)
+    #error "OPENSSL_ALL can not be defined with OPENSSL_COEXIST"
 #endif
 
 #if !defined(NO_DSA) && defined(NO_SHA)
