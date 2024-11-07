@@ -45615,6 +45615,8 @@ static wc_test_ret_t mldsa_composite_param_test(int param, WC_RNG* rng)
     XMEMSET(&imported_key, 0, sizeof(imported_key));
     wc_mldsa_composite_free(&imported_key);
 
+printf("[%s:%d] %s(): Importing Private Key\n", __FILE__, __LINE__, __FUNCTION__);
+
     ret = wc_mldsa_composite_import_private(privKey_Buffer, privKey_BufferLen, &imported_key, param);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);

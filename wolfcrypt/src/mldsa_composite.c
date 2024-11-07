@@ -2985,17 +2985,17 @@ int wc_mldsa_composite_export_private(mldsa_composite_key* key, byte* out, word3
     int ret = 0;
     word32 inLen;
 
-#ifdef HAVE_MLDSA_COMPOSITE_DRAFT_2
-    static const ASNItem compPrivKeyIT[1] = {
-    /*  SEQ */    { 0, ASN_SEQUENCE, 1, 1, 0 }
-    };
-#elif defined(HAVE_MLDSA_COMPOSITE_DRAFT_3)
+// #ifdef HAVE_MLDSA_COMPOSITE_DRAFT_2
+//     static const ASNItem compPrivKeyIT[1] = {
+//     /*  SEQ */    { 0, ASN_SEQUENCE, 1, 1, 0 }
+//     };
+// #elif defined(HAVE_MLDSA_COMPOSITE_DRAFT_3)
     static const ASNItem compPrivKeyIT[3] = {
     /*  SEQ */    { 0, ASN_SEQUENCE, 1, 1, 0 },
     /*  ML-DSA */   { 1, ASN_BIT_STRING, 0, 0, 0 },
     /*  Trad */     { 1, ASN_BIT_STRING, 0, 0, 0 },
     };
-#endif
+// #endif
 
     ASNSetData compPrivKeyASN[3];
         // Set the ML-DSA public key
@@ -3036,7 +3036,10 @@ int wc_mldsa_composite_export_private(mldsa_composite_key* key, byte* out, word3
     /*
         * NOTE: There seem to be a bug in the MsDsa export function
         *       since the wc_MlDsaKey_ExportPrivRaw MACRO points to
-        *       an undefined function (wc_dilithium_export_private_raw).
+        *       an undefined function (wc_dilithium_Kind of... I am 
+        * 
+        * 
+        * _raw).
         * 
         *       We use the `wc_dilithium_export_private` function directly.
         */
@@ -3062,7 +3065,7 @@ int wc_mldsa_composite_export_private(mldsa_composite_key* key, byte* out, word3
         case WC_MLDSA65_ED25519_SHA512: {
 #ifdef HAVE_MLDSA_COMPOSITE_DRAFT_3
             MADWOLF_DEBUG("Draft-3: Exporting ED25519 Private Key (type: %d)", key->type);
-            if ((ret = wc_ed25519_export_private_only(&key->alt_key.ed25519, other_Buffer, &other_BufferLen)) < 0) {
+            if ((ret = wc_ed25519_export_private(&key->alt_key.ed25519, other_Buffer, &other_BufferLen)) < 0) {
                 return ret;
             }
 #elif defined(HAVE_MLDSA_COMPOSITE_DRAFT_2)

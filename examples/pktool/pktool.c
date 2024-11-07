@@ -744,7 +744,7 @@ static int gen_keypair(void ** key, int type, int param, const char * out) {
         printf("Generating Dilithium keypair (ret = %d, size: %d)\n", ret, outSz);
         break;
 #endif
-// #ifdef HAVE_FALCON
+#if defined(HAVE_PQC) && defined(HAVE_FALCON)
     case FALCON_LEVEL1k:
     case FALCON_LEVEL5k:
         keyPtr = &falconKey;
@@ -757,7 +757,7 @@ static int gen_keypair(void ** key, int type, int param, const char * out) {
             ret = outSz;
         printf("Generating Falcon keypair (ret = %d, size: %d)\n", ret, outSz);
         break;
-// #endif
+#endif
 
 #ifdef HAVE_MLDSA_COMPOSITE
     case MLDSA44_RSA2048k:
@@ -833,10 +833,12 @@ int main(int argc, char** argv) {
     enum Key_Sum keySum = ML_DSA_LEVEL2k;
     int verbose = 0;
     int debug = 0;
+    int generate = 0;
     char * out = NULL;
+    char * in = NULL;
     int i = 1;
     int param = ECC_SECP256R1;
-    int cmd = 0; /* 0 = genpkey, 1 = gencsr, 2 = gencert */
+    int cmd = 0; /* 0 = pkey, 1 = req, 2 = cert */
 
     int in_format = 0; /* 0 = DER, 1 = PEM */
     int out_format = 0; /* 0 = DER, 1 = PEM */
@@ -853,7 +855,7 @@ int main(int argc, char** argv) {
         cmd = 0;
     } else if (!XSTRNCMP(argv[i], "req", 3)) {
         cmd = 1;
-    } else if (!XSTRNCMP(argv[i], "x509", 4)) {
+    } else if (!XSTRNCMP(argv[i], "cert", 4)) {
         cmd = 2;
     } else {
         usage();
@@ -868,6 +870,8 @@ int main(int argc, char** argv) {
             verbose = 1;
         } else if (!XSTRNCMP(argv[i], "-d", 2)) {
             debug = 1;
+        } else if (!XSTRNCMP(argv[i], "-new", 4)) {
+            generate = 1;
         } else if (!XSTRNCMP(argv[i], "-inform", 7)) {
             i++;
             if (!XSTRNCMP(argv[i], "DER", 3) || 
@@ -929,6 +933,23 @@ int main(int argc, char** argv) {
                 return 1;
             }
             printf("Algorithm type: %d (%s)\n", keySum, wc_KeySum_name(keySum));
+        } else if (XSTRNCMP(argv[i], "-bits", 5) == 0) {
+            i++;
+            if ((param = atoi(argv[i])) <= 0) {
+                printf("Invalid key size\n");
+                return 1;
+            }
+            if (param < 2048) {
+                printf("Invalid key size (min: 2048)\n");
+                return 1;
+            }
+
+            if (param > 16384) {
+                printf("Invalid key size (max: 16384)\n");
+                return 1;
+            }
+
+            printf("Algorithm type: %d (%s) (param: %d)\n", keySum, wc_KeySum_name(keySum), param);
         } else if (XSTRNCMP(argv[i], "-out", 4) == 0) {
             i++;
             if (i >= argc) {
@@ -937,6 +958,14 @@ int main(int argc, char** argv) {
                 return 1;
             }
             out = argv[i];
+        } else if (XSTRNCMP(argv[i], "-in", 3) == 0) {
+            i++;
+            if (i >= argc) {
+                printf("Missing input file\n\n");
+                usage();
+                return 1;
+            }
+            in = argv[i];
         } else {
             printf("\n     ERROR: option \"%s\" was not recognized.\n\n", argv[i]);
             break;
@@ -945,17 +974,26 @@ int main(int argc, char** argv) {
     }
 
     switch (cmd) {
-        // Gen PKEY
+        // PKEY
         case 0:
-            printf("Generating keypair (type = %d)\n", keySum);
-            if (gen_keypair(&keyPtr, keySum, param, out) < 0) {
-                printf("Error generating keypair\n");
-                return 1;
-            }
-            printf("Exporting keypair\n");
-            if (export_key_p8(keyPtr, keySum, out, out_format) < 0) {
-                printf("Error exporting keypair\n");
-                return 1;
+            if (generate) {
+                printf("Generating keypair (type = %d)\n", keySum);
+                if (gen_keypair(&keyPtr, keySum, param, out) < 0) {
+                    printf("Error generating keypair\n");
+                    return 1;
+                }
+                printf("Exporting keypair\n");
+                if (export_key_p8(keyPtr, keySum, out, out_format) < 0) {
+                    printf("Error exporting keypair\n");
+                    return 1;
+                }
+            } else {
+                printf("Loading keypair\n");
+                (void)in;
+            //     if (load_key_p8(&keyPtr, keySum, in, in_format) < 0) {
+            //         printf("Error loading keypair\n");
+            //         return 1;
+            //     }
             }
             break;
 
