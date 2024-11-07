@@ -739,20 +739,6 @@ static int gen_keypair(void ** key, int type, int param, const char * out) {
         printf("Generating Dilithium keypair (ret = %d, size: %d)\n", ret, outSz);
         break;
 #endif
-#if defined(HAVE_PQC) && defined(HAVE_FALCON)
-    case FALCON_LEVEL1k:
-    case FALCON_LEVEL5k:
-        keyPtr = &falconKey;
-        ret = wc_Falcon_InitKey(&falconKey);
-        if (ret == 0)
-            ret = wc_Falcon_MakeKey(&falconKey, type, &rng);
-        if (ret == 0)
-            outSz = wc_Falcon_PrivateKeyToDer(&falconKey, der, sizeof(der));
-        if (outSz < 0)
-            ret = outSz;
-        printf("Generating Falcon keypair (ret = %d, size: %d)\n", ret, outSz);
-        break;
-#endif
 
 #ifdef HAVE_MLDSA_COMPOSITE
     case MLDSA44_RSA2048k:
