@@ -7419,6 +7419,15 @@ int ToTraditionalInline_ex2(const byte* input, word32* inOutIdx, word32 sz,
                 }
                 break;
         #endif
+        #ifndef NO_DH
+            case DHk:
+                /* Neither NULL item nor OBJECT_ID item allowed. */
+                if ((dataASN[PKCS8KEYASN_IDX_PKEY_ALGO_NULL].tag != 0) ||
+                    (dataASN[PKCS8KEYASN_IDX_PKEY_ALGO_OID_CURVE].tag != 0)) {
+                    ret = ASN_PARSE_E;
+                }
+                break;
+        #endif
             /* DSAk not supported. */
             /* Falcon, Dilithium and Sphincs not supported. */
             /* Ignore OID lookup failures. */
@@ -7690,9 +7699,11 @@ int wc_CreatePKCS8Key(byte* out, word32* outSz, byte* key, word32 keySz,
  * privKeySz : size of private key buffer
  * pubKey    : buffer holding DER format public key
  * pubKeySz  : size of public key buffer
- * ks        : type of key */
+ * ks        : type of key
+ * heap      : heap hint to use */
 int wc_CheckPrivateKey(const byte* privKey, word32 privKeySz,
-                       const byte* pubKey, word32 pubKeySz, enum Key_Sum ks)
+                       const byte* pubKey, word32 pubKeySz, enum Key_Sum ks,
+                       void* heap)
 {
     int ret;
     (void)privKeySz;
@@ -7729,14 +7740,14 @@ int wc_CheckPrivateKey(const byte* privKey, word32 privKeySz,
         }
     #endif
 
-        if ((ret = wc_InitRsaKey(a, NULL)) < 0) {
+        if ((ret = wc_InitRsaKey(a, heap)) < 0) {
     #ifdef WOLFSSL_SMALL_STACK
             XFREE(b, NULL, DYNAMIC_TYPE_RSA);
             XFREE(a, NULL, DYNAMIC_TYPE_RSA);
     #endif
             return ret;
         }
-        if ((ret = wc_InitRsaKey(b, NULL)) < 0) {
+        if ((ret = wc_InitRsaKey(b, heap)) < 0) {
             wc_FreeRsaKey(a);
     #ifdef WOLFSSL_SMALL_STACK
             XFREE(b, NULL, DYNAMIC_TYPE_RSA);
@@ -7797,7 +7808,7 @@ int wc_CheckPrivateKey(const byte* privKey, word32 privKeySz,
         }
     #endif
 
-        if ((ret = wc_ecc_init(key_pair)) < 0) {
+        if ((ret = wc_ecc_init_ex(key_pair, heap, INVALID_DEVID)) < 0) {
     #ifdef WOLFSSL_SMALL_STACK
             XFREE(privDer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(key_pair, NULL, DYNAMIC_TYPE_ECC);
@@ -7815,7 +7826,7 @@ int wc_CheckPrivateKey(const byte* privKey, word32 privKeySz,
                 wc_MemZero_Add("wc_CheckPrivateKey privDer", privDer, privSz);
             #endif
                 wc_ecc_free(key_pair);
-                ret = wc_ecc_init(key_pair);
+                ret = wc_ecc_init_ex(key_pair, heap, INVALID_DEVID);
                 if (ret == 0) {
                     ret = wc_ecc_import_private_key(privDer,
                                             privSz, pubKey,
@@ -7866,7 +7877,7 @@ int wc_CheckPrivateKey(const byte* privKey, word32 privKeySz,
             return MEMORY_E;
     #endif
 
-        if ((ret = wc_ed25519_init(key_pair)) < 0) {
+        if ((ret = wc_ed25519_init_ex(key_pair, heap, INVALID_DEVID)) < 0) {
     #ifdef WOLFSSL_SMALL_STACK
             XFREE(key_pair, NULL, DYNAMIC_TYPE_ED25519);
     #endif
@@ -7916,7 +7927,7 @@ int wc_CheckPrivateKey(const byte* privKey, word32 privKeySz,
             return MEMORY_E;
     #endif
 
-        if ((ret = wc_ed448_init(key_pair)) < 0) {
+        if ((ret = wc_ed448_init_ex(key_pair, heap, INVALID_DEVID)) < 0) {
     #ifdef WOLFSSL_SMALL_STACK
             XFREE(key_pair, NULL, DYNAMIC_TYPE_ED448);
     #endif
@@ -8239,6 +8250,7 @@ int wc_CheckPrivateKey(const byte* privKey, word32 privKeySz,
         ret = 0;
     }
     (void)ks;
+    (void)heap;
 
     return ret;
 }
@@ -8253,7 +8265,7 @@ int wc_CheckPrivateKey(const byte* privKey, word32 privKeySz,
  * checkAlt : indicate if we check primary or alternative key
  */
 int wc_CheckPrivateKeyCert(const byte* key, word32 keySz, DecodedCert* der,
-                           int checkAlt)
+                           int checkAlt, void* heap)
 {
     int ret = 0;
 
@@ -8267,7 +8279,7 @@ int wc_CheckPrivateKeyCert(const byte* key, word32 keySz, DecodedCert* der,
         word32 idx = 0;
         /* Dilithium has the largest public key at the moment */
         word32 pubKeyLen = DILITHIUM_MAX_PUB_KEY_SIZE;
-        byte* decodedPubKey = (byte*)XMALLOC(pubKeyLen, NULL,
+        byte* decodedPubKey = (byte*)XMALLOC(pubKeyLen, heap,
                                              DYNAMIC_TYPE_PUBLIC_KEY);
         if (decodedPubKey == NULL) {
             ret = MEMORY_E;
@@ -8286,15 +8298,15 @@ int wc_CheckPrivateKeyCert(const byte* key, word32 keySz, DecodedCert* der,
         }
         if (ret == 0) {
             ret = wc_CheckPrivateKey(key, keySz, decodedPubKey, pubKeyLen,
-                                     (enum Key_Sum) der->sapkiOID);
+                                     (enum Key_Sum) der->sapkiOID, heap);
         }
-        XFREE(decodedPubKey, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
+        XFREE(decodedPubKey, heap, DYNAMIC_TYPE_PUBLIC_KEY);
     }
     else
 #endif
     {
         ret = wc_CheckPrivateKey(key, keySz, der->publicKey,
-                der->pubKeySize, (enum Key_Sum) der->keyOID);
+                der->pubKeySize, (enum Key_Sum) der->keyOID, heap);
     }
 
     (void)checkAlt;
@@ -30759,7 +30771,7 @@ static int MakeSignature(CertSignCtx* certSignCtx, const byte* buf, word32 sz,
 
     case CERTSIGN_STATE_DO:
         certSignCtx->state = CERTSIGN_STATE_DO;
-        ret = ALGO_ID_E; /* default to error */
+        ret = -1; /* default to error, reassigned to ALGO_ID_E below. */
 
     #ifndef NO_RSA
         if (rsaKey) {
@@ -30841,6 +30853,9 @@ static int MakeSignature(CertSignCtx* certSignCtx, const byte* buf, word32 sz,
                 ret = outSz;
         }
     #endif /* HAVE_SPHINCS */
+
+        if (ret == -1)
+            ret = ALGO_ID_E;
 
         break;
     }

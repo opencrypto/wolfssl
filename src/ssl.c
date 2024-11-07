@@ -5535,13 +5535,15 @@ int AddCA(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int type, int verify)
         }
     }
 
-    if (ret == 0 && cert->isCA == 0 && type != WOLFSSL_USER_CA) {
+    if (ret == 0 && cert->isCA == 0 && type != WOLFSSL_USER_CA &&
+        type != WOLFSSL_TEMP_CA) {
         WOLFSSL_MSG("\tCan't add as CA if not actually one");
         ret = NOT_CA_ERROR;
     }
 #ifndef ALLOW_INVALID_CERTSIGN
     else if (ret == 0 && cert->isCA == 1 && type != WOLFSSL_USER_CA &&
-        !cert->selfSigned && (cert->extKeyUsage & KEYUSE_KEY_CERT_SIGN) == 0) {
+        type != WOLFSSL_TEMP_CA && !cert->selfSigned &&
+        (cert->extKeyUsage & KEYUSE_KEY_CERT_SIGN) == 0) {
         /* Intermediate CA certs are required to have the keyCertSign
         * extension set. User loaded root certs are not. */
         WOLFSSL_MSG("\tDoesn't have key usage certificate signing");
@@ -5567,6 +5569,29 @@ int AddCA(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int type, int verify)
         row = HashSigner(signer->subjectNameHash);
     #endif
 
+    #if defined(WOLFSSL_RENESAS_TSIP_TLS) || defined(WOLFSSL_RENESAS_FSPSM_TLS)
+        /* Verify CA by TSIP so that generated tsip key is going to          */
+        /* be able to be used for peer's cert verification                   */
+        /* TSIP is only able to handle USER CA, and only one CA.             */
+        /* Therefore, it doesn't need to call TSIP again if there is already */
+        /* verified CA.                                                      */
+        if ( ret == 0 && signer != NULL ) {
+            signer->cm_idx = row;
+            if (type == WOLFSSL_USER_CA) {
+                if ((ret = wc_Renesas_cmn_RootCertVerify(cert->source,
+                        cert->maxIdx,
+                        cert->sigCtx.CertAtt.pubkey_n_start,
+                        cert->sigCtx.CertAtt.pubkey_n_len - 1,
+                        cert->sigCtx.CertAtt.pubkey_e_start,
+                        cert->sigCtx.CertAtt.pubkey_e_len - 1,
+                     row/* cm index */))
+                    < 0)
+                    WOLFSSL_MSG("Renesas_RootCertVerify() failed");
+                else
+                    WOLFSSL_MSG("Renesas_RootCertVerify() succeed or skipped");
+            }
+        }
+    #endif /* TSIP or SCE */
 
         if (ret == 0 && wc_LockMutex(&cm->caLock) == 0) {
             signer->next = cm->caTable[row];
@@ -5580,28 +5605,6 @@ int AddCA(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int type, int verify)
             ret = BAD_MUTEX_E;
         }
     }
-#if defined(WOLFSSL_RENESAS_TSIP_TLS) || defined(WOLFSSL_RENESAS_FSPSM_TLS)
-    /* Verify CA by TSIP so that generated tsip key is going to be able to */
-    /* be used for peer's cert verification                                */
-    /* TSIP is only able to handle USER CA, and only one CA.               */
-    /* Therefore, it doesn't need to call TSIP again if there is already   */
-    /* verified CA.                                                        */
-    if ( ret == 0 && signer != NULL ) {
-        signer->cm_idx = row;
-        if (type == WOLFSSL_USER_CA) {
-            if ((ret = wc_Renesas_cmn_RootCertVerify(cert->source, cert->maxIdx,
-                 cert->sigCtx.CertAtt.pubkey_n_start,
-                 cert->sigCtx.CertAtt.pubkey_n_len - 1,
-                 cert->sigCtx.CertAtt.pubkey_e_start,
-                cert->sigCtx.CertAtt.pubkey_e_len - 1,
-                 row/* cm index */))
-                < 0)
-                WOLFSSL_MSG("Renesas_RootCertVerify() failed");
-            else
-                WOLFSSL_MSG("Renesas_RootCertVerify() succeed or skipped");
-        }
-    }
-#endif /* TSIP or SCE */
 
     WOLFSSL_MSG("\tFreeing Parsed CA");
     FreeDecodedCert(cert);
@@ -6347,7 +6350,7 @@ static int check_cert_key(DerBuffer* cert, DerBuffer* key, DerBuffer* altKey,
     if (ret == WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
 #endif /* WOLF_PRIVATE_KEY_ID */
     {
-        ret = wc_CheckPrivateKeyCert(buff, size, der, 0);
+        ret = wc_CheckPrivateKeyCert(buff, size, der, 0, heap);
         ret = (ret == 1) ? WOLFSSL_SUCCESS: WOLFSSL_FAILURE;
     }
 
@@ -6407,7 +6410,7 @@ static int check_cert_key(DerBuffer* cert, DerBuffer* key, DerBuffer* altKey,
         if (ret == WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
 #endif /* WOLF_PRIVATE_KEY_ID */
         {
-            ret = wc_CheckPrivateKeyCert(buff, size, der, 1);
+            ret = wc_CheckPrivateKeyCert(buff, size, der, 1, heap);
             ret = (ret == 1) ? WOLFSSL_SUCCESS: WOLFSSL_FAILURE;
         }
     }
@@ -7241,29 +7244,51 @@ WOLFSSL_PKCS8_PRIV_KEY_INFO* wolfSSL_d2i_PKCS8_PKEY(
     WOLFSSL_PKCS8_PRIV_KEY_INFO* pkcs8 = NULL;
 #ifdef WOLFSSL_PEM_TO_DER
     int ret;
-    DerBuffer* der = NULL;
+    DerBuffer* pkcs8Der = NULL;
+    DerBuffer rawDer;
+    EncryptedInfo info;
+    int advanceLen = 0;
+
+    XMEMSET(&info, 0, sizeof(info));
+    XMEMSET(&rawDer, 0, sizeof(rawDer));
 
     if (keyBuf == NULL || *keyBuf == NULL || keyLen <= 0) {
         WOLFSSL_MSG("Bad key PEM/DER args");
         return NULL;
     }
 
-    ret = PemToDer(*keyBuf, keyLen, PRIVATEKEY_TYPE, &der, NULL, NULL, NULL);
+    ret = PemToDer(*keyBuf, keyLen, PRIVATEKEY_TYPE, &pkcs8Der, NULL, &info,
+                   NULL);
     if (ret < 0) {
         WOLFSSL_MSG("Not PEM format");
-        ret = AllocDer(&der, (word32)keyLen, PRIVATEKEY_TYPE, NULL);
+        ret = AllocDer(&pkcs8Der, (word32)keyLen, PRIVATEKEY_TYPE, NULL);
         if (ret == 0) {
-            XMEMCPY(der->buffer, *keyBuf, keyLen);
+            XMEMCPY(pkcs8Der->buffer, *keyBuf, keyLen);
         }
+    }
+    else {
+        advanceLen = (int)info.consumed;
     }
 
     if (ret == 0) {
         /* Verify this is PKCS8 Key */
         word32 inOutIdx = 0;
         word32 algId;
-        ret = ToTraditionalInline_ex(der->buffer, &inOutIdx, der->length,
-            &algId);
+        ret = ToTraditionalInline_ex(pkcs8Der->buffer, &inOutIdx,
+                pkcs8Der->length, &algId);
         if (ret >= 0) {
+            if (advanceLen == 0) /* Set only if not PEM */
+                advanceLen = inOutIdx + ret;
+            if (algId == DHk) {
+                /* Special case for DH as we expect the DER buffer to be always
+                 * be in PKCS8 format */
+                rawDer.buffer = pkcs8Der->buffer;
+                rawDer.length = inOutIdx + ret;
+            }
+            else {
+                rawDer.buffer = pkcs8Der->buffer + inOutIdx;
+                rawDer.length = ret;
+            }
             ret = 0; /* good DER */
         }
     }
@@ -7274,20 +7299,23 @@ WOLFSSL_PKCS8_PRIV_KEY_INFO* wolfSSL_d2i_PKCS8_PKEY(
             ret = MEMORY_E;
     }
     if (ret == 0) {
-        pkcs8->pkey.ptr = (char*)XMALLOC(der->length, NULL,
+        pkcs8->pkey.ptr = (char*)XMALLOC(rawDer.length, NULL,
             DYNAMIC_TYPE_PUBLIC_KEY);
         if (pkcs8->pkey.ptr == NULL)
             ret = MEMORY_E;
     }
     if (ret == 0) {
-        XMEMCPY(pkcs8->pkey.ptr, der->buffer, der->length);
-        pkcs8->pkey_sz = (int)der->length;
+        XMEMCPY(pkcs8->pkey.ptr, rawDer.buffer, rawDer.length);
+        pkcs8->pkey_sz = (int)rawDer.length;
     }
 
-    FreeDer(&der);
+    FreeDer(&pkcs8Der);
     if (ret != 0) {
         wolfSSL_EVP_PKEY_free(pkcs8);
         pkcs8 = NULL;
+    }
+    else {
+        *keyBuf += advanceLen;
     }
     if (pkey != NULL) {
         *pkey = pkcs8;
@@ -7301,6 +7329,48 @@ WOLFSSL_PKCS8_PRIV_KEY_INFO* wolfSSL_d2i_PKCS8_PKEY(
     return pkcs8;
 }
 
+#ifdef OPENSSL_ALL
+int wolfSSL_i2d_PKCS8_PKEY(WOLFSSL_PKCS8_PRIV_KEY_INFO* key, unsigned char** pp)
+{
+    word32 keySz = 0;
+    unsigned char* out;
+    int len;
+
+    WOLFSSL_ENTER("wolfSSL_i2d_PKCS8_PKEY");
+
+    if (key == NULL)
+        return WOLFSSL_FATAL_ERROR;
+
+    if (pkcs8_encode(key, NULL, &keySz) != WC_NO_ERR_TRACE(LENGTH_ONLY_E))
+        return WOLFSSL_FATAL_ERROR;
+    len = (int)keySz;
+
+    if (pp == NULL)
+        return len;
+
+    if (*pp == NULL) {
+        out = (unsigned char*)XMALLOC(len, NULL, DYNAMIC_TYPE_ASN1);
+        if (out == NULL)
+            return WOLFSSL_FATAL_ERROR;
+    }
+    else {
+        out = *pp;
+    }
+
+    if (pkcs8_encode(key, out, &keySz) != len) {
+        if (*pp == NULL)
+            XFREE(out, NULL, DYNAMIC_TYPE_ASN1);
+        return WOLFSSL_FATAL_ERROR;
+    }
+
+    if (*pp == NULL)
+        *pp = out;
+    else
+        *pp += len;
+
+    return len;
+}
+#endif
 
 #ifndef NO_BIO
 /* put SSL type in extra for now, not very common */
@@ -15041,7 +15111,7 @@ static WC_INLINE const char* wolfssl_mac_to_string(int mac)
             macStr = "SHA1";
             break;
 #endif
-#ifdef HAVE_SHA224
+#ifdef WOLFSSL_SHA224
         case sha224_mac:
             macStr = "SHA224";
             break;
@@ -15051,12 +15121,12 @@ static WC_INLINE const char* wolfssl_mac_to_string(int mac)
             macStr = "SHA256";
             break;
 #endif
-#ifdef HAVE_SHA384
+#ifdef WOLFSSL_SHA384
         case sha384_mac:
             macStr = "SHA384";
             break;
 #endif
-#ifdef HAVE_SHA512
+#ifdef WOLFSSL_SHA512
         case sha512_mac:
             macStr = "SHA512";
             break;

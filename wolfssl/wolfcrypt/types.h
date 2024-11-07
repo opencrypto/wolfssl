@@ -522,6 +522,12 @@ typedef struct w64wrapper {
     #elif defined(NO_WOLFSSL_MEMORY)
         #ifdef WOLFSSL_NO_MALLOC
             /* this platform does not support heap use */
+            #ifdef WOLFSSL_SMALL_STACK
+                #error WOLFSSL_SMALL_STACK requires a heap implementation.
+            #endif
+            #ifndef WC_NO_CONSTRUCTORS
+                #define WC_NO_CONSTRUCTORS
+            #endif
             #ifdef WOLFSSL_MALLOC_CHECK
                 #ifndef NO_STDIO_FILESYSTEM
                 #include <stdio.h>
@@ -604,6 +610,10 @@ typedef struct w64wrapper {
                 #define XREALLOC(p, n, h, t) ((void)(h), (void)(t), wolfSSL_Realloc((p), (n)))
             #endif /* WOLFSSL_DEBUG_MEMORY */
         #endif /* WOLFSSL_STATIC_MEMORY */
+    #endif
+
+    #if defined(WOLFSSL_SMALL_STACK) && defined(WC_NO_CONSTRUCTORS)
+        #error WOLFSSL_SMALL_STACK requires constructors.
     #endif
 
     #include <wolfssl/wolfcrypt/memory.h>
@@ -1104,16 +1114,17 @@ typedef struct w64wrapper {
         DYNAMIC_TYPE_LMS          = 101,
         DYNAMIC_TYPE_BIO          = 102,
         DYNAMIC_TYPE_X509_ACERT   = 103,
-        DYNAMIC_TYPE_MLDSA_COMPOSITE     = 900,
-        DYNAMIC_TYPE_SNIFFER_SERVER      = 1000,
-        DYNAMIC_TYPE_SNIFFER_SESSION     = 1001,
-        DYNAMIC_TYPE_SNIFFER_PB          = 1002,
-        DYNAMIC_TYPE_SNIFFER_PB_BUFFER   = 1003,
-        DYNAMIC_TYPE_SNIFFER_TICKET_ID   = 1004,
-        DYNAMIC_TYPE_SNIFFER_NAMED_KEY   = 1005,
-        DYNAMIC_TYPE_SNIFFER_KEY         = 1006,
-        DYNAMIC_TYPE_SNIFFER_KEYLOG_NODE = 1007,
-        DYNAMIC_TYPE_AES_EAX = 1008
+        DYNAMIC_TYPE_MLDSA_COMPOSITE      = 900,
+        DYNAMIC_TYPE_SNIFFER_SERVER       = 1000,
+        DYNAMIC_TYPE_SNIFFER_SESSION      = 1001,
+        DYNAMIC_TYPE_SNIFFER_PB           = 1002,
+        DYNAMIC_TYPE_SNIFFER_PB_BUFFER    = 1003,
+        DYNAMIC_TYPE_SNIFFER_TICKET_ID    = 1004,
+        DYNAMIC_TYPE_SNIFFER_NAMED_KEY    = 1005,
+        DYNAMIC_TYPE_SNIFFER_KEY          = 1006,
+        DYNAMIC_TYPE_SNIFFER_KEYLOG_NODE  = 1007,
+        DYNAMIC_TYPE_SNIFFER_CHAIN_BUFFER = 1008,
+        DYNAMIC_TYPE_AES_EAX = 1009,
     };
 
     /* max error buffer string size */

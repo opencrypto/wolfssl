@@ -13587,21 +13587,28 @@ static int ProcessCSR_ex(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 
     #ifdef WOLFSSL_SMALL_STACK
         status = (CertStatus*)XMALLOC(sizeof(CertStatus), ssl->heap,
-                                                    DYNAMIC_TYPE_OCSP_STATUS);
+                                      DYNAMIC_TYPE_OCSP_STATUS);
         single = (OcspEntry*)XMALLOC(sizeof(OcspEntry), ssl->heap,
-                                                    DYNAMIC_TYPE_OCSP_ENTRY);
+                                     DYNAMIC_TYPE_OCSP_ENTRY);
         response = (OcspResponse*)XMALLOC(sizeof(OcspResponse), ssl->heap,
-                                                    DYNAMIC_TYPE_OCSP_REQUEST);
+                                          DYNAMIC_TYPE_OCSP_REQUEST);
 
         if (status == NULL || single == NULL || response == NULL) {
-            XFREE(status, ssl->heap, DYNAMIC_TYPE_OCSP_STATUS);
-            XFREE(single, ssl->heap, DYNAMIC_TYPE_OCSP_ENTRY);
-            XFREE(response, ssl->heap, DYNAMIC_TYPE_OCSP_REQUEST);
+            if (status != NULL) {
+                XFREE(status, ssl->heap, DYNAMIC_TYPE_OCSP_STATUS);
+            }
+            if (single != NULL) {
+                XFREE(single, ssl->heap, DYNAMIC_TYPE_OCSP_ENTRY);
+            }
+            if (response != NULL) {
+                XFREE(response, ssl->heap, DYNAMIC_TYPE_OCSP_REQUEST);
+            }
 
             return MEMORY_ERROR;
         }
     #endif
 
+    /* InitOcspResponse sets single and status to response struct. */
     InitOcspResponse(response, single, status, input +*inOutIdx, status_length, ssl->heap);
 
     if (OcspResponseDecode(response, SSL_CM(ssl), ssl->heap, 0) != 0)
@@ -13622,12 +13629,14 @@ static int ProcessCSR_ex(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 
     *inOutIdx += status_length;
 
+    /* FreeOcspResponse frees status and single only if
+     * single->isDynamic is set. */
     FreeOcspResponse(response);
 
     #ifdef WOLFSSL_SMALL_STACK
-        XFREE(status,   ssl->heap, DYNAMIC_TYPE_OCSP_STATUS);
-        XFREE(single,   ssl->heap, DYNAMIC_TYPE_OCSP_ENTRY);
-        XFREE(response, ssl->heap, DYNAMIC_TYPE_OCSP_REQUEST);
+    XFREE(status,   ssl->heap, DYNAMIC_TYPE_OCSP_STATUS);
+    XFREE(single,   ssl->heap, DYNAMIC_TYPE_OCSP_ENTRY);
+    XFREE(response, ssl->heap, DYNAMIC_TYPE_OCSP_REQUEST);
     #endif
 
     WOLFSSL_LEAVE("ProcessCSR", ret);
@@ -15223,7 +15232,13 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                         else /* skips OCSP and force CRL check */
                     #endif /* HAVE_CERTIFICATE_STATUS_REQUEST_V2 */
                     #if defined(HAVE_CERTIFICATE_STATUS_REQUEST)
-                        if (IsAtLeastTLSv1_3(ssl->version)) {
+                        if (IsAtLeastTLSv1_3(ssl->version) &&
+                            ssl->options.side == WOLFSSL_CLIENT_END &&
+                            ssl->status_request) {
+                            /* We check CSR in Certificate message sent from
+                             * Server. Server side will check client
+                             * certificates by traditional OCSP if enabled
+                             */
                             ret = TLSX_CSR_InitRequest_ex(ssl->extensions,
                                     args->dCert, ssl->heap, args->certIdx);
                         }
@@ -17462,6 +17477,18 @@ int DoHandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         case certificate_request:
         case server_hello_done:
             if (ssl->options.resuming) {
+                /* Client requested resumption, but server is doing a
+                 * full handshake */
+
+                /* The server's decision to resume isn't known until after the
+                 * "server_hello". If subsequent handshake messages like
+                 * "certificate" or "server_key_exchange" are recevied then we
+                 * are doing a full handshake */
+
+                /* If the server included a session id then we
+                 * treat this as a fatal error, since the server said it was
+                 * doing resumption, but did not. */
+
                 /* https://www.rfc-editor.org/rfc/rfc5077.html#section-3.4
                  *   Alternatively, the client MAY include an empty Session ID
                  *   in the ClientHello.  In this case, the client ignores the
@@ -17470,7 +17497,7 @@ int DoHandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                  *   messages.
                  */
 #ifndef WOLFSSL_WPAS
-                if (ssl->session->sessionIDSz != 0) {
+                if (ssl->arrays->sessionIDSz != 0) {
                     /* Fatal error. Only try to send an alert. RFC 5246 does not
                      * allow for reverting back to a full handshake after the
                      * server has indicated the intention to do a resumption. */
@@ -34501,6 +34528,29 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
 #ifndef WOLFSSL_NO_TLS12
 
+    static int getSessionID(WOLFSSL* ssl)
+    {
+        int sessIdSz = 0;
+        (void)ssl;
+#ifndef NO_SESSION_CACHE
+        /* if no session cache don't send a session ID */
+        if (!ssl->options.sessionCacheOff)
+            sessIdSz = ID_LEN;
+#endif
+#ifdef HAVE_SESSION_TICKET
+        /* we may be echoing an ID as part of session tickets */
+        if (ssl->options.useTicket) {
+            /* echo session id sz can be 0,32 or bogus len in between */
+            sessIdSz = ssl->arrays->sessionIDSz;
+            if (sessIdSz > ID_LEN) {
+                WOLFSSL_MSG("Bad bogus session id len");
+                return BUFFER_ERROR;
+            }
+        }
+#endif /* HAVE_SESSION_TICKET */
+        return sessIdSz;
+    }
+
     /* handle generation of server_hello (2) */
     int SendServerHello(WOLFSSL* ssl)
     {
@@ -34509,17 +34559,18 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         word16 length;
         word32 idx = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ;
         int    sendSz;
-        byte   sessIdSz = ID_LEN;
-    #if defined(HAVE_TLS_EXTENSIONS) && defined(HAVE_SESSION_TICKET)
-        byte   echoId   = 0;  /* ticket echo id flag */
-    #endif
-        byte   cacheOff = 0;  /* session cache off flag */
+        byte   sessIdSz;
 
         WOLFSSL_START(WC_FUNC_SERVER_HELLO_SEND);
         WOLFSSL_ENTER("SendServerHello");
 
+        ret = getSessionID(ssl);
+        if (ret < 0)
+            return ret;
+        sessIdSz = (byte)ret;
+
         length = VERSION_SZ + RAN_LEN
-               + ID_LEN + ENUM_LEN
+               + ENUM_LEN + sessIdSz
                + SUITE_LEN
                + ENUM_LEN;
 
@@ -34527,44 +34578,11 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         ret = TLSX_GetResponseSize(ssl, server_hello, &length);
         if (ret != 0)
             return ret;
-    #ifdef HAVE_SESSION_TICKET
-        if (ssl->options.useTicket) {
-            /* echo session id sz can be 0,32 or bogus len in between */
-            sessIdSz = ssl->arrays->sessionIDSz;
-            if (sessIdSz > ID_LEN) {
-                WOLFSSL_MSG("Bad bogus session id len");
-                return BUFFER_ERROR;
-            }
-            if (!IsAtLeastTLSv1_3(ssl->version))
-                length -= (ID_LEN - sessIdSz);  /* adjust ID_LEN assumption */
-            echoId = 1;
-        }
-    #endif /* HAVE_SESSION_TICKET */
 #else
         if (ssl->options.haveEMS) {
             length += HELLO_EXT_SZ_SZ + HELLO_EXT_SZ;
         }
 #endif
-
-        /* is the session cache off at build or runtime */
-#ifdef NO_SESSION_CACHE
-        cacheOff = 1;
-#else
-        if (ssl->options.sessionCacheOff == 1) {
-            cacheOff = 1;
-        }
-#endif
-
-        /* if no session cache don't send a session ID unless we're echoing
-         * an ID as part of session tickets */
-        if (cacheOff == 1
-        #if defined(HAVE_TLS_EXTENSIONS) && defined(HAVE_SESSION_TICKET)
-            && echoId == 0
-        #endif
-            ) {
-            length -= ID_LEN;    /* adjust ID_LEN assumption */
-            sessIdSz = 0;
-        }
 
         sendSz = length + HANDSHAKE_HEADER_SZ + RECORD_HEADER_SZ;
         #ifdef WOLFSSL_DTLS
@@ -34596,11 +34614,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
         /* then random and session id */
         if (!ssl->options.resuming) {
-            /* generate random part and session id */
-            ret = wc_RNG_GenerateBlock(ssl->rng, output + idx,
-                RAN_LEN + sizeof(sessIdSz) + sessIdSz);
-            if (ret != 0)
-                return ret;
+            word32 genRanLen = RAN_LEN;
 
 #ifdef WOLFSSL_TLS13
             if (TLSv1_3_Capable(ssl)) {
@@ -34608,6 +34622,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                 XMEMCPY(output + idx + RAN_LEN - (TLS13_DOWNGRADE_SZ + 1),
                         tls13Downgrade, TLS13_DOWNGRADE_SZ);
                 output[idx + RAN_LEN - 1] = (byte)IsAtLeastTLSv1_2(ssl);
+                genRanLen -= TLS13_DOWNGRADE_SZ + 1;
             }
             else
 #endif
@@ -34619,12 +34634,21 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                 XMEMCPY(output + idx + RAN_LEN - (TLS13_DOWNGRADE_SZ + 1),
                         tls13Downgrade, TLS13_DOWNGRADE_SZ);
                 output[idx + RAN_LEN - 1] = 0;
+                genRanLen -= TLS13_DOWNGRADE_SZ + 1;
             }
 
-            /* store info in SSL for later */
+            /* generate random part */
+            ret = wc_RNG_GenerateBlock(ssl->rng, output + idx, genRanLen);
+            if (ret != 0)
+                return ret;
             XMEMCPY(ssl->arrays->serverRandom, output + idx, RAN_LEN);
             idx += RAN_LEN;
+
+            /* generate session id */
             output[idx++] = sessIdSz;
+            ret = wc_RNG_GenerateBlock(ssl->rng, output + idx, sessIdSz);
+            if (ret != 0)
+                return ret;
             XMEMCPY(ssl->arrays->sessionID, output + idx, sessIdSz);
             ssl->arrays->sessionIDSz = sessIdSz;
         }

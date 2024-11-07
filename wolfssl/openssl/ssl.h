@@ -207,7 +207,7 @@ typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
 #define SSL_use_certificate_ASN1        wolfSSL_use_certificate_ASN1
 #define d2i_PKCS8_PRIV_KEY_INFO_bio     wolfSSL_d2i_PKCS8_PKEY_bio
 #define d2i_PKCS8_PRIV_KEY_INFO         wolfSSL_d2i_PKCS8_PKEY
-#define i2d_PKCS8_PRIV_KEY_INFO         wolfSSL_i2d_PrivateKey
+#define i2d_PKCS8_PRIV_KEY_INFO         wolfSSL_i2d_PKCS8_PKEY
 #define d2i_PKCS8PrivateKey_bio         wolfSSL_d2i_PKCS8PrivateKey_bio
 #define i2d_PKCS8PrivateKey_bio         wolfSSL_PEM_write_bio_PKCS8PrivateKey
 #define PKCS8_PRIV_KEY_INFO_free        wolfSSL_EVP_PKEY_free
@@ -643,8 +643,8 @@ typedef WOLFSSL_X509_NAME_ENTRY X509_NAME_ENTRY;
 #define X509_V_FLAG_CRL_CHECK     WOLFSSL_CRL_CHECK
 #define X509_V_FLAG_CRL_CHECK_ALL WOLFSSL_CRL_CHECKALL
 
-#define X509_V_FLAG_PARTIAL_CHAIN 0
-#define X509_V_FLAG_TRUSTED_FIRST 0
+#define X509_V_FLAG_PARTIAL_CHAIN WOLFSSL_PARTIAL_CHAIN
+#define X509_V_FLAG_TRUSTED_FIRST 0 /* dummy value needed for gRPC port */
 
 #define X509_V_FLAG_USE_CHECK_TIME WOLFSSL_USE_CHECK_TIME
 #define X509_V_FLAG_NO_CHECK_TIME  WOLFSSL_NO_CHECK_TIME
@@ -1009,7 +1009,9 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #define RSA_print_fp                    wolfSSL_RSA_print_fp
 #define RSA_bits                        wolfSSL_RSA_bits
 #define RSA_up_ref                      wolfSSL_RSA_up_ref
+#define RSA_padding_add_PKCS1_PSS_mgf1  wolfSSL_RSA_padding_add_PKCS1_PSS_mgf1
 #define RSA_padding_add_PKCS1_PSS       wolfSSL_RSA_padding_add_PKCS1_PSS
+#define RSA_verify_PKCS1_PSS_mgf1       wolfSSL_RSA_verify_PKCS1_PSS_mgf1
 #define RSA_verify_PKCS1_PSS            wolfSSL_RSA_verify_PKCS1_PSS
 
 #define PEM_def_callback                wolfSSL_PEM_def_callback

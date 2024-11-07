@@ -2756,6 +2756,8 @@ WOLFSSL_LOCAL int SetupStoreCtxCallback(WOLFSSL_X509_STORE_CTX** store_pt,
 WOLFSSL_LOCAL void CleanupStoreCtxCallback(WOLFSSL_X509_STORE_CTX* store,
         WOLFSSL* ssl, void* heap, int x509Free);
 #endif /* !defined(NO_WOLFSSL_CLIENT) || !defined(WOLFSSL_NO_CLIENT_AUTH) */
+WOLFSSL_LOCAL int X509StoreLoadCertBuffer(WOLFSSL_X509_STORE *str,
+                                        byte *buf, word32 bufLen, int type);
 #endif /* !defined NO_CERTS */
 
 /* wolfSSL Sock Addr */
@@ -7113,6 +7115,12 @@ WOLFSSL_LOCAL WOLFSSL_STACK* wolfssl_sk_new_type(WOLF_STACK_TYPE type);
 WOLFSSL_LOCAL int wolfssl_asn1_obj_set(WOLFSSL_ASN1_OBJECT* obj,
         const byte* der, word32 len, int addHdr);
 #endif
+
+WOLFSSL_LOCAL int pkcs8_encode(WOLFSSL_EVP_PKEY* pkey, byte* key,
+        word32* keySz);
+WOLFSSL_LOCAL int pkcs8_encrypt(WOLFSSL_EVP_PKEY* pkey,
+        const WOLFSSL_EVP_CIPHER* enc, char* passwd, int passwdSz, byte* key,
+        word32* keySz);
 
 #ifdef __cplusplus
     }  /* extern "C" */

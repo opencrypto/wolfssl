@@ -600,6 +600,10 @@ struct WOLFSSL_X509_STORE {
     WOLFSSL_X509_CRL *crl; /* points to cm->crl */
 #endif
     wolfSSL_Ref     ref;
+    WOLF_STACK_OF(WOLFSSL_X509)* certs;
+    WOLF_STACK_OF(WOLFSSL_X509)* trusted;
+    WOLF_STACK_OF(WOLFSSL_X509)* owned;
+    word32 numAdded; /* Number of objs in objs that are in certs sk */
 };
 
 #define WOLFSSL_ALWAYS_CHECK_SUBJECT 0x1
@@ -612,6 +616,7 @@ struct WOLFSSL_X509_STORE {
 #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
 #define WOLFSSL_USE_CHECK_TIME 0x2
 #define WOLFSSL_NO_CHECK_TIME  0x200000
+#define WOLFSSL_PARTIAL_CHAIN  0x80000
 #define WOLFSSL_HOST_NAME_MAX  256
 
 #define WOLFSSL_VPARAM_DEFAULT          0x1
@@ -674,7 +679,7 @@ typedef struct WOLFSSL_BUFFER_INFO {
 struct WOLFSSL_X509_STORE_CTX {
     WOLFSSL_X509_STORE* store;    /* Store full of a CA cert chain */
     WOLFSSL_X509* current_cert;   /* current X509 (OPENSSL_EXTRA) */
-#ifdef WOLFSSL_ASIO
+#if defined(WOLFSSL_ASIO) || defined(OPENSSL_EXTRA)
     WOLFSSL_X509* current_issuer; /* asio dereference */
 #endif
     WOLFSSL_X509_CHAIN* sesChain; /* pointer to WOLFSSL_SESSION peer chain */
@@ -697,6 +702,13 @@ struct WOLFSSL_X509_STORE_CTX {
     WOLFSSL_BUFFER_INFO* certs;  /* peer certs */
     WOLFSSL_X509_STORE_CTX_verify_cb verify_cb; /* verify callback */
     void* heap;
+    int   flags;
+    WOLF_STACK_OF(WOLFSSL_X509)* owned;  /* Certs owned by this CTX */
+    WOLF_STACK_OF(WOLFSSL_X509)* ctxIntermediates; /* Intermediates specified
+                                                    * on store ctx init */
+    WOLF_STACK_OF(WOLFSSL_X509)* setTrustedSk;/* A trusted stack override
+                                               * set with
+                                               * X509_STORE_CTX_trusted_stack*/
 };
 
 typedef char* WOLFSSL_STRING;
@@ -1269,11 +1281,18 @@ WOLFSSL_API int  wolfSSL_SetServerID(WOLFSSL* ssl, const unsigned char* id, int 
 WOLFSSL_API int  wolfSSL_BIO_new_bio_pair(WOLFSSL_BIO** bio1_p, size_t writebuf1,
                      WOLFSSL_BIO** bio2_p, size_t writebuf2);
 
+WOLFSSL_API int wolfSSL_RSA_padding_add_PKCS1_PSS_mgf1(WOLFSSL_RSA *rsa,
+        unsigned char *em, const unsigned char *mHash,
+        const WOLFSSL_EVP_MD *hashAlg, const WOLFSSL_EVP_MD *mgf1Hash,
+        int saltLen);
 WOLFSSL_API int wolfSSL_RSA_padding_add_PKCS1_PSS(WOLFSSL_RSA *rsa,
                                                   unsigned char *EM,
                                                   const unsigned char *mHash,
                                                   const WOLFSSL_EVP_MD *hashAlg,
                                                   int saltLen);
+WOLFSSL_API int wolfSSL_RSA_verify_PKCS1_PSS_mgf1(WOLFSSL_RSA *rsa,
+        const unsigned char *mHash, const WOLFSSL_EVP_MD *hashAlg,
+        const WOLFSSL_EVP_MD *mgf1Hash, const unsigned char *em, int saltLen);
 WOLFSSL_API int wolfSSL_RSA_verify_PKCS1_PSS(WOLFSSL_RSA *rsa, const unsigned char *mHash,
                                           const WOLFSSL_EVP_MD *hashAlg,
                                           const unsigned char *EM, int saltLen);
@@ -2088,6 +2107,8 @@ WOLFSSL_API WOLFSSL_PKCS8_PRIV_KEY_INFO* wolfSSL_d2i_PKCS8_PKEY_bio(
         WOLFSSL_BIO* bio, WOLFSSL_PKCS8_PRIV_KEY_INFO** pkey);
 WOLFSSL_API WOLFSSL_PKCS8_PRIV_KEY_INFO* wolfSSL_d2i_PKCS8_PKEY(
         WOLFSSL_PKCS8_PRIV_KEY_INFO** pkey, const unsigned char** keyBuf, long keyLen);
+WOLFSSL_API int wolfSSL_i2d_PKCS8_PKEY(WOLFSSL_PKCS8_PRIV_KEY_INFO* key,
+        unsigned char** pp);
 WOLFSSL_API WOLFSSL_EVP_PKEY* wolfSSL_d2i_PUBKEY_bio(WOLFSSL_BIO* bio,
                                          WOLFSSL_EVP_PKEY** out);
 WOLFSSL_API WOLFSSL_EVP_PKEY* wolfSSL_d2i_PUBKEY(WOLFSSL_EVP_PKEY** key,
@@ -3304,7 +3325,9 @@ enum {
     WOLFSSL_DTLSV1_3 = 7,
 
     WOLFSSL_USER_CA  = 1,          /* user added as trusted */
-    WOLFSSL_CHAIN_CA = 2           /* added to cache from trusted chain */
+    WOLFSSL_CHAIN_CA = 2,          /* added to cache from trusted chain */
+    WOLFSSL_TEMP_CA = 3            /* Temp intermediate CA, only for use by
+                                    * X509_STORE */
 };
 
 WOLFSSL_ABI WOLFSSL_API WC_RNG* wolfSSL_GetRNG(WOLFSSL* ssl);
@@ -5382,6 +5405,8 @@ WOLFSSL_API int wolfSSL_X509_get_signature_nid(const WOLFSSL_X509* x);
 WOLFSSL_API int wolfSSL_PEM_write_bio_PKCS8PrivateKey(WOLFSSL_BIO* bio,
     WOLFSSL_EVP_PKEY* pkey, const WOLFSSL_EVP_CIPHER* enc, char* passwd,
     int passwdSz, wc_pem_password_cb* cb, void* ctx);
+WOLFSSL_API int wolfSSL_PEM_write_bio_PKCS8_PRIV_KEY_INFO(WOLFSSL_BIO* bio,
+        PKCS8_PRIV_KEY_INFO* keyInfo);
 #if !defined(NO_FILESYSTEM) && !defined(NO_STDIO_FILESYSTEM)
 WOLFSSL_API int wolfSSL_PEM_write_PKCS8PrivateKey(
     XFILE fp, WOLFSSL_EVP_PKEY* pkey, const WOLFSSL_EVP_CIPHER* enc,
