@@ -8,5 +8,5 @@
     --enable-brainpool --enable-ecccustcurves \
     --enable-keygen --enable-certgen --enable-certreq \
     --enable-certext --enable-pkcs8 --enable-asyncthreads \
-    --enable-dual-alg-certs --enable-examples && \
+    --enable-dual-alg-certs --enable-examples --enable-debug && \
 make

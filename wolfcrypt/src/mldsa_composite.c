@@ -1731,7 +1731,7 @@ int wc_mldsa_composite_size(mldsa_composite_key* key)
         case WC_MLDSA_COMPOSITE_UNDEF:
         default:
             /* Error */
-            ret = ALGO_ID_E;
+            return BAD_FUNC_ARG;
     }
 
     return ret;
@@ -1802,7 +1802,7 @@ int wc_mldsa_composite_priv_size(mldsa_composite_key* key) {
             case WC_MLDSA_COMPOSITE_UNDEF:
             default:
                 /* Error */
-                ret = ALGO_ID_E;
+                ret = BAD_FUNC_ARG;
         }
 
     }
@@ -1903,7 +1903,7 @@ int wc_mldsa_composite_pub_size(mldsa_composite_key* key)
         case WC_MLDSA_COMPOSITE_UNDEF:
         default:
             /* Error */
-            ret = ALGO_ID_E;
+            return BAD_FUNC_ARG;
     }
 
     return ret;
@@ -2815,7 +2815,7 @@ int wc_mldsa_composite_import_private(const byte* priv, word32 privSz,
         case WC_MLDSA44_ED25519_SHA512: {
 #if defined(HAVE_MLDSA_COMPOSITE_DRAFT_3)
             // Cehcks the ED25519 pubkey buffer size
-            if (other_BufferLen != ED25519_KEY_SIZE) {
+            if (other_BufferLen != ED25519_PRV_KEY_SIZE) {
                 MADWOLF_DEBUG("ML-DSA COMPOSITE: ED25519 private key size error (%d vs. %d)", other_BufferLen, ED25519_KEY_SIZE);
                 return BUFFER_E;
             }
@@ -2824,7 +2824,7 @@ int wc_mldsa_composite_import_private(const byte* priv, word32 privSz,
                 return ret;
             }
 
-            if ((ret = wc_ed25519_import_private_key(other_Buffer, ED25519_KEY_SIZE, NULL, 0, &key->alt_key.ed25519)) < 0) {
+            if ((ret = wc_ed25519_import_private_key(other_Buffer, ED25519_PRV_KEY_SIZE, NULL, 0, &key->alt_key.ed25519)) < 0) {
                 MADWOLF_DEBUG("ML-DSA COMPOSITE: failed to import ED25519 component with code %d, Trying private only", ret);
                 if ((ret = wc_ed25519_import_private_only(other_Buffer, other_BufferLen, &key->alt_key.ed25519)) < 0) {
                     MADWOLF_DEBUG("ML-DSA COMPOSITE: failed to import ED25519 private only component with code %d", ret);
@@ -2983,6 +2983,7 @@ int wc_mldsa_composite_import_private(const byte* priv, word32 privSz,
 int wc_mldsa_composite_export_private(mldsa_composite_key* key, byte* out, word32* outLen)
 {
     int ret = 0;
+    int privSz = 0;
     word32 inLen;
 
 // #ifdef HAVE_MLDSA_COMPOSITE_DRAFT_2
@@ -3008,23 +3009,30 @@ int wc_mldsa_composite_export_private(mldsa_composite_key* key, byte* out, word3
     word32 other_BufferLen = MLDSA_COMPOSITE_MAX_OTHER_KEY_SZ + 200;
         // Buffer to hold the public key of the other DSA component
 
-    /* Validate parameters */
-    if ((key == NULL) || (out == NULL) || (outLen == NULL || *outLen == 0)) {
-        ret = BAD_FUNC_ARG;
-    }
+MADWOLF_DEBUG0("Exporting ML-DSA Composite Private Key");
 
-    if (key->prvKeySet != 1) {
-        MADWOLF_DEBUG0("private key not set, cannot export it");
-        return BAD_FUNC_ARG;
+    /* Validate parameters */
+    if ((key == NULL) || (key->prvKeySet != 1) || (out == NULL) || (outLen == NULL || *outLen == 0)) {
+        ret = BAD_FUNC_ARG;
     }
 
     // Get the length passed in for checking
     inLen = *outLen;
 
+MADWOLF_DEBUG0("Exporting ML-DSA Composite Private Key");
+
     // Get the expected size of the private key
-    *outLen = wc_mldsa_composite_priv_size(key);
+    if ((privSz = wc_mldsa_composite_priv_size(key)) < 0) {
+        MADWOLF_DEBUG("Error in calculating the size of the private key (type: %d, err: %d)", key->type, privSz);
+        return BAD_FUNC_ARG;
+    }
+
+    *outLen = privSz;
 
     MADWOLF_DEBUG("Exporting ML-DSA Composite Private Key (inbuf: %d, estimated outLen: %d)", inLen, *outLen);
+
+
+MADWOLF_DEBUG0("Exporting ML-DSA Composite Private Key");
 
     // Check if the buffer is too small
     if (inLen < *outLen) {
