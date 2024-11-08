@@ -2845,22 +2845,28 @@ int wc_mldsa_composite_import_private(const byte* priv, word32 privSz,
         case WC_MLDSA44_BPOOL256_SHA256:
         case WC_MLDSA65_NISTP256_SHA512:
         case WC_MLDSA44_NISTP256_SHA256: {
+            int curveSz = 32;
             XMEMSET(&key->alt_key.ecc, 0, sizeof(key->alt_key.ecc));
             wc_ecc_init_ex(&key->alt_key.ecc, key->heap, key->devId);
 #if defined(HAVE_MLDSA_COMPOSITE_DRAFT_3)
             if (type == WC_MLDSA65_NISTP256_SHA512 || type == WC_MLDSA44_NISTP256_SHA256) {
-                wc_ecc_set_curve(&key->alt_key.ecc, 32, ECC_SECP256R1);
+                wc_ecc_set_curve(&key->alt_key.ecc, curveSz, ECC_SECP256R1);
             } else if (type == WC_MLDSA65_BPOOL256_SHA512 || type == WC_MLDSA44_BPOOL256_SHA256) {
-                wc_ecc_set_curve(&key->alt_key.ecc, 32, ECC_BRAINPOOLP256R1);
+                wc_ecc_set_curve(&key->alt_key.ecc, curveSz, ECC_BRAINPOOLP256R1);
             } else if (type == WC_MLDSA87_NISTP384_SHA512) {
-                wc_ecc_set_curve(&key->alt_key.ecc, 48, ECC_SECP384R1);
+                curveSz = 48;
+                wc_ecc_set_curve(&key->alt_key.ecc, curveSz, ECC_SECP384R1);
             } else if (type == WC_MLDSA87_BPOOL384_SHA512) {
-                wc_ecc_set_curve(&key->alt_key.ecc, 48, ECC_BRAINPOOLP384R1);
+                curveSz = 48;
+                wc_ecc_set_curve(&key->alt_key.ecc, curveSz, ECC_BRAINPOOLP384R1);
             }
             
-            if ((ret = wc_ecc_import_private_key(other_Buffer, other_BufferLen, NULL, 0, &key->alt_key.ecc)) < 0) {
-                MADWOLF_DEBUG("ML-DSA COMPOSITE: ECDSA import PrivKey failed with %d", ret);
-                return ret;
+            if ((ret = wc_ecc_import_private_key(other_Buffer, other_BufferLen, other_Buffer + curveSz, other_BufferLen - curveSz, &key->alt_key.ecc)) < 0) {
+                MADWOLF_DEBUG("ML-DSA COMPOSITE: ECDSA import PrivKey failed with %d (pub and private)", ret);
+                if ((ret = wc_ecc_import_private_key(other_Buffer, other_BufferLen, NULL, 0, &key->alt_key.ecc)) < 0) {
+                    MADWOLF_DEBUG("ML-DSA COMPOSITE: ECDSA import PrivKey failed with %d", ret);
+                    return ret;
+                }
             }
 
             // if ((ret = wc_ecc_import_unsigned(&key->alt_key.ecc, 
@@ -2937,12 +2943,12 @@ int wc_mldsa_composite_import_private(const byte* priv, word32 privSz,
         case WC_MLDSA87_ED448_SHA512: {
 #if defined(HAVE_MLDSA_COMPOSITE_DRAFT_3)
             // Cehcks the ED448 pubkey buffer size
-            if (other_BufferLen != ED448_KEY_SIZE) {
-                MADWOLF_DEBUG("ML-DSA COMPOSITE: ED448 signature size error (%d vs. %d)", other_BufferLen, ED448_KEY_SIZE);
+            if (other_BufferLen != ED448_PRV_KEY_SIZE) {
+                MADWOLF_DEBUG("ML-DSA COMPOSITE: ED448 signature size error (%d vs. %d)", other_BufferLen, ED448_PRV_KEY_SIZE);
                 return BUFFER_E;
             }
             // Import ED448 Component
-            if ((ret = wc_ed448_import_private_only(other_Buffer, other_BufferLen, &key->alt_key.ed448)) < 0) {
+            if ((ret = wc_ed448_import_private_key_ex(other_Buffer, other_BufferLen, NULL, 0, &key->alt_key.ed448, 0)) < 0) {
                 MADWOLF_DEBUG("ML-DSA COMPOSITE: failed to import ED448 component with code %d", ret);
                 return ret;
             }
@@ -3108,7 +3114,7 @@ MADWOLF_DEBUG0("Exporting ML-DSA Composite Private Key");
 
         case WC_MLDSA87_ED448_SHA512: {
 #ifdef HAVE_MLDSA_COMPOSITE_DRAFT_3
-            if ((ret = wc_ed448_export_private_only(&key->alt_key.ed448, other_Buffer, &other_BufferLen)) < 0) {
+            if ((ret = wc_ed448_export_private(&key->alt_key.ed448, other_Buffer, &other_BufferLen)) < 0) {
                 return ret;
             }
 #elif defined(HAVE_MLDSA_COMPOSITE_DRAFT_2)
