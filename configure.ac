@@ -1309,6 +1309,7 @@ AC_ARG_ENABLE([kyber],
     )
 
 ENABLED_WC_KYBER=no
+ENABLED_ML_KEM=yes
 for v in `echo $ENABLED_KYBER | tr "," " "`
 do
   case $v in
@@ -1334,6 +1335,10 @@ do
   original)
     ENABLED_ORIGINAL=yes
     ;;
+  original-only)
+    ENABLED_ORIGINAL=yes
+    ENABLED_ML_KEM=no
+    ;;
   *)
     AC_MSG_ERROR([Invalid choice for KYBER []: $ENABLED_KYBER.])
     break;;
@@ -1350,17 +1355,30 @@ then
         AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_WC_KYBER"
     fi
 
-    if test "$ENABLED_KYBER512" = ""; then
-        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_KYBER512"
-    fi
-    if test "$ENABLED_KYBER768" = ""; then
-        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_KYBER768"
-    fi
-    if test "$ENABLED_KYBER1024" = ""; then
-        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_KYBER1024"
-    fi
     if test "$ENABLED_ORIGINAL" = "yes"; then
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_KYBER_ORIGINAL"
+        if test "$ENABLED_KYBER512" = ""; then
+            AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_KYBER512"
+        fi
+        if test "$ENABLED_KYBER768" = ""; then
+            AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_KYBER768"
+        fi
+        if test "$ENABLED_KYBER1024" = ""; then
+            AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_KYBER1024"
+        fi
+    fi
+    if test "$ENABLED_ML_KEM" = "yes"; then
+        if test "$ENABLED_KYBER512" = ""; then
+            AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_ML_KEM_512"
+        fi
+        if test "$ENABLED_KYBER768" = ""; then
+            AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_ML_KEM_768"
+        fi
+        if test "$ENABLED_KYBER1024" = ""; then
+            AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_ML_KEM_1024"
+        fi
+    else
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_ML_KEM"
     fi
 
     if test "$ENABLED_WC_KYBER" = "yes"
@@ -6071,6 +6089,19 @@ else
 fi
 
 
+# C89 build
+AC_ARG_ENABLE([c89],
+    [AS_HELP_STRING([--enable-c89],[Build with C89 toolchain (default: disabled)])],
+    [ ENABLED_C89=$enableval ],
+    [ ENABLED_C89=no ]
+    )
+
+if test "$ENABLED_C89" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLF_C89"
+    test "$enable_inline" = "" && enable_inline=no
+fi
+
 # inline Build
 AC_ARG_ENABLE([inline],
     [AS_HELP_STRING([--enable-inline],[Enable inline functions (default: enabled)])],
@@ -9199,6 +9230,12 @@ then
         ENABLED_DES3="yes"
     fi
 
+    # Has support for PKCS7
+    if test "$ENABLED_PKCS7" = "no"
+    then
+        ENABLED_PKCS7=yes
+    fi
+
     # Uses alt name
     ENABLED_ALTNAMES="yes"
 
@@ -9994,7 +10031,7 @@ AM_CONDITIONAL([USE_VALGRIND],[test "x$ENABLED_VALGRIND" = "xyes"])
 AM_CONDITIONAL([BUILD_MD4],[test "x$ENABLED_MD4" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_PWDBASED],[test "x$ENABLED_PWDBASED" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_SCRYPT],[test "x$ENABLED_SCRYPT" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
-AM_CONDITIONAL([BUILD_CRYPTONLY],[test "x$ENABLED_CRYPTONLY" = "xyes" && test "x$ENABLED_OPENSSLEXTRA" = "xno"])
+AM_CONDITIONAL([BUILD_CRYPTONLY],[test "x$ENABLED_CRYPTONLY" = "xyes"])
 AM_CONDITIONAL([BUILD_FASTMATH],[test "x$ENABLED_FASTMATH" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_HEAPMATH],[test "x$ENABLED_HEAPMATH" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_EXAMPLE_SERVERS],[test "x$ENABLED_EXAMPLES" = "xyes" && test "x$ENABLED_LEANTLS" = "xno"])
@@ -10565,6 +10602,7 @@ echo "   * ARM ASM SM3/SM4 Crypto      $ENABLED_ARMASM_CRYPTO_SM4"
 echo "   * RISC-V ASM                  $ENABLED_RISCV_ASM"
 echo "   * Write duplicate:            $ENABLED_WRITEDUP"
 echo "   * Xilinx Hardware Acc.:       $ENABLED_XILINX"
+echo "   * C89:                        $ENABLED_C89"
 echo "   * Inline Code:                $ENABLED_INLINE"
 echo "   * Linux AF_ALG:               $ENABLED_AFALG"
 echo "   * Linux KCAPI:                $ENABLED_KCAPI"

@@ -3067,8 +3067,8 @@ static void* benchmarks_do(void* args)
         bench_buf_size += 16 - (bench_buf_size % 16);
 
 #ifdef WOLFSSL_AFALG_XILINX_AES
-    bench_plain = (byte*)aligned_alloc(64, (size_t)bench_buf_size + 16);
-    bench_cipher = (byte*)aligned_alloc(64, (size_t)bench_buf_size + 16);
+    bench_plain = (byte*)aligned_alloc(64, (size_t)bench_buf_size + 16); /* native heap */
+    bench_cipher = (byte*)aligned_alloc(64, (size_t)bench_buf_size + 16); /* native heap */
 #else
     bench_plain = (byte*)XMALLOC((size_t)bench_buf_size + 16,
                                  HEAP_HINT, DYNAMIC_TYPE_WOLF_BIGINT);
@@ -14498,7 +14498,15 @@ void bench_sphincsKeySign(byte level, byte optim)
 
         return (double) ticks/TICKS_PER_SECOND;
     }
+#elif defined(WOLFSSL_RPIPICO)
+    #include "pico/stdlib.h"
 
+    double current_time(int reset)
+    {
+        (void)reset;
+
+        return (double) time_us_64() / 1000000;
+    }
 #elif defined(THREADX)
     #include "tx_api.h"
     double current_time(int reset)
