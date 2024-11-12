@@ -48653,7 +48653,7 @@ printf("[%d:%s] %s(): ***** DEBUG 4\n", __LINE__, __FILE__, __func__);
 
 printf("[%d:%s] %s(): ***** DEBUG 4\n", __LINE__, __FILE__, __func__);
 
-    ExpectIntEQ(wc_mldsa_composite_set_type(key, 0), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_mldsa_composite_set_type(key, 999), BAD_FUNC_ARG);
 
 printf("[%d:%s] %s(): ***** DEBUG 4\n", __LINE__, __FILE__, __func__);
 
@@ -48779,15 +48779,11 @@ EXPECT_DECLS;
     mldsa_composite_key * importKey = NULL;
     WC_RNG rng;
     byte* privKey = NULL;
+    word32 sigLen = MLDSA_COMPOSITE_MAX_SIG_SIZE;
     word32 privKeyLen = MLDSA_COMPOSITE_MAX_KEY_SIZE;
-    word32 badKeyLen;
+    word32 badKeyLen = 0;
     byte msg[32];
     byte* sig = NULL;
-    word32 sigLen = MLDSA_COMPOSITE_MAX_SIG_SIZE;
-
-    (void)privKeyLen;
-    (void)badKeyLen;
-    (void)sigLen;
 
     key = (mldsa_composite_key*)XMALLOC(sizeof(*key), NULL, DYNAMIC_TYPE_TMP_BUFFER);
     ExpectNotNull(key);
@@ -48879,7 +48875,7 @@ printf("[%d:%s] %s(): ***** DEBUG EXP \n", __LINE__, __FILE__, __func__);
     ExpectIntEQ(wc_mldsa_composite_export_private(key, privKey, &privKeyLen),
         0);
 #ifndef WOLFSSL_NO_MLDSA44_ED25519
-    ExpectIntEQ(privKeyLen, MLDSA44_ED25519_PRV_KEY_SIZE);
+    ExpectIntEQ(privKeyLen, MLDSA44_ED25519_KEY_SIZE);
 #elif !defined(WOLFSSL_NO_MLDSA44_P256)
     ExpectIntEQ(privKeyLen, MLDSA44_ED25519_PRV_KEY_SIZE);
 #endif
@@ -48911,10 +48907,12 @@ printf("[%d:%s] %s(): ***** DEBUG EXP \n", __LINE__, __FILE__, __func__);
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wc_mldsa_composite_import_private(privKey, privKeyLen, NULL, 0),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_mldsa_composite_import_private(privKey, privKeyLen, importKey, 0), 0);
+    ExpectIntEQ(wc_mldsa_composite_import_private(privKey, privKeyLen, importKey, 0),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wc_mldsa_composite_sign_msg(msg, 32, sig, &sigLen, key, &rng), 0);
 #ifdef WOLFSSL_DILITHIUM_CHECK_KEY
-    ExpectIntEQ(wc_mldsa_composite_check_key(importKey), WC_NO_ERR_TRACE(PUBLIC_KEY_E));
+    ExpectIntEQ(wc_mldsa_composite_check_key(importKey),
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 #endif
 printf("[%d:%s] %s(): ***** DEBUG EXP \n", __LINE__, __FILE__, __func__);
 
@@ -48929,15 +48927,6 @@ printf("[%d:%s] %s(): ***** DEBUG EXP \n", __LINE__, __FILE__, __func__);
     wc_FreeRng(&rng);
 
 printf("[%d:%s] %s(): ***** DEBUG EXP \n", __LINE__, __FILE__, __func__);
-
-    do {
-        FILE * fp = fopen("mldsa_composite_privkey_der.bin", "wb");
-        ExpectNotNull(fp);
-        ExpectIntEQ(fwrite(privKey, 1, privKeyLen, fp), privKeyLen);
-        fclose(fp);
-        // privKeyLen
-
-    } while (0);
 
     XFREE(sig, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(privKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);

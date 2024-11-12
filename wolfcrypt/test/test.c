@@ -46183,6 +46183,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t mldsa_composite_test(void)
 #ifndef WOLFSSL_MLDSA_COMPOSITE_NO_MAKE_KEY
 
     int mldsa_composite_algos[13] = {
+
         // Level 1
         WC_MLDSA44_RSA2048_SHA256,
         WC_MLDSA44_RSAPSS2048_SHA256,
@@ -46205,10 +46206,16 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t mldsa_composite_test(void)
 
     for (int idx = 0; idx < 13; idx++) {
 
-        if ( idx == 0 || idx ==1 || /* idx == 4 || */ idx == 5 || idx == 6 /* || idx==7 || idx == 8*/) continue;
+        printf("***** mldsa_composite_test: idx = %d\n", idx);
 
-        printf("******** mldsa_composite_test: idx = %d\n", idx);
+        if ( idx == 0 || idx ==1 || /* idx == 4 || */ idx == 5 || idx == 6 /* || idx==7 || idx == 8*/) {
+            printf("***** mldsa_composite_test: skipping tests for MLDSA Composite Type %d\n", mldsa_composite_algos[idx]); fflush(stdout);
+            continue;
+        }
+
         ret = mldsa_composite_param_test(mldsa_composite_algos[idx], &rng);
+
+        printf("***** mldsa_composite_test: ret = %d\n", ret); fflush(stdout);
         if (ret != 0) ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     }
 

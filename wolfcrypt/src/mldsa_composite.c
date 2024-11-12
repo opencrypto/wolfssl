@@ -65,14 +65,14 @@
 
 #define MADWOLF_DEBUG0(a)                         \
     do {                                              \
-        printf("[%s():%d] " a "\n", __func__, __LINE__);      \
+        printf("[%s:%d] %s(): " a "\n", __FILE__, __LINE__, __func__);      \
         fflush(stdout);                               \
     } while (0)
 
 
 #define MADWOLF_DEBUG(a, ...)                         \
     do {                                              \
-        printf("[%s():%d] " a "\n", __func__, __LINE__, __VA_ARGS__);      \
+        printf("[%s:%d] %s(): " a "\n", __FILE__, __LINE__, __func__, __VA_ARGS__);      \
         fflush(stdout);                               \
     } while (0)
 
@@ -1386,17 +1386,15 @@ int wc_mldsa_composite_set_type(mldsa_composite_key* key, int type)
 
     /* Validate parameters. */
     if (key == NULL || key->pubKeySet || key->prvKeySet) {
-        MADWOLF_DEBUG("wc_mldsa_composite_set_type failed : pubkeyset = %d, prvkeyset = %d", key->pubKeySet, key->prvKeySet);
         /* Cannot set a type for an existing key */
         ret = BAD_FUNC_ARG;
+    }
+    if (type <= 0) {
+        type = WC_MLDSA44_NISTP256_SHA256;
     }
     if (ret == 0) {
         /* Sets the combination type */
         switch (type) {
-
-            case WC_MLDSA_COMPOSITE_UNDEF: {
-                key->type = WC_MLDSA44_NISTP256_SHA256;
-            } break;
 
             // Level 1
             case WC_MLDSA44_RSAPSS2048_SHA256:
@@ -1420,11 +1418,11 @@ int wc_mldsa_composite_set_type(mldsa_composite_key* key, int type)
             } break;
 
             default:
+                MADWOLF_DEBUG("Invalid ML-DSA composite type: %d", type);
                 ret = BAD_FUNC_ARG;
         }
     }
 
-    MADWOLF_DEBUG("wc_mldsa_composite_set_type returning with %d", ret);
     return ret;
 }
 
@@ -3019,7 +3017,8 @@ MADWOLF_DEBUG0("Exporting ML-DSA Composite Private Key");
 
     /* Validate parameters */
     if ((key == NULL) || (key->prvKeySet != 1) || (out == NULL) || (outLen == NULL || *outLen == 0)) {
-        ret = BAD_FUNC_ARG;
+        // Error in the function arguments
+        return BAD_FUNC_ARG;
     }
 
     // Get the length passed in for checking
