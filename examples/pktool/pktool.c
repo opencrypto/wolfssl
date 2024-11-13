@@ -31,37 +31,36 @@ int wc_PKCS8_info(byte * p8_data, word32 p8_dataSz, word32 * oid) {
     int ret = 0;
     word32 algorSum = 0;
 
-printf("DEBUG\n"); fflush(stdout);
-
     if (!p8_data || !p8_dataSz) {
         printf("Invalid input (p8: %p, sz: %d\n", p8_data, p8_dataSz);
-        return -1;
+        return BAD_FUNC_ARG;
     }
-printf("DEBUG (sz: %d)\n", p8_dataSz); fflush(stdout);
 
     // Creates a copy of the data
     byte * buff = XMALLOC(p8_dataSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (buff == NULL) {
         printf("Memory allocation error\n");
-        return -1;
+        ret = MEMORY_E;
+        goto err;
     }
+
+    // Copies the data
     XMEMCPY(buff, p8_data, p8_dataSz);
-printf("DEBUG\n"); fflush(stdout);
 
     // Removes the PKCS8 header
     if ((ret = ToTraditional_ex(buff, p8_dataSz, &algorSum)) < 0) {
         printf("[%d] Error loading key (err: %d)\n", __LINE__, ret);
-        return -1;
+    } else {
+        // Saves the result in the OID
+        *oid = algorSum;
     }
-printf("DEBUG - SUM: %d\n", algorSum); fflush(stdout);
 
-    // Saves the result in the OID
-    *oid = algorSum;
-printf("DEBUG\n"); fflush(stdout);
+err:
 
-    XFREE(buff, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    return 0;
+    // Frees the buffer
+    if (buff) XFREE(buff, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
+    return ret;
 }
 
 int export_key_p8(void * key, int type, const char * out_file, int format) {
@@ -393,11 +392,12 @@ int load_key_p8(void ** key, int type, const char * key_file, int format) {
     byte * keyData = NULL;
     byte * derPtr = NULL;
     // int    derSz = 0;
-
-    DerBuffer * derBuffer = NULL;
+    byte * buff = NULL;
+    int buff_sz = 0;
 
     word32 algorSum = 0;
 
+    // Input checks
     if (!key) {
         printf("[%d] Missing Key Pointer, aborting.\n", __LINE__);
         return -1;
@@ -428,29 +428,31 @@ int load_key_p8(void ** key, int type, const char * key_file, int format) {
         return -1;
     }
 
-    if (format == 1) {
-        int key_format = PRIVATEKEY_TYPE;
-        ret = wc_PemToDer(keyData, keySz, PRIVATEKEY_TYPE, &derBuffer, NULL, NULL, &key_format);
-        if (ret < 0) {
+    /* Convert PEM to DER. */
+    if (format == 1 || format < 0) {
+
+        // Allocates memory for the buffer (to avoid changing the original key data)
+        buff = (byte *)XMALLOC(keySz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        buff_sz = keySz;
+
+        // Decodes PEM into DER
+        ret = wc_KeyPemToDer(keyData, keySz, buff, buff_sz, NULL);
+
+        // If the format was not explicity required, allow for the DER format
+        if (format == 1 && ret <= 0) {
             printf("[%d] Error loading key (err: %d)\n", __LINE__, ret);
-            return -1;
+            return ret;
         }
 
-        printf("Key Format: %d\n", key_format); fflush(stdout);
+        if (ret > 0) {
+            derPtr = buff;
+            keySz  = buff_sz;
 
-        // derSz = derBuffer->length;
-        // derPtr = (byte *)XMALLOC(derSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        // if (derPtr == NULL) {
-        //     printf("[%d]]Error loading key\n", __LINE__);
-        //     return -1;
-        // }
-        // ret = wc_PemToDer(keyData, keySz, PRIVATEKEY_TYPE, &derBuffer, NULL, NULL, &key_format);
-        // if (ret < 0) {
-        //     printf("[%d] Error loading key\n", __LINE__);
-        //     return -1;
-        // }
-        derPtr = derBuffer->buffer;
-        keySz = derBuffer->length;
+            XFREE(keyData, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        } else {
+            derPtr = keyData;
+        }
+
     } else {
         derPtr = keyData;
     }
@@ -462,21 +464,11 @@ int load_key_p8(void ** key, int type, const char * key_file, int format) {
     char * pubKey = NULL;
     word32 pubKeySz = 0;
 
-    if ((ret = wc_PKCS8_info(keyData, keySz, &algorSum)) < 0) {
+    // Retrieves the PKCS8 information
+    if ((ret = wc_PKCS8_info(derPtr, keySz, &algorSum)) < 0) {
         printf("[%d] Error loading key (sz: %d, sum: %d, err: %d)\n", __LINE__, keySz, algorSum, ret);
         return -1;
     }
-
-    // // Removes the PKCS8 header
-    // ret = ToTraditionalInline_ex2(derBuffer->buffer, 
-    //                               &idx,
-    //                               derBuffer->length,
-    //                               &algorSum,
-    //                               &eccOid);
-    // if (ret < 0) {
-    //     printf("[%d] Error loading key\n", __LINE__);
-    //     return -1;
-    // }
 
     switch (algorSum) {
 #ifndef NO_RSA
@@ -545,9 +537,20 @@ int load_key_p8(void ** key, int type, const char * key_file, int format) {
     case ML_DSA_LEVEL2k:
         MlDsaKey * mlDsaKey = (MlDsaKey *)XMALLOC(sizeof(MlDsaKey), NULL, DYNAMIC_TYPE_PRIVATE_KEY);
         XMEMSET(mlDsaKey, 0, sizeof(MlDsaKey));
+
+        // Initializes the key and sets the expected level
+        wc_dilithium_init(mlDsaKey);
+        if (algorSum == ML_DSA_LEVEL5k) {
+            wc_dilithium_set_level(mlDsaKey, 5);
+        } else if (algorSum == ML_DSA_LEVEL3k) {
+            wc_dilithium_set_level(mlDsaKey, 3);
+        } else if (algorSum == ML_DSA_LEVEL2k) {
+            wc_dilithium_set_level(mlDsaKey, 2);
+        }
+
+        // Decodes the key
         if ((ret = wc_Dilithium_PrivateKeyDecode(derPtr, &idx, mlDsaKey, keySz)) < 0) {
-            printf("[%d] Error loading key\n", __LINE__);
-            return -1;
+            return ret;
         }
         break;
 #endif
@@ -579,23 +582,24 @@ int load_key_p8(void ** key, int type, const char * key_file, int format) {
     case MLDSA87_NISTP384k:
     case MLDSA87_ED448k:
         int comp_type = 0;
-        mldsa_composite_key * mldsaKey = NULL;
-        
-        mldsaKey = (mldsa_composite_key *)XMALLOC(sizeof(mldsa_composite_key), NULL, DYNAMIC_TYPE_PRIVATE_KEY);
-        if (mldsaKey == NULL) {
-            printf("[%d] Error loading key\n", __LINE__);
-            return -1;
-        }
+        mldsa_composite_key * mldsaCompKey = NULL;
 
-        XMEMSET(mldsaKey, 0, sizeof(mldsa_composite_key));
-
+        // Gets the composite type
         if (wc_mldsa_composite_keytype_to_type(algorSum, (enum mldsa_composite_type *)&comp_type) < 0) {
-            printf("[%d] Error getting composite type\n", __LINE__);
-            return -1;
+            return ALGO_ID_E;
         }
-        if ((ret = wc_MlDsaComposite_PrivateKeyDecode(derPtr, &idx, mldsaKey, keySz, comp_type)) < 0) {
+
+        // Allocates the memory for the key        
+        mldsaCompKey = (mldsa_composite_key *)XMALLOC(sizeof(mldsa_composite_key), NULL, DYNAMIC_TYPE_PRIVATE_KEY);
+        if (mldsaCompKey == NULL) {
             printf("[%d] Error loading key\n", __LINE__);
-            return -1;
+            return MEMORY_E;
+        }
+        XMEMSET(mldsaCompKey, 0, sizeof(mldsa_composite_key));
+
+        // Decodes the key
+        if ((ret = wc_MlDsaComposite_PrivateKeyDecode(derPtr, &idx, mldsaCompKey, keySz, comp_type)) < 0) {
+            return ret;
         }
         break;
 #endif
@@ -611,8 +615,6 @@ int load_key_p8(void ** key, int type, const char * key_file, int format) {
     (void)pubKey;
     (void)pubKeySz;
     (void)type;
-
-    exit(22);
 
     return 0;
 }
@@ -1050,7 +1052,7 @@ int main(int argc, char** argv) {
     int param = ECC_SECP256R1;
     int cmd = 0; /* 0 = pkey, 1 = req, 2 = cert */
 
-    int in_format = 1; /* 0 = DER, 1 = PEM */
+    int in_format = -1; /* -1 = ANY, 0 = DER, 1 = PEM */
     int out_format = 1; /* 0 = DER, 1 = PEM */
 
     void * keyPtr = NULL; /* pointer to the key */
