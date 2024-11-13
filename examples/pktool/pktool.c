@@ -2,27 +2,69 @@
 
 #include "pktool.h"
 
-static void usage(void) {
+void usage(void) {
 
     printf("\n");
     printf("\n    USAGE: pktool <CMD> [ options ]\n\n");
     printf("Where <CMD> is one of the following:\n");
-    printf(" pkey .............: generate a private key\n");
-    printf(" req ..............: generate a certificate request\n");
-    printf(" x509 .............: generate a certificate\n\n");
+    printf(" genpkey .............: generate a private key\n");
+    printf(" genreq ..............: generate a certificate request\n");
+    printf(" gencert .............: generate a certificate\n\n");
     printf("Where [ options ] are:\n");
-    printf(" -algor <name> ....: use the named algorithm (e.g., rsa, ec, mldsa44, falcon-512, mldsa65-ed25519)\n");
-    printf(" -curve <name> ....: use the named curve (e.g., nistp256, nistp384, nistp521, bpool256, bpool384, bpool512)\n");
+
+    printf(" -in <file> .......: input file\n");
     printf(" -out <file> ......: output file\n");
     printf(" -inform <format> .: input format (DER, PEM)\n");
     printf(" -outform <format> : output format (DER, PEM)\n");
+    printf(" -algor <name> ....: use the named algorithm (e.g., rsa, ec, mldsa44, mldsa65-ed25519)\n");
+    printf(" -curve <name> ....: use the named curve (e.g., nistp256, nistp384, nistp521, bpool256, bpool384, bpool512)\n");
+    printf(" -bits <num> ......: number of bits in the key (RSA only)\n");
+
     printf(" -v ...............: verbose\n");
     printf(" -d ...............: debug\n");
     printf(" -h ...............: help\n");
     printf("\n");
 }
 
-static int export_key_p8(void * key, int type, const char * out, int format) {
+int wc_PKCS8_info(byte * p8_data, word32 p8_dataSz, word32 * oid) {
+
+    int ret = 0;
+    word32 algorSum = 0;
+
+printf("DEBUG\n"); fflush(stdout);
+
+    if (!p8_data || !p8_dataSz) {
+        printf("Invalid input (p8: %p, sz: %d\n", p8_data, p8_dataSz);
+        return -1;
+    }
+printf("DEBUG (sz: %d)\n", p8_dataSz); fflush(stdout);
+
+    // Creates a copy of the data
+    byte * buff = XMALLOC(p8_dataSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (buff == NULL) {
+        printf("Memory allocation error\n");
+        return -1;
+    }
+    XMEMCPY(buff, p8_data, p8_dataSz);
+printf("DEBUG\n"); fflush(stdout);
+
+    // Removes the PKCS8 header
+    if ((ret = ToTraditional_ex(buff, p8_dataSz, &algorSum)) < 0) {
+        printf("[%d] Error loading key (err: %d)\n", __LINE__, ret);
+        return -1;
+    }
+printf("DEBUG - SUM: %d\n", algorSum); fflush(stdout);
+
+    // Saves the result in the OID
+    *oid = algorSum;
+printf("DEBUG\n"); fflush(stdout);
+
+    XFREE(buff, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    return 0;
+
+}
+
+int export_key_p8(void * key, int type, const char * out_file, int format) {
     int ret = 0;
     int outSz = 0;
 
@@ -49,8 +91,6 @@ static int export_key_p8(void * key, int type, const char * out, int format) {
         return -1;
     }
 
-printf("[%s:%d] Exporting key\n", __FILE__, __LINE__); fflush(stdout);
-
     switch (type) {
 #ifndef NO_RSA
     case RSAk:
@@ -74,14 +114,10 @@ printf("[%s:%d] Exporting key\n", __FILE__, __LINE__); fflush(stdout);
         // Export in PKCS8 format
         // ----------------------
 
-        printf("[%s:%d] Exporting key in PKCS8 format (derPtr: %p, derSz: %d)\n", __FILE__, __LINE__, derPtr, derSz); fflush(stdout);
-
         if ((ret = wc_CreatePKCS8Key(NULL, (word32 *)&p8_outSz, derPtr, derSz, type, NULL, 0)) < 0 && ret != LENGTH_ONLY_E) {
             printf("Error creating PKCS8 key (%d)\n", ret);
             return -1;
         }
-
-        printf("[%s:%d] PKCS8 key size: %d\n", __FILE__, __LINE__, p8_outSz); fflush(stdout);
 
         p8_data = (byte *)XMALLOC(p8_outSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         if (p8_data == NULL) {
@@ -97,8 +133,6 @@ printf("[%s:%d] Exporting key\n", __FILE__, __LINE__); fflush(stdout);
             printf("Error exporting key\n");
             return -1;
         }
-
-        printf("[%s:%d] Exported key in PKCS8 format (ptr: %p, sz: %d)\n", __FILE__, __LINE__, keyData, outSz); fflush(stdout);
 
         break;
 #endif
@@ -130,9 +164,6 @@ printf("[%s:%d] Exporting key\n", __FILE__, __LINE__); fflush(stdout);
         // Export in PKCS8 format
         // ----------------------
 
-        printf("[%s:%d] Exporting key in PKCS8 format (derPtr: %p, derSz: %d)\n", __FILE__, __LINE__, derPtr, derSz); fflush(stdout);
-        printf("[%s:%d] Exporting key oidSum: %d (type: %d, ecdsak: %d)\n", __FILE__, __LINE__, type, ((ecc_key*)key)->dp->oidSum, ECDSAk); fflush(stdout);
-
         byte * curveOid = NULL;
         word32 curveOidSz = 0;
         if ((ret = wc_ecc_get_oid(((ecc_key*)key)->dp->oidSum, (const byte **)&curveOid, &curveOidSz)) < 0){
@@ -144,8 +175,6 @@ printf("[%s:%d] Exporting key\n", __FILE__, __LINE__); fflush(stdout);
             printf("Error creating PKCS8 key (%d)\n", ret);
             return -1;
         }
-
-        printf("[%s:%d] PKCS8 key size: %d\n", __FILE__, __LINE__, p8_outSz); fflush(stdout);
 
         p8_data = (byte *)XMALLOC(p8_outSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         if (p8_data == NULL) {
@@ -161,10 +190,6 @@ printf("[%s:%d] Exporting key\n", __FILE__, __LINE__); fflush(stdout);
             printf("Error exporting key\n");
             return -1;
         }
-
-        printf("[%s:%d] Exported key in PKCS8 format (ptr: %p, sz: %d)\n", __FILE__, __LINE__, p8_data, p8_outSz); fflush(stdout);
-
-
         break;
 #endif
 #ifdef HAVE_ED25519
@@ -191,32 +216,8 @@ printf("[%s:%d] Exporting key\n", __FILE__, __LINE__); fflush(stdout);
             return -1;
         }
 
-        // if ((ret = wc_CreatePKCS8Key(NULL, (word32 *)&p8_outSz, derPtr, derSz, ED25519k, NULL, 0)) < 0 && ret != LENGTH_ONLY_E) {
-        //     printf("Ed25519: Error creating PKCS8 key (%d)\n", ret);
-        //     return -1;
-        // }
-
-        // printf("[%s:%d] Ed25519: PKCS8 key size: %d\n", __FILE__, __LINE__, p8_outSz); fflush(stdout);
-
-        // p8_data = (byte *)XMALLOC(p8_outSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        // if (p8_data == NULL) {
-        //     printf("Error exporting key\n");
-        //     return -1;
-        // }
-        // if ((ret = wc_CreatePKCS8Key(p8_data, (word32 *)&p8_outSz, derPtr, derSz, ED25519k, NULL, 0)) < 0) {
-        //     printf("Ed25519: Error creating PKCS8 key (%d)\n", ret);
-        //     return -1;
-        // }
-
-        // if (ret < 0) {
-        //     printf("Error exporting key\n");
-        //     return -1;
-        // }
-
         p8_data = derPtr;
         p8_outSz = derSz;
-
-        printf("[%s:%d] Ed25519: Exported key in PKCS8 format (ptr: %p, sz: %d)\n", __FILE__, __LINE__, p8_data, p8_outSz); fflush(stdout);
 
         break;
 #endif
@@ -248,7 +249,6 @@ printf("[%s:%d] Exporting key\n", __FILE__, __LINE__); fflush(stdout);
     case ML_DSA_LEVEL5k:
     case ML_DSA_LEVEL3k:
     case ML_DSA_LEVEL2k:
-        printf("Exporting Dilithium key\n");
         derSz = wc_Dilithium_PrivateKeyToDer((MlDsaKey *)key, NULL, sizeof(derPtr));
         // derSz = wc_Dilithium_PrivateKeyToDer((MlDsaKey *)key, NULL, sizeof(derPtr));
         if (derSz < 0) {
@@ -268,7 +268,6 @@ printf("[%s:%d] Exporting key\n", __FILE__, __LINE__); fflush(stdout);
         }
         byte dilithium_level = 0;
         wc_dilithium_get_level((MlDsaKey *)key, &dilithium_level);
-        printf("Exported key in DER format (size: %d) (level: %d)\n", derSz, dilithium_level);
         p8_data = derPtr;
         p8_outSz = derSz;
         break;
@@ -363,7 +362,7 @@ printf("[%s:%d] Exporting key\n", __FILE__, __LINE__); fflush(stdout);
 
         if (outSz <= 0) {
            printf("Error exporting key\n");
-            return -1;
+           return -1;
         }
     }
 
@@ -371,10 +370,8 @@ printf("[%s:%d] Exporting key\n", __FILE__, __LINE__); fflush(stdout);
     // Write to file
     // -------------
 
-    printf("[%s:%d] Writing key to file (%p, %d)\n", __FILE__, __LINE__, keyData, outSz); fflush(stdout);
-
-    if (out) {
-        file = fopen(out, "wb");
+    if (out_file) {
+        file = fopen(out_file, "wb");
         if (file) {
             ret = (int)fwrite(keyData, 1, outSz, file);
             fclose(file);
@@ -384,7 +381,238 @@ printf("[%s:%d] Exporting key\n", __FILE__, __LINE__); fflush(stdout);
         ret = write(fd, keyData, outSz);
     }
 
-    printf("[%s:%d] Key written to file (ret: %d)\n", __FILE__, __LINE__, ret); fflush(stdout);
+    return 0;
+}
+
+int load_key_p8(void ** key, int type, const char * key_file, int format) {
+
+    int ret = 0;
+    int keySz = 0;
+
+    FILE * file = NULL;
+    byte * keyData = NULL;
+    byte * derPtr = NULL;
+    // int    derSz = 0;
+
+    DerBuffer * derBuffer = NULL;
+
+    word32 algorSum = 0;
+
+    if (!key) {
+        printf("[%d] Missing Key Pointer, aborting.\n", __LINE__);
+        return -1;
+    }
+
+    file = fopen(key_file, "rb");
+    if (file == NULL) {
+        printf("[%d] Error opening file\n", __LINE__);
+        return -1;
+    }
+
+    fseek(file, 0, SEEK_END);
+    keySz = ftell(file);
+
+    keyData = (byte *)XMALLOC(keySz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (keyData == NULL) {
+        printf("[%d] Error allocating memory for the key\n", __LINE__);
+        fclose(file);
+        return -1;
+    }
+
+    fseek(file, 0, SEEK_SET);
+    ret = (int)fread(keyData, 1, keySz, file);
+    fclose(file);
+
+    if (ret != keySz) {
+        printf("[%d] Error reading key\n", __LINE__);
+        return -1;
+    }
+
+    if (format == 1) {
+        int key_format = PRIVATEKEY_TYPE;
+        ret = wc_PemToDer(keyData, keySz, PRIVATEKEY_TYPE, &derBuffer, NULL, NULL, &key_format);
+        if (ret < 0) {
+            printf("[%d] Error loading key (err: %d)\n", __LINE__, ret);
+            return -1;
+        }
+
+        printf("Key Format: %d\n", key_format); fflush(stdout);
+
+        // derSz = derBuffer->length;
+        // derPtr = (byte *)XMALLOC(derSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        // if (derPtr == NULL) {
+        //     printf("[%d]]Error loading key\n", __LINE__);
+        //     return -1;
+        // }
+        // ret = wc_PemToDer(keyData, keySz, PRIVATEKEY_TYPE, &derBuffer, NULL, NULL, &key_format);
+        // if (ret < 0) {
+        //     printf("[%d] Error loading key\n", __LINE__);
+        //     return -1;
+        // }
+        derPtr = derBuffer->buffer;
+        keySz = derBuffer->length;
+    } else {
+        derPtr = keyData;
+    }
+
+    word32 idx = 0;
+    char * privKey = NULL;
+    word32 privKeySz = 0;
+
+    char * pubKey = NULL;
+    word32 pubKeySz = 0;
+
+    if ((ret = wc_PKCS8_info(keyData, keySz, &algorSum)) < 0) {
+        printf("[%d] Error loading key (sz: %d, sum: %d, err: %d)\n", __LINE__, keySz, algorSum, ret);
+        return -1;
+    }
+
+    // // Removes the PKCS8 header
+    // ret = ToTraditionalInline_ex2(derBuffer->buffer, 
+    //                               &idx,
+    //                               derBuffer->length,
+    //                               &algorSum,
+    //                               &eccOid);
+    // if (ret < 0) {
+    //     printf("[%d] Error loading key\n", __LINE__);
+    //     return -1;
+    // }
+
+    switch (algorSum) {
+#ifndef NO_RSA
+    case RSAk:
+    case RSAPSSk:
+        RsaKey * rsaKey = (RsaKey *)XMALLOC(sizeof(RsaKey), NULL, DYNAMIC_TYPE_PRIVATE_KEY);
+        ret = wc_RsaPrivateKeyDecode(derPtr, &idx, rsaKey, keySz);
+        if (ret != 0) {
+            XFREE(rsaKey, NULL, DYNAMIC_TYPE_PRIVATE_KEY);
+            printf("[%d] Error loading key\n", __LINE__);
+            return -1;
+        }
+        *key = rsaKey;
+        break;
+#endif
+#ifdef HAVE_ECC
+    case ECDSAk:
+
+        ecc_key * ecKey = (ecc_key *)XMALLOC(sizeof(ecc_key), NULL, DYNAMIC_TYPE_PRIVATE_KEY);
+        XMEMSET(ecKey, 0, sizeof(ecc_key));
+
+        if (wc_EccPrivateKeyDecode(derPtr, &idx, ecKey, keySz) < 0) {
+            printf("[%d] Error loading key\n", __LINE__);
+            return -1;
+        }
+        // Checks the ECDSA curve (P-256)
+        if (wc_ecc_get_curve_id(ecKey->idx) < 0) {
+            printf("Cannot retrieve the curve Id, aborting (%d)", ecKey->idx);
+            return BAD_STATE_E;
+        }
+
+        printf("Curve ID: %d\n", ecKey->idx);
+
+        // ret = wc_ecc_import_private_key(derPtr, keySz, (ecc_key *)ecKey, );
+        // if (ret != 0) {
+        //     printf("[%d] Error loading key\n", __LINE__);
+        //     return -1;
+        // }
+        break;
+#endif
+#ifdef HAVE_ED25519
+    case ED25519k:
+        ed25519_key * edKey = (ed25519_key *)XMALLOC(sizeof(ed25519_key), NULL, DYNAMIC_TYPE_PRIVATE_KEY);
+        XMEMSET(edKey, 0, sizeof(ed25519_key));
+
+        if ((ret = wc_Ed25519PrivateKeyDecode(derPtr, &idx, edKey, keySz)) < 0) {
+            printf("[%d] Error loading key\n", __LINE__);
+            return -1;
+        }
+        break;
+#endif
+#ifdef HAVE_ED448
+    case ED448k:
+        ed448_key * ed448Key = (ed448_key *)XMALLOC(sizeof(ed448_key), NULL, DYNAMIC_TYPE_PRIVATE_KEY);
+        XMEMSET(ed448Key, 0, sizeof(ed448_key));
+
+        if ((ret = wc_Ed448PrivateKeyDecode(derPtr, &idx, ed448Key, keySz)) < 0) {
+            printf("[%d] Error loading key\n", __LINE__);
+            return -1;
+        }
+        break;
+#endif
+#ifdef HAVE_DILITHIUM
+    case ML_DSA_LEVEL5k:
+    case ML_DSA_LEVEL3k:
+    case ML_DSA_LEVEL2k:
+        MlDsaKey * mlDsaKey = (MlDsaKey *)XMALLOC(sizeof(MlDsaKey), NULL, DYNAMIC_TYPE_PRIVATE_KEY);
+        XMEMSET(mlDsaKey, 0, sizeof(MlDsaKey));
+        if ((ret = wc_Dilithium_PrivateKeyDecode(derPtr, &idx, mlDsaKey, keySz)) < 0) {
+            printf("[%d] Error loading key\n", __LINE__);
+            return -1;
+        }
+        break;
+#endif
+// #ifdef HAVE_FALCON
+//     case FALCON_LEVEL1k:
+//     case FALCON_LEVEL5k:
+//         falcon_key * falconKey = (falcon_key *)XMALLOC(sizeof(falcon_key), NULL, DYNAMIC_TYPE_PRIVATE_KEY);
+//         XMEMSET(falconKey, 0, sizeof(falcon_key *));
+//         if ((ret = wc_FalconPrivateKeyDecode(derPtr, idx, falconKey, keySz)) < 0) {
+//             printf("[%d] Error loading key\n", __LINE__);
+//             return -1;
+//         }
+//         break;
+// #endif
+#ifdef HAVE_MLDSA_COMPOSITE
+    case MLDSA44_RSA2048k:
+    case MLDSA44_RSAPSS2048k:
+    case MLDSA44_NISTP256k:
+    case MLDSA44_BPOOL256k:
+    case MLDSA44_ED25519k:
+
+    case MLDSA65_ED25519k:
+    case MLDSA65_RSA3072k:
+    case MLDSA65_RSAPSS3072k:
+    case MLDSA65_NISTP256k:
+    case MLDSA65_BPOOL256k:
+
+    case MLDSA87_BPOOL384k:
+    case MLDSA87_NISTP384k:
+    case MLDSA87_ED448k:
+        int comp_type = 0;
+        mldsa_composite_key * mldsaKey = NULL;
+        
+        mldsaKey = (mldsa_composite_key *)XMALLOC(sizeof(mldsa_composite_key), NULL, DYNAMIC_TYPE_PRIVATE_KEY);
+        if (mldsaKey == NULL) {
+            printf("[%d] Error loading key\n", __LINE__);
+            return -1;
+        }
+
+        XMEMSET(mldsaKey, 0, sizeof(mldsa_composite_key));
+
+        if (wc_mldsa_composite_keytype_to_type(algorSum, (enum mldsa_composite_type *)&comp_type) < 0) {
+            printf("[%d] Error getting composite type\n", __LINE__);
+            return -1;
+        }
+        if ((ret = wc_MlDsaComposite_PrivateKeyDecode(derPtr, &idx, mldsaKey, keySz, comp_type)) < 0) {
+            printf("[%d] Error loading key\n", __LINE__);
+            return -1;
+        }
+        break;
+#endif
+        default:
+            return BAD_FUNC_ARG;
+    }
+
+    if (derPtr) XFREE(derPtr, NULL, DYNAMIC_TYPE_PRIVATE_KEY);
+
+    (void)idx;
+    (void)privKey;
+    (void)privKeySz;
+    (void)pubKey;
+    (void)pubKeySz;
+    (void)type;
+
+    exit(22);
 
     return 0;
 }
@@ -602,7 +830,7 @@ printf("[%s:%d] Exporting key\n", __FILE__, __LINE__); fflush(stdout);
 //     return ret;
 // }
 
-static int gen_keypair(void ** key, int type, int param, const char * out) {
+int gen_keypair(void ** key, int type, int param, const char * out_file) {
 
     int ret;
     int outSz = 0;
@@ -638,7 +866,7 @@ static int gen_keypair(void ** key, int type, int param, const char * out) {
         // buffer to hold the key in DER format
 
     if (type < 0) {
-        printf("Invalid key type (type: %d, out: %p)\n", type, out);
+        printf("Invalid key type (type: %d, out: %p)\n", type, out_file);
         return -1;
     } else if (!key) {
         printf("Missing function parameter (key)\n");
@@ -658,7 +886,7 @@ static int gen_keypair(void ** key, int type, int param, const char * out) {
         ret = wc_InitDsaKey(&dsaKey, NULL);
         break;
 #endif
-#ifndef NO_RSA
+#ifdef HAVE_RSA
     case RSAPSSk:
     case RSAk:
         keyPtr = &rsaKey;
@@ -678,15 +906,16 @@ static int gen_keypair(void ** key, int type, int param, const char * out) {
         int keySz = 32;
         if (param <= 0)
             param = ECC_SECP256R1;
-        if (ret == 0)
-        if ((keySz = wc_ecc_get_curve_size_from_id(param)) < 0)
-            ret = keySz;
-        if (ret == 0)
-            ret = wc_ecc_make_key_ex(&rng, keySz, keyPtr, param);
-        if (ret == 0)
-            outSz = wc_EccKeyToDer(&ecKey, der, sizeof(der));
-        if (outSz < 0)
-            ret = outSz;
+        if (ret == 0) {
+            if ((keySz = wc_ecc_get_curve_size_from_id(param)) < 0)
+                ret = keySz;
+            if (ret == 0)
+                ret = wc_ecc_make_key_ex(&rng, keySz, keyPtr, param);
+            if (ret == 0)
+                outSz = wc_EccKeyToDer(&ecKey, der, sizeof(der));
+            if (outSz < 0)
+                ret = outSz;
+        }
         break;
 #endif
 #ifdef HAVE_ED25519
@@ -717,7 +946,6 @@ static int gen_keypair(void ** key, int type, int param, const char * out) {
     case ML_DSA_LEVEL2k:
     case ML_DSA_LEVEL3k:
     case ML_DSA_LEVEL5k:
-        printf("Generating Dilithium keypair\n");
         keyPtr = &mldsaKey;
         ret = wc_dilithium_init(&mldsaKey);
         if (ret == 0) {
@@ -736,7 +964,6 @@ static int gen_keypair(void ** key, int type, int param, const char * out) {
             outSz = wc_Dilithium_PrivateKeyToDer(&mldsaKey, der, sizeof(der));
         if (outSz < 0)
             ret = outSz;
-        printf("Generating Dilithium keypair (ret = %d, size: %d)\n", ret, outSz);
         break;
 #endif
 
@@ -814,17 +1041,26 @@ int main(int argc, char** argv) {
     enum Key_Sum keySum = ML_DSA_LEVEL2k;
     int verbose = 0;
     int debug = 0;
-    int generate = 0;
-    char * out = NULL;
-    char * in = NULL;
+    
+    char * out_file = NULL;
+    char * in_file = NULL;
+
     int i = 1;
+    
     int param = ECC_SECP256R1;
     int cmd = 0; /* 0 = pkey, 1 = req, 2 = cert */
 
-    int in_format = 0; /* 0 = DER, 1 = PEM */
-    int out_format = 0; /* 0 = DER, 1 = PEM */
+    int in_format = 1; /* 0 = DER, 1 = PEM */
+    int out_format = 1; /* 0 = DER, 1 = PEM */
 
     void * keyPtr = NULL; /* pointer to the key */
+    void * altKeyPtr = NULL; /* pointer to the alt Key */
+
+    char * key_file = NULL; /* key file */
+    char * csr_file = NULL; /* csr file */
+    char * cert_file = NULL; /* cert file */
+    char * altkey_file = NULL; /* alt key file */
+    char * ca_file = NULL; /* ca file */
 
     // Gets the CMD
     if (argc < 2) {
@@ -832,11 +1068,11 @@ int main(int argc, char** argv) {
         return 1;
     }
 
-    if (!XSTRNCMP(argv[i], "pkey", 4)) {
+    if (!XSTRNCMP(argv[i], "genpkey", 4)) {
         cmd = 0;
-    } else if (!XSTRNCMP(argv[i], "req", 3)) {
+    } else if (!XSTRNCMP(argv[i], "genreq", 3)) {
         cmd = 1;
-    } else if (!XSTRNCMP(argv[i], "cert", 4)) {
+    } else if (!XSTRNCMP(argv[i], "gencert", 4)) {
         cmd = 2;
     } else {
         usage();
@@ -851,8 +1087,6 @@ int main(int argc, char** argv) {
             verbose = 1;
         } else if (!XSTRNCMP(argv[i], "-d", 2)) {
             debug = 1;
-        } else if (!XSTRNCMP(argv[i], "-new", 4)) {
-            generate = 1;
         } else if (!XSTRNCMP(argv[i], "-inform", 7)) {
             i++;
             if (!XSTRNCMP(argv[i], "DER", 3) || 
@@ -882,7 +1116,8 @@ int main(int argc, char** argv) {
         } else if (XSTRNCMP(argv[i], "-h", 2) == 0) {
             usage();
             return 1;
-        } else if (XSTRNCMP(argv[i], "-algor", 6) == 0) {
+        } else if ((XSTRNCMP(argv[i], "-algorithm", 10) == 0) ||
+                   (XSTRNCMP(argv[i], "-algor", 6) == 0)) {
             i++;
             keySum = wc_KeySum_get(argv[i]);
             if ( keySum < 0) {
@@ -913,7 +1148,6 @@ int main(int argc, char** argv) {
                 printf("Invalid curve type\n");
                 return 1;
             }
-            printf("Algorithm type: %d (%s)\n", keySum, wc_KeySum_name(keySum));
         } else if (XSTRNCMP(argv[i], "-bits", 5) == 0) {
             i++;
             if ((param = atoi(argv[i])) <= 0) {
@@ -930,15 +1164,48 @@ int main(int argc, char** argv) {
                 return 1;
             }
 
-            printf("Algorithm type: %d (%s) (param: %d)\n", keySum, wc_KeySum_name(keySum), param);
-        } else if (XSTRNCMP(argv[i], "-out", 4) == 0) {
+        } else if (XSTRNCMP(argv[i], "-key", 4) == 0) {
             i++;
             if (i >= argc) {
-                printf("Missing output file\n\n");
+                printf("Missing keypair filename\n\n");
                 usage();
                 return 1;
             }
-            out = argv[i];
+            key_file = argv[i];
+        } else if (XSTRNCMP(argv[i], "-altkey", 7) == 0) {
+            i++;
+            if (i >= argc) {
+                printf("Missing alt keypair filename\n\n");
+                usage();
+                return 1;
+            }
+            altkey_file = argv[i];
+        } else if (XSTRNCMP(argv[i], "-req", 4) == 0) {
+            i++;
+            if (i >= argc) {
+                printf("Missing request filename\n\n");
+                usage();
+                return 1;
+            }
+            csr_file = argv[i];
+        } else if (XSTRNCMP(argv[i], "-cer", 4) == 0) {
+            i++;
+            if (i >= argc) {
+                printf("Missing certificate filename\n\n");
+                usage();
+                return 1;
+            }
+            cert_file = argv[i];
+            wolfSSL_X509_load_certificate_file(cert_file, WOLFSSL_FILETYPE_PEM);
+            
+        } else if (XSTRNCMP(argv[i], "-ca", 3) == 0) {
+            i++;
+            if (i >= argc) {
+                printf("Missing CA filename\n\n");
+                usage();
+                return 1;
+            }
+            ca_file = argv[i];
         } else if (XSTRNCMP(argv[i], "-in", 3) == 0) {
             i++;
             if (i >= argc) {
@@ -946,7 +1213,15 @@ int main(int argc, char** argv) {
                 usage();
                 return 1;
             }
-            in = argv[i];
+            in_file = argv[i];
+        } else if (XSTRNCMP(argv[i], "-out", 4) == 0) {
+            i++;
+            if (i >= argc) {
+                printf("Missing output filename\n\n");
+                usage();
+                return 1;
+            }
+            out_file = argv[i];
         } else {
             printf("\n     ERROR: option \"%s\" was not recognized.\n\n", argv[i]);
             break;
@@ -956,37 +1231,42 @@ int main(int argc, char** argv) {
 
     switch (cmd) {
         // PKEY
-        case 0:
-            if (generate) {
-                printf("Generating keypair (type = %d)\n", keySum);
-                if (gen_keypair(&keyPtr, keySum, param, out) < 0) {
-                    printf("Error generating keypair\n");
-                    return 1;
-                }
-                printf("Exporting keypair\n");
-                if (export_key_p8(keyPtr, keySum, out, out_format) < 0) {
-                    printf("Error exporting keypair\n");
-                    return 1;
-                }
-            } else {
-                printf("Loading keypair\n");
-                (void)in;
-            //     if (load_key_p8(&keyPtr, keySum, in, in_format) < 0) {
-            //         printf("Error loading keypair\n");
-            //         return 1;
-            //     }
+        case 0: {
+            if (gen_keypair(&keyPtr, keySum, param, out_file) < 0) {
+                printf("Error generating keypair\n");
+                return 1;
             }
-            break;
+            if (export_key_p8(keyPtr, keySum, out_file, out_format) < 0) {
+                printf("Error exporting keypair\n");
+                return 1;
+            }
+        } break;
 
         // Gen CSR
-        case 1:
+        case 1: {
+            if (in_file == NULL && key_file == NULL) {
+                printf("Missing keypair or request filename\n");
+                return 1;
+            } else if (key_file == NULL) {
+                key_file = in_file;
+            }
+            if (load_key_p8(&keyPtr, keySum, key_file, in_format) < 0) {
+                printf("Error loading keypair\n");
+                return 1;
+            }
+            if (altkey_file) {
+                if (load_key_p8(&altKeyPtr, keySum, altkey_file, in_format) < 0) {
+                    printf("Error loading alt keypair\n");
+                    return 1;
+                }
+            }
             return -1;
-            break;
+        } break;
 
         // Gen CERT
-        case 2:
+        case 2: {
             return -1;
-            break;
+        } break;
 
         default:
             return -1;
@@ -995,6 +1275,8 @@ int main(int argc, char** argv) {
     (void)debug;
     (void)verbose;
     (void)in_format;
+    (void)ca_file;
+    (void)csr_file;
 
 #endif
 }

@@ -7430,6 +7430,41 @@ int ToTraditionalInline_ex2(const byte* input, word32* inOutIdx, word32 sz,
         #endif
             /* DSAk not supported. */
             /* Falcon, Dilithium and Sphincs not supported. */
+
+            // ML-DSA
+            case ML_DSA_LEVEL2k:
+            case ML_DSA_LEVEL3k:
+            case ML_DSA_LEVEL5k:
+
+            // Falcon
+            case FALCON_LEVEL1k:
+            case FALCON_LEVEL5k:
+
+            // Composite - Level 1
+            case MLDSA44_NISTP256k:
+            case MLDSA44_RSA2048k:
+            case MLDSA44_RSAPSS2048k:
+            case MLDSA44_BPOOL256k:
+            case MLDSA44_ED25519k:
+
+            // Composite - Level 3
+            case MLDSA65_RSAPSS3072k:
+            case MLDSA65_NISTP256k:
+            case MLDSA65_RSA3072k:
+            case MLDSA65_RSAPSS4096k:
+            case MLDSA65_RSA4096k:
+            case MLDSA65_BPOOL256k:
+
+            // Composite - Level 5
+            case MLDSA87_BPOOL384k:
+            case MLDSA87_NISTP384k:
+            case MLDSA87_ED448k:
+                /* Neither NULL item nor OBJECT_ID item allowed. */
+                if ((dataASN[PKCS8KEYASN_IDX_PKEY_ALGO_NULL].tag != 0) ||
+                    (dataASN[PKCS8KEYASN_IDX_PKEY_ALGO_OID_CURVE].tag != 0)) {
+                    ret = ASN_PARSE_E;
+                }
+
             /* Ignore OID lookup failures. */
             default:
                 break;
