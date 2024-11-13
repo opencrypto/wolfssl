@@ -1279,6 +1279,8 @@ int main(int argc, char** argv) {
     (void)in_format;
     (void)ca_file;
     (void)csr_file;
+    (void)argv;
+    (void)argc;
 
 #endif
 }
