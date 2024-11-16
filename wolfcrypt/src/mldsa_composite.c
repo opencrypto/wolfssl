@@ -2700,9 +2700,17 @@ int wc_mldsa_composite_import_private(const byte* priv, word32 privSz,
 
     MADWOLF_DEBUG("Parsed Buffer => mldsa: %d, other: %d", mldsa_BufferLen, other_BufferLen);
 
-#if defined(HAVE_MLDSA_COMPOSITE_DRAFT_2)
-    // Import PKCS8 ML-DSA Component
     idx = mldsa_BufferLen;
+
+#if defined(HAVE_MLDSA_COMPOSITE_DRAFT_3)
+
+    if ((ret = wc_dilithium_import_private(mldsa_Buffer, mldsa_BufferLen, &key->mldsa_key)) < 0) {
+        MADWOLF_DEBUG("failed to import ML-DSA component with code %d", ret);
+        return ret;
+    }
+
+#elif defined(HAVE_MLDSA_COMPOSITE_DRAFT_2)
+    // Import PKCS8 ML-DSA Component
     if ((ret = wc_Dilithium_PrivateKeyDecode(mldsa_Buffer, &idx, &key->mldsa_key, mldsa_BufferLen)) < 0) {
         MADWOLF_DEBUG("failed to import ML-DSA-44 component with code %d", ret);
         return ret;
@@ -2987,31 +2995,22 @@ int wc_mldsa_composite_import_private(const byte* priv, word32 privSz,
 int wc_mldsa_composite_export_private(mldsa_composite_key* key, byte* out, word32* outLen)
 {
     int ret = 0;
-    int privSz = 0;
     word32 inLen;
 
-// #ifdef HAVE_MLDSA_COMPOSITE_DRAFT_2
-//     static const ASNItem compPrivKeyIT[1] = {
-//     /*  SEQ */    { 0, ASN_SEQUENCE, 1, 1, 0 }
-//     };
-// #elif defined(HAVE_MLDSA_COMPOSITE_DRAFT_3)
     static const ASNItem compPrivKeyIT[3] = {
     /*  SEQ */    { 0, ASN_SEQUENCE, 1, 1, 0 },
     /*  ML-DSA */   { 1, ASN_BIT_STRING, 0, 0, 0 },
     /*  Trad */     { 1, ASN_BIT_STRING, 0, 0, 0 },
     };
-// #endif
 
     ASNSetData compPrivKeyASN[3];
         // Set the ML-DSA public key
 
-    byte mldsa_Buffer[DILITHIUM_ML_DSA_87_PRV_KEY_SIZE];
-    word32 mldsa_BufferLen = DILITHIUM_ML_DSA_87_PRV_KEY_SIZE;
-        // Buffer to hold the ML-DSA public key
+    byte * mldsa_Buffer = NULL;
+    word32 mldsa_BufferLen = 0;
 
-    byte other_Buffer[MLDSA_COMPOSITE_MAX_OTHER_KEY_SZ + 200];
-    word32 other_BufferLen = MLDSA_COMPOSITE_MAX_OTHER_KEY_SZ + 200;
-        // Buffer to hold the public key of the other DSA component
+    byte * other_Buffer = NULL;
+    word32 other_BufferLen = 0;
 
 MADWOLF_DEBUG0("Exporting ML-DSA Composite Private Key");
 
@@ -3024,46 +3023,35 @@ MADWOLF_DEBUG0("Exporting ML-DSA Composite Private Key");
     // Get the length passed in for checking
     inLen = *outLen;
 
-MADWOLF_DEBUG0("Exporting ML-DSA Composite Private Key");
-
-    // Get the expected size of the private key
-    if ((privSz = wc_mldsa_composite_priv_size(key)) < 0) {
-        MADWOLF_DEBUG("Error in calculating the size of the private key (type: %d, err: %d)", key->type, privSz);
-        return BAD_FUNC_ARG;
-    }
-
-    *outLen = privSz;
-
-    MADWOLF_DEBUG("Exporting ML-DSA Composite Private Key (inbuf: %d, estimated outLen: %d)", inLen, *outLen);
-
-
-MADWOLF_DEBUG0("Exporting ML-DSA Composite Private Key");
-
-    // Check if the buffer is too small
-    if (inLen < *outLen) {
-        MADWOLF_DEBUG("Private Key Export Buffer (needed: %d, provided: %d, type: %d)", *outLen, inLen, key->type);
-        return BAD_FUNC_ARG;
-    }
-
-    /* Exports the ML-DSA key */
-    /*
-        * NOTE: There seem to be a bug in the MsDsa export function
-        *       since the wc_MlDsaKey_ExportPrivRaw MACRO points to
-        *       an undefined function (wc_dilithium_Kind of... I am 
-        * 
-        * 
-        * _raw).
-        * 
-        *       We use the `wc_dilithium_export_private` function directly.
-        */
 #ifdef HAVE_MLDSA_COMPOSITE_DRAFT_3
-    MADWOLF_DEBUG("Draft-3: Exporting ML-DSA Private Key (type: %d)", key->type);
-    if ((ret = wc_dilithium_export_private(&key->mldsa_key, mldsa_Buffer, &mldsa_BufferLen)) < 0) {
-        MADWOLF_DEBUG("error cannot export ML-DSA component's private key with error %d\n", ret);
-        return ret;
-    }
+
+        ret = wc_dilithium_priv_size(&key->mldsa_key);
+        if (ret <= 0) return WC_KEY_SIZE_E;
+        mldsa_BufferLen = ret;
+
+        if (inLen < mldsa_BufferLen) return BUFFER_E;
+
+        mldsa_Buffer = (byte *)XMALLOC(mldsa_BufferLen, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        if (mldsa_Buffer == NULL) return MEMORY_E;
+
+        ret = wc_dilithium_export_private(&key->mldsa_key, mldsa_Buffer, &mldsa_BufferLen);
+        if (ret < 0) {
+            MADWOLF_DEBUG("error cannot export ML-DSA component's private key with error %d\n", ret);
+            goto err;
+        }
+
 #elif defined(HAVE_MLDSA_COMPOSITE_DRAFT_2)
     MADWOLF_DEBUG("Draft-2: Exporting ML-DSA Private Key (type: %d)", key->type);
+
+    ret = wc_Dilithium_KeySize(&key->mldsa_key);
+    if (mldsa_BufferLen <= 0) return WC_KEY_SIZE_E;
+    mldsa_BufferLen = ret;
+
+    if (inLen < mldsa_BufferLen) return BUFFER_E;
+    
+    mldsa_Buffer = (byte *)XMALLOC(mldsa_BufferLen, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (mldsa_Buffer == NULL) return MEMORY_E;
+
     if ((ret = wc_Dilithium_KeyToDer(&key->mldsa_key, mldsa_Buffer, mldsa_BufferLen)) < 0) {
         MADWOLF_DEBUG("error cannot export ML-DSA component's private key with error %d\n", ret);
         return ret;
@@ -3076,15 +3064,47 @@ MADWOLF_DEBUG0("Exporting ML-DSA Composite Private Key");
     switch (key->type) {
         case WC_MLDSA44_ED25519_SHA512: 
         case WC_MLDSA65_ED25519_SHA512: {
+
 #ifdef HAVE_MLDSA_COMPOSITE_DRAFT_3
             MADWOLF_DEBUG("Draft-3: Exporting ED25519 Private Key (type: %d)", key->type);
+            ret = wc_ed25519_priv_size(&key->alt_key.ed25519);
+            if (ret <= 0) goto err;
+            other_BufferLen = ret;
+
+            if (mldsa_BufferLen + other_BufferLen + 12 > inLen) {
+                ret = BUFFER_E;
+                goto err;
+            }
+
+            other_Buffer = (byte *)XMALLOC(other_BufferLen, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            if (other_Buffer == NULL) {
+                ret = MEMORY_E;
+                goto err;
+            }
+
             if ((ret = wc_ed25519_export_private(&key->alt_key.ed25519, other_Buffer, &other_BufferLen)) < 0) {
                 return ret;
             }
+
 #elif defined(HAVE_MLDSA_COMPOSITE_DRAFT_2)
+
             MADWOLF_DEBUG("Draft-2: Exporting ED25519 Private Key (type: %d)", key->type);
+
+            ret = wc_ed25519_priv_size(&key->alt_key.ed25519);
+            if (ret <= 0) goto err;
+            mldsa_BufferLen = ret;
+
+            if (mldsa_BufferLen + other_BufferLen + 12 > inLen) {
+                ret = BUFFER_E;
+                goto err;
+            }
+            other_Buffer = (byte *)XMALLOC(other_BufferLen, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            if (other_Buffer == NULL) {
+                err = MEMORY_E;
+                goto err;
+            }
             if ((ret = wc_Ed25519PrivateKeyToDer(&key->alt_key.ed25519, other_Buffer, other_BufferLen)) < 0) {
-                return other_BufferLen;
+                goto err;
             }
             other_BufferLen = ret;
             ret = 0;
@@ -3097,14 +3117,45 @@ MADWOLF_DEBUG0("Exporting ML-DSA Composite Private Key");
         case WC_MLDSA65_BPOOL256_SHA512:
         case WC_MLDSA87_NISTP384_SHA512:
         case WC_MLDSA87_BPOOL384_SHA512: {
-            MADWOLF_DEBUG("Exporting ECDSA Private Key (type: %d; curve: %d)", key->type, key->alt_key.ecc.dp->id);
 #ifdef HAVE_MLDSA_COMPOSITE_DRAFT_3
+
+            MADWOLF_DEBUG("Exporting ECDSA Private Key (type: %d; curve: %d)", key->type, key->alt_key.ecc.dp->id);
+
+            ret = wc_ecc_size(&key->alt_key.ecc);
+            if (ret <= 0) goto err;
+            other_BufferLen = ret;
+
+            other_Buffer = (byte *)XMALLOC(other_BufferLen, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            if (other_Buffer == NULL) {
+                ret = MEMORY_E;
+                goto err;
+            }
+
             if ((ret = wc_ecc_export_private_only(&key->alt_key.ecc, other_Buffer, &other_BufferLen)) < 0) {
-                return ret;
+                goto err;
             }
 #elif defined(HAVE_MLDSA_COMPOSITE_DRAFT_2)
+
+            MADWOLF_DEBUG("Exporting ECDSA Private Key (type: %d; curve: %d)", key->type, key->alt_key.ecc.dp->id);
+
+            ret = wc_ecc_size(&key->alt_key.ecc);
+            if (ret <= 0) {
+                goto err;
+            }
+            other_BufferLen = ret;
+
+            if (mldsa_BufferLen + other_BufferLen + 12 > inLen) {
+                ret = BUFFER_E;
+                goto err;
+            }
+            other_Buffer = (byte *)XMALLOC(other_BufferLen, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            if (other_Buffer == NULL) {
+                ret = MEMORY_E;
+                goto err;
+            }
+
             if ((ret = wc_EccPrivateKeyToDer(&key->alt_key.ecc, other_Buffer, other_BufferLen)) < 0) {
-                return ret;
+                goto err;
             }
             other_BufferLen = ret;
             ret = 0;
@@ -3113,12 +3164,36 @@ MADWOLF_DEBUG0("Exporting ML-DSA Composite Private Key");
 
         case WC_MLDSA87_ED448_SHA512: {
 #ifdef HAVE_MLDSA_COMPOSITE_DRAFT_3
+            ret = wc_ed448_priv_size(&key->alt_key.ed448);
+            if (ret <= 0) goto err;
+            other_BufferLen = ret;
+
+            other_Buffer = (byte *)XMALLOC(other_BufferLen, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            if (other_Buffer == NULL) {
+                ret = MEMORY_E;
+                goto err;
+            }
             if ((ret = wc_ed448_export_private(&key->alt_key.ed448, other_Buffer, &other_BufferLen)) < 0) {
-                return ret;
+                goto err;
             }
 #elif defined(HAVE_MLDSA_COMPOSITE_DRAFT_2)
+            
+            ret = wc_ed448_priv_size(&key->alt_key.ed448);
+            if (ret <= 0) goto err;
+            other_BufferLen = ret;
+
+            if (mldsa_BufferLen + other_BufferLen + 12 > inLen) {
+                ret = BUFFER_E;
+                goto err;
+            }
+            other_Buffer = (byte *)XMALLOC(other_BufferLen, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            if (other_Buffer == NULL) {
+                ret = MEMORY_E;
+                goto err;
+            }
+
             if ((ret = wc_Ed448PrivateKeyToDer(&key->alt_key.ed448, other_Buffer, other_BufferLen)) < 0) {
-                return ret;
+                goto err;
             }
             other_BufferLen = ret;
             ret = 0;
@@ -3136,12 +3211,44 @@ MADWOLF_DEBUG0("Exporting ML-DSA Composite Private Key");
             }
             // Export the RSA component as PKCS8
 #ifdef HAVE_MLDSA_COMPOSITE_DRAFT_3
-            MADWOLF_DEBUG0("ERROR - Cannot Find The RSA PKCS8 Export Function");
+            ret = wc_RsaKeyToDer((RsaKey *)key, NULL, 0);
+            if (ret < 0) goto err;
+            other_BufferLen = ret;
+
+            if (mldsa_BufferLen + other_BufferLen + 12 > inLen) {
+                ret = BUFFER_E;
+                goto err;
+            }
+            other_Buffer = (byte *)XMALLOC(other_BufferLen, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            if (other_Buffer == NULL) {
+                ret = MEMORY_E;
+                goto err;
+            }
+            ret = wc_RsaKeyToDer((RsaKey *)key, other_Buffer, other_BufferLen);
+            if (ret < 0) {
+                goto err;
+            }
+            // if ((ret = wc_RsaPrivateKeyToDer(&key->alt_key.rsa, other_Buffer, other_BufferLen)) < 0) {
+            //     goto err;
+            // }
             // if ((ret = wc_RsaExportKey(&key->alt_key.rsa, other_Buffer, other_BufferLen)) < 0) {
             //     MADWOLF_DEBUG("ERROR: xExporting ML-DSA Composite Private Key (ret: %d, otherBufferLen: %d)", ret, other_BufferLen);
             //     return ret;
             // }
 #elif defined(HAVE_MLDSA_COMPOSITE_DRAFT_2)
+            ret = wc_RsaPrivateKeySize(&key->alt_key.rsa);
+            if (ret <= 0) goto err;
+            other_BufferLen = ret;
+
+            if (mldsa_BufferLen + other_BufferLen + 12 > inLen) {
+                ret = BUFFER_E;
+                goto err;
+            }
+            other_Buffer = (byte *)XMALLOC(other_BufferLen, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            if (other_Buffer == NULL) {
+                ret = MEMORY_E;
+                goto err;
+            }
             MADWOLF_DEBUG0("ERROR - Cannot Find The RSA PKCS8 Export Function");
             // if ((ret = wc_RsaPrivateKeyToDer(&key->alt_key.rsa, other_Buffer, other_BufferLen)) < 0) {
             //     MADWOLF_DEBUG("ERROR: xExporting ML-DSA Composite Private Key (ret: %d, otherBufferLen: %d)", ret, other_BufferLen);
@@ -3159,48 +3266,6 @@ MADWOLF_DEBUG0("Exporting ML-DSA Composite Private Key");
         default:
             return ALGO_ID_E;
     }
-
-#ifdef HAVE_MLDSA_COMPOSITE_DRAFT_2
-
-    byte * sequenceBuffer = NULL;
-    word32 sequenceBufferLen = mldsa_BufferLen + other_BufferLen;
-
-    // Clear the memory
-    XMEMSET(compPrivKeyASN, 0, sizeof(ASNSetData));
-
-    sequenceBuffer = (byte*)XMALLOC(sequenceBufferLen, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    if (sequenceBuffer == NULL) {
-        MADWOLF_DEBUG("error cannot allocate memory for sequence buffer (%d)", sequenceBufferLen);
-        return MEMORY_E;
-    }
-
-    // Copy the ML-DSA buffer
-    XMEMCPY(sequenceBuffer, mldsa_Buffer, mldsa_BufferLen);
-    // Copy the other buffer
-    XMEMCPY(sequenceBuffer + mldsa_BufferLen, other_Buffer, other_BufferLen);
-
-    // Let's set the ASN1 data
-    SetASN_Buffer(&compPrivKeyASN[0], sequenceBuffer, sequenceBufferLen);
-
-    // Let's calculate the size of the ASN1 data
-    int encSz = 0;
-    if (SizeASN_Items(compPrivKeyIT, compPrivKeyASN, 1, &encSz) < 0) {
-        MADWOLF_DEBUG0("error cannot calculate SizeASN_Items");
-        return BAD_STATE_E;  
-    }
-
-    if (encSz > (int)(inLen)) {
-        MADWOLF_DEBUG("error encoded size too big for output buffer : %d > %d", encSz, inLen);
-        return BAD_STATE_E;
-    }
-
-    // Let's encode the ASN1 data
-    if ((*outLen = SetASN_Items(compPrivKeyIT, compPrivKeyASN, 1, out)) <= 0) {
-        MADWOLF_DEBUG("error cannot SetASN_Items with error %d", *outLen);
-        return BAD_STATE_E;
-    }
-    
-#elif defined(HAVE_MLDSA_COMPOSITE_DRAFT_3)
 
     // Clear the memory
     XMEMSET(compPrivKeyASN, 0, sizeof(ASNSetData) * mldsaCompASN_Length);
@@ -3221,6 +3286,8 @@ MADWOLF_DEBUG0("Exporting ML-DSA Composite Private Key");
         return BUFFER_E;
     }
 
+    MADWOLF_DEBUG("ASN1 Size Items (mldsa: %d, other: %d, total: %d)", mldsa_BufferLen, other_BufferLen, encSz);
+
     // Let's encode the ASN1 data
     int encodedLen = SetASN_Items(compPrivKeyIT, compPrivKeyASN, mldsaCompASN_Length, out);
     if (encodedLen <= 0) {
@@ -3229,48 +3296,19 @@ MADWOLF_DEBUG0("Exporting ML-DSA Composite Private Key");
     }
     *outLen = encodedLen;
 
-    // byte * sequenceBuffer = NULL;
-    // word32 sequenceBufferLen = mldsa_BufferLen + other_BufferLen;
-
-    // // Clear the memory
-    // XMEMSET(compPrivKeyASN, 0, sizeof(ASNSetData));
-
-    // sequenceBuffer = (byte*)XMALLOC(sequenceBufferLen, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    // if (sequenceBuffer == NULL) {
-    //     MADWOLF_DEBUG("error cannot allocate memory for sequence buffer (%d)", sequenceBufferLen);
-    //     return MEMORY_E;
-    // }
-
-    // // Copy the ML-DSA buffer
-    // XMEMCPY(sequenceBuffer, mldsa_Buffer, mldsa_BufferLen);
-    // // Copy the other buffer
-    // XMEMCPY(sequenceBuffer + mldsa_BufferLen, other_Buffer, other_BufferLen);
-
-    // // Let's set the ASN1 data
-    // SetASN_Buffer(&compPrivKeyASN[0], sequenceBuffer, sequenceBufferLen);
-
-    // // Let's calculate the size of the ASN1 data
-    // int encSz = 0;
-    // if (SizeASN_Items(compPrivKeyIT, compPrivKeyASN, 1, &encSz) < 0) {
-    //     MADWOLF_DEBUG0("error cannot calculate SizeASN_Items");
-    //     return BAD_STATE_E;  
-    // }
-
-    // if (encSz > (int)(inLen)) {
-    //     MADWOLF_DEBUG("error encoded size too big for output buffer : %d > %d", encSz, inLen);
-    //     return BAD_STATE_E;
-    // }
-
-    // // Let's encode the ASN1 data
-    // if ((*outLen = SetASN_Items(compPrivKeyIT, compPrivKeyASN, 1, out)) <= 0) {
-    //     MADWOLF_DEBUG("error cannot SetASN_Items with error %d", *outLen);
-    //     return BAD_STATE_E;
-    // }
-
-#endif
-
     MADWOLF_DEBUG("Exported ML-DSA Composite Private Key Components (%d, %d)", mldsa_BufferLen, other_BufferLen);
     MADWOLF_DEBUG("Exported ML-DSA Composite Private Key %d (sz: %d) (mldsa: %d, secondary: %d), ret = %d", *outLen, encSz, mldsa_BufferLen, other_BufferLen, ret);
+
+    return ret;
+
+err:
+
+    if (mldsa_Buffer != NULL) {
+        XFREE(mldsa_Buffer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+    if (other_Buffer != NULL) {
+        XFREE(other_Buffer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    }
 
     return ret;
 }

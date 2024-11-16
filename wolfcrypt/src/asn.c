@@ -27167,10 +27167,14 @@ int wc_KeySum_get(const char * name) {
                    !XSTRNCMP(name, "mldsa44-ed25519", 15)) {
             ret = MLDSA44_ED25519k;
         } else if (!XSTRNCMP(name, "MLDSA44-NISTP256", 16) ||
-                   !XSTRNCMP(name, "mldsa44-nistp256", 16)) {
+                   !XSTRNCMP(name, "mldsa44-nistp256", 16) ||
+                   !XSTRNCMP(name, "MLDSA44-P256", 12) ||
+                   !XSTRNCMP(name, "mldsa44-p256", 12)) {
             ret = MLDSA44_NISTP256k;
         } else if (!XSTRNCMP(name, "MLDSA44-BPOOL256", 16) ||
-                   !XSTRNCMP(name, "mldsa44-bpool256", 16)) {
+                   !XSTRNCMP(name, "mldsa44-bpool256", 16) ||
+                   !XSTRNCMP(name, "MLDSA44-B256", 12) ||
+                   !XSTRNCMP(name, "mldsa44-b256", 12)) {
             ret = MLDSA44_BPOOL256k;
         } else if (!XSTRNCMP(name, "MLDSA65-RSAPSS", 14) ||
                    !XSTRNCMP(name, "mldsa65-rsapss", 14)) {
@@ -27182,16 +27186,24 @@ int wc_KeySum_get(const char * name) {
                    !XSTRNCMP(name, "mldsa65-ed25519", 15)) {
             ret = MLDSA65_ED25519k;
         } else if (!XSTRNCMP(name, "MLDSA65-NISTP256", 16) ||
-                   !XSTRNCMP(name, "mldsa65-nistp256", 16)) {
+                   !XSTRNCMP(name, "mldsa65-nistp256", 16) ||
+                   !XSTRNCMP(name, "MLDSA65-P256", 12) ||
+                   !XSTRNCMP(name, "mldsa65-p256", 12)) {
             ret = MLDSA65_NISTP256k;
         } else if (!XSTRNCMP(name, "MLDSA65-BPOOL256", 16) ||
-                   !XSTRNCMP(name, "mldsa65-bpool256", 16)) {
+                   !XSTRNCMP(name, "mldsa65-bpool256", 16) ||
+                   !XSTRNCMP(name, "MLDSA65-B256", 12) ||
+                   !XSTRNCMP(name, "mldsa65-b256", 12)) {
             ret = MLDSA65_BPOOL256k;
         } else if (!XSTRNCMP(name, "MLDSA87-NISTP384", 16) ||
-                   !XSTRNCMP(name, "mldsa87-nistp384", 16)) {
+                   !XSTRNCMP(name, "mldsa87-nistp384", 16) ||
+                   !XSTRNCMP(name, "MLDSA87-P384", 12) ||
+                   !XSTRNCMP(name, "mldsa87-p384", 12)) {
             ret = MLDSA87_NISTP384k;
         } else if (!XSTRNCMP(name, "MLDSA87-BPOOL384", 16) ||
-                   !XSTRNCMP(name, "mldsa87-bpool384", 16)) {
+                   !XSTRNCMP(name, "mldsa87-bpool384", 16) ||
+                   !XSTRNCMP(name, "MLDSA87-B384", 12) ||
+                   !XSTRNCMP(name, "mldsa87-b384", 12)) {
             ret = MLDSA87_BPOOL384k;
         } else if (!XSTRNCMP(name, "MLDSA87-ED448", 14) ||
                    !XSTRNCMP(name, "mldsa87-ed448", 14)) {

@@ -86,7 +86,7 @@ int export_key_p8(void * key, int type, const char * out_file, int format) {
 
     // Input checks
     if (!key || type < 0) {
-        printf("Invalid key type (type: %d)\n", type);
+        printf("Invalid key type (key: %p, type: %d)\n", key, type);
         return -1;
     }
 
@@ -265,8 +265,8 @@ int export_key_p8(void * key, int type, const char * out_file, int format) {
             printf("Error exporting key\n");
             return -1;
         }
-        byte dilithium_level = 0;
-        wc_dilithium_get_level((MlDsaKey *)key, &dilithium_level);
+        // byte dilithium_level = 0;
+        // wc_dilithium_get_level((MlDsaKey *)key, &dilithium_level);
         p8_data = derPtr;
         p8_outSz = derSz;
         break;
@@ -888,7 +888,7 @@ int gen_keypair(void ** key, int type, int param, const char * out_file) {
         ret = wc_InitDsaKey(&dsaKey, NULL);
         break;
 #endif
-#ifdef HAVE_RSA
+#ifndef NO_RSA
     case RSAPSSk:
     case RSAk:
         keyPtr = &rsaKey;
