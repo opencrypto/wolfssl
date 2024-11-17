@@ -7326,6 +7326,9 @@ int ToTraditionalInline_ex2(const byte* input, word32* inOutIdx, word32 sz,
         /* Key type OID. */
         oid = dataASN[PKCS8KEYASN_IDX_PKEY_ALGO_OID_KEY].data.oid.sum;
 
+        /* Sets the algID early, useful for debugging OID issues*/
+        *algId = oid;
+
         /* Version 1 includes an optional public key.
          * If public key is included then the parsing will fail as it did not
          * use all the data.
@@ -7451,8 +7454,6 @@ int ToTraditionalInline_ex2(const byte* input, word32* inOutIdx, word32 sz,
             case MLDSA65_RSAPSS3072k:
             case MLDSA65_NISTP256k:
             case MLDSA65_RSA3072k:
-            case MLDSA65_RSAPSS4096k:
-            case MLDSA65_RSA4096k:
             case MLDSA65_BPOOL256k:
 
             // Composite - Level 5

@@ -1321,15 +1321,13 @@ enum Key_Sum {
     // Level 3
     MLDSA65_RSAPSS3072k    = 921,
     MLDSA65_RSA3072k       = 922,
-    MLDSA65_RSAPSS4096k    = 923,
-    MLDSA65_RSA4096k       = 924,
-    MLDSA65_NISTP256k      = 925,
-    MLDSA65_BPOOL256k      = 926,
-    MLDSA65_ED25519k       = 927,
+    MLDSA65_NISTP256k      = 923,
+    MLDSA65_BPOOL256k      = 924,
+    MLDSA65_ED25519k       = 925,
     // Level 5
-    MLDSA87_NISTP384k      = 929,
-    MLDSA87_BPOOL384k      = 930,
-    MLDSA87_ED448k         = 931,
+    MLDSA87_NISTP384k      = 926,
+    MLDSA87_BPOOL384k      = 927,
+    MLDSA87_ED448k         = 928,
 };
 
 #if !defined(NO_AES) || defined(HAVE_PKCS7)
