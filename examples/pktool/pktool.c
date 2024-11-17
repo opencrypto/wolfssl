@@ -598,9 +598,12 @@ int load_key_p8(void ** key, int type, const char * key_file, int format) {
         XMEMSET(mldsaCompKey, 0, sizeof(mldsa_composite_key));
 
         // Decodes the key
-        if ((ret = wc_MlDsaComposite_PrivateKeyDecode(derPtr, &idx, mldsaCompKey, keySz, comp_type)) < 0) {
+        if ((ret = wc_mldsa_composite_import_private(derPtr, keySz, mldsaCompKey, comp_type)) < 0) {
             return ret;
         }
+        // if ((ret = wc_MlDsaComposite_PrivateKeyDecode(derPtr, &idx, mldsaCompKey, keySz, comp_type)) < 0) {
+        //     return ret;
+        // }
         break;
 #endif
         default:
