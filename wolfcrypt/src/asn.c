@@ -4294,32 +4294,37 @@ static word32 SetBitString16Bit(word16 val, byte* output)
     static const byte sigMlDsa87_Ed448_Sha512Oid[] =
         {  0x60, 0x86, 0x48, 0x01, 0x86, 0xFA, 0x6B, 0x50, 0x08, 0x01, 0x0D };
 #elif defined(HAVE_MLDSA_COMPOSITE_DRAFT_3)
-    static const byte sigMlDsa44_Rsa2048_Sha256Oid[] =
-        {  0x60, 0x86, 0x48, 0x01, 0x86, 0xFA, 0x6B, 0x50, 0x08, 0x01, 0x21 };
+    // TODO: Update OIDs to the Draft3 values
     static const byte sigMlDsa44_RsaPss2048_Sha256Oid[] =
-        {  0x60, 0x86, 0x48, 0x01, 0x86, 0xFA, 0x6B, 0x50, 0x08, 0x01, 0x21 };
-    static const byte sigMlDsa44_Ed25519_Sha512Oid[] =
-        {  0x60, 0x86, 0x48, 0x01, 0x86, 0xFA, 0x6B, 0x50, 0x08, 0x01, 0x21 };
+        {  0x60, 0x86, 0x48, 0x01, 0x86, 0xFA, 0x6B, 0x50, 0x08, 0x01, 0x15 };
+    static const byte sigMlDsa44_Rsa2048_Sha256Oid[] =
+        {  0x60, 0x86, 0x48, 0x01, 0x86, 0xFA, 0x6B, 0x50, 0x08, 0x01, 0x16 };
+    static const byte sigMlDsa44_Ed25519_Sha256Oid[] =
+        {  0x60, 0x86, 0x48, 0x01, 0x86, 0xFA, 0x6B, 0x50, 0x08, 0x01, 0x17 };
     static const byte sigMlDsa44_NistP256_Sha256Oid[] =
-        {  0x60, 0x86, 0x48, 0x01, 0x86, 0xFA, 0x6B, 0x50, 0x08, 0x01, 0x24 };
-    static const byte sigMlDsa44_Bpool256_Sha256Oid[] =
-        {  0x60, 0x86, 0x48, 0x01, 0x86, 0xFA, 0x6B, 0x50, 0x08, 0x01, 0x25 };
-    static const byte sigMlDsa65_Rsa3072_Sha512Oid[] =
-        {  0x60, 0x86, 0x48, 0x01, 0x86, 0xFA, 0x6B, 0x50, 0x08, 0x01, 0x26 };
-    static const byte sigMlDsa65_RsaPss3072_Sha512Oid[] =
-        {  0x60, 0x86, 0x48, 0x01, 0x86, 0xFA, 0x6B, 0x50, 0x08, 0x01, 0x27 };
-    static const byte sigMlDsa65_NistP256_Sha512Oid[] =
-        {  0x60, 0x86, 0x48, 0x01, 0x86, 0xFA, 0x6B, 0x50, 0x08, 0x01, 0x28 };
-    static const byte sigMlDsa65_Bpool256_Sha512Oid[] =
-        {  0x60, 0x86, 0x48, 0x01, 0x86, 0xFA, 0x6B, 0x50, 0x08, 0x01, 0x29 };
-    static const byte sigMlDsa65_Ed25519_Sha512Oid[] =
-        {  0x60, 0x86, 0x48, 0x01, 0x86, 0xFA, 0x6B, 0x50, 0x08, 0x01, 0x2A };
-    static const byte sigMlDsa87_NistP384_Sha512Oid[] =
-        {  0x60, 0x86, 0x48, 0x01, 0x86, 0xFA, 0x6B, 0x50, 0x08, 0x01, 0x2B };
-    static const byte sigMlDsa87_Bpool384_Sha512Oid[] =
-        {  0x60, 0x86, 0x48, 0x01, 0x86, 0xFA, 0x6B, 0x50, 0x08, 0x01, 0x2C };
-    static const byte sigMlDsa87_Ed448_Sha512Oid[] =
-        {  0x60, 0x86, 0x48, 0x01, 0x86, 0xFA, 0x6B, 0x50, 0x08, 0x01, 0x2D };
+        {  0x60, 0x86, 0x48, 0x01, 0x86, 0xFA, 0x6B, 0x50, 0x08, 0x01, 0x18 };
+    // static const byte sigMlDsa44_Bpool256_Sha256Oid[] =
+    //     {  0x60, 0x86, 0x48, 0x01, 0x86, 0xFA, 0x6B, 0x50, 0x08, 0x01, 0x25 };
+    static const byte sigMlDsa65_RsaPss3072_Sha256Oid[] =
+        {  0x60, 0x86, 0x48, 0x01, 0x86, 0xFA, 0x6B, 0x50, 0x08, 0x01, 0x1A };
+    static const byte sigMlDsa65_Rsa3072_Sha256Oid[] =
+        {  0x60, 0x86, 0x48, 0x01, 0x86, 0xFA, 0x6B, 0x50, 0x08, 0x01, 0x1B };
+    static const byte sigMlDsa65_RsaPss4096_Sha384Oid[] =
+        {  0x60, 0x86, 0x48, 0x01, 0x86, 0xFA, 0x6B, 0x50, 0x08, 0x01, 0x22 };
+    static const byte sigMlDsa65_Rsa4096_Sha384Oid[] =
+        {  0x60, 0x86, 0x48, 0x01, 0x86, 0xFA, 0x6B, 0x50, 0x08, 0x01, 0x23 };
+    static const byte sigMlDsa65_NistP256_Sha384Oid[] =
+        {  0x60, 0x86, 0x48, 0x01, 0x86, 0xFA, 0x6B, 0x50, 0x08, 0x01, 0x1C };
+    static const byte sigMlDsa65_Bpool256_Sha256Oid[] =
+        {  0x60, 0x86, 0x48, 0x01, 0x86, 0xFA, 0x6B, 0x50, 0x08, 0x01, 0x1D };
+    static const byte sigMlDsa65_Ed25519_Sha384Oid[] =
+        {  0x60, 0x86, 0x48, 0x01, 0x86, 0xFA, 0x6B, 0x50, 0x08, 0x01, 0x1E };
+    static const byte sigMlDsa87_NistP384_Sha384Oid[] =
+        {  0x60, 0x86, 0x48, 0x01, 0x86, 0xFA, 0x6B, 0x50, 0x08, 0x01, 0x1F };
+    static const byte sigMlDsa87_Bpool384_Sha384Oid[] =
+        {  0x60, 0x86, 0x48, 0x01, 0x86, 0xFA, 0x6B, 0x50, 0x08, 0x01, 0x20 };
+    static const byte sigMlDsa87_Ed448_Sha384Oid[] =
+        {  0x60, 0x86, 0x48, 0x01, 0x86, 0xFA, 0x6B, 0x50, 0x08, 0x01, 0x21 };
 #else
 #error "MLDSA Draft 3 not supported"
 #endif /* HAVE_MLDSA_DRAFT_2 / HAVE_MLDSA_DRAFT3 */
@@ -5054,6 +5059,7 @@ const byte* OidFromId(word32 id, word32 type, word32* oidSz)
                     break;
             #endif /* HAVE_DILITHIUM */
                 #ifdef HAVE_MLDSA_COMPOSITE
+                // TODO: Fix these OIDs to the Draft3 version
                 case CTC_MLDSA44_RSA2048_SHA256:
                     oid = sigMlDsa44_Rsa2048_Sha256Oid;
                     *oidSz = sizeof(sigMlDsa44_Rsa2048_Sha256Oid);
@@ -5062,49 +5068,57 @@ const byte* OidFromId(word32 id, word32 type, word32* oidSz)
                     oid = sigMlDsa44_RsaPss2048_Sha256Oid;
                     *oidSz = sizeof(sigMlDsa44_RsaPss2048_Sha256Oid);
                     break;
-                case CTC_MLDSA44_ED25519_SHA512:
-                    oid = sigMlDsa44_Ed25519_Sha512Oid;
-                    *oidSz = sizeof(sigMlDsa44_Ed25519_Sha512Oid);
+                case CTC_MLDSA44_ED25519:
+                    oid = sigMlDsa44_Ed25519_Sha256Oid;
+                    *oidSz = sizeof(sigMlDsa44_Ed25519_Sha256Oid);
                     break;
                 case CTC_MLDSA44_NISTP256_SHA256:
                     oid = sigMlDsa44_NistP256_Sha256Oid;
                     *oidSz = sizeof(sigMlDsa44_NistP256_Sha256Oid);
                     break;
-                case CTC_MLDSA44_BPOOL256_SHA256:
-                    oid = sigMlDsa44_Bpool256_Sha256Oid;
-                    *oidSz = sizeof(sigMlDsa44_Bpool256_Sha256Oid);
+                // case CTC_MLDSA44_BPOOL256_SHA256:
+                //     oid = sigMlDsa44_Bpool256_Sha256Oid;
+                //     *oidSz = sizeof(sigMlDsa44_Bpool256_Sha256Oid);
+                //     break;
+                case CTC_MLDSA65_RSA3072_SHA384:
+                    oid = sigMlDsa65_Rsa3072_Sha256Oid;
+                    *oidSz = sizeof(sigMlDsa65_Rsa3072_Sha256Oid);
                     break;
-                case CTC_MLDSA65_RSA3072_SHA512:
-                    oid = sigMlDsa65_Rsa3072_Sha512Oid;
-                    *oidSz = sizeof(sigMlDsa65_Rsa3072_Sha512Oid);
+                case CTC_MLDSA65_RSAPSS3072_SHA384:
+                    oid = sigMlDsa65_RsaPss3072_Sha256Oid;
+                    *oidSz = sizeof(sigMlDsa65_RsaPss3072_Sha256Oid);
                     break;
-                case CTC_MLDSA65_RSAPSS3072_SHA512:
-                    oid = sigMlDsa65_RsaPss3072_Sha512Oid;
-                    *oidSz = sizeof(sigMlDsa65_RsaPss3072_Sha512Oid);
+                case CTC_MLDSA65_RSA4096_SHA384:
+                    oid = sigMlDsa65_Rsa4096_Sha384Oid;
+                    *oidSz = sizeof(sigMlDsa65_Rsa4096_Sha384Oid);
                     break;
-                case CTC_MLDSA65_NISTP256_SHA512:
-                    oid = sigMlDsa65_NistP256_Sha512Oid;
-                    *oidSz = sizeof(sigMlDsa65_NistP256_Sha512Oid);
+                case CTC_MLDSA65_RSAPSS4096_SHA384:
+                    oid = sigMlDsa65_RsaPss4096_Sha384Oid;
+                    *oidSz = sizeof(sigMlDsa65_RsaPss4096_Sha384Oid);
                     break;
-                case CTC_MLDSA65_BPOOL256_SHA512:
-                    oid = sigMlDsa65_Bpool256_Sha512Oid;
-                    *oidSz = sizeof(sigMlDsa65_Bpool256_Sha512Oid);
+                case CTC_MLDSA65_NISTP256_SHA384:
+                    oid = sigMlDsa65_NistP256_Sha384Oid;
+                    *oidSz = sizeof(sigMlDsa65_NistP256_Sha384Oid);
                     break;
-                case CTC_MLDSA65_ED25519_SHA512:
-                    oid = sigMlDsa65_Ed25519_Sha512Oid;
-                    *oidSz = sizeof(sigMlDsa65_Ed25519_Sha512Oid);
+                case CTC_MLDSA65_BPOOL256_SHA256:
+                    oid = sigMlDsa65_Bpool256_Sha256Oid;
+                    *oidSz = sizeof(sigMlDsa65_Bpool256_Sha256Oid);
                     break;
-                case CTC_MLDSA87_NISTP384_SHA512:
-                    oid = sigMlDsa87_NistP384_Sha512Oid;
-                    *oidSz = sizeof(sigMlDsa87_NistP384_Sha512Oid);
+                case CTC_MLDSA65_ED25519_SHA384:
+                    oid = sigMlDsa65_Ed25519_Sha384Oid;
+                    *oidSz = sizeof(sigMlDsa65_Ed25519_Sha384Oid);
                     break;
-                case CTC_MLDSA87_BPOOL384_SHA512:
-                    oid = sigMlDsa87_Bpool384_Sha512Oid;
-                    *oidSz = sizeof(sigMlDsa87_Bpool384_Sha512Oid);
+                case CTC_MLDSA87_NISTP384_SHA384:
+                    oid = sigMlDsa87_NistP384_Sha384Oid;
+                    *oidSz = sizeof(sigMlDsa87_NistP384_Sha384Oid);
                     break;
-                case CTC_MLDSA87_ED448_SHA512:
-                    oid = sigMlDsa87_Ed448_Sha512Oid;
-                    *oidSz = sizeof(sigMlDsa87_Ed448_Sha512Oid);
+                case CTC_MLDSA87_BPOOL384_SHA384:
+                    oid = sigMlDsa87_Bpool384_Sha384Oid;
+                    *oidSz = sizeof(sigMlDsa87_Bpool384_Sha384Oid);
+                    break;
+                case CTC_MLDSA87_ED448:
+                    oid = sigMlDsa87_Ed448_Sha384Oid;
+                    *oidSz = sizeof(sigMlDsa87_Ed448_Sha384Oid);
                     break;
                 #endif /* HAVE_MLDSA_COMPOSITE */
                 #ifdef HAVE_SPHINCS

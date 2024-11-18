@@ -46182,33 +46182,35 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t mldsa_composite_test(void)
 #ifdef WOLFSSL_WC_MLDSA_COMPOSITE
 #ifndef WOLFSSL_MLDSA_COMPOSITE_NO_MAKE_KEY
 
-    int mldsa_composite_algos[13] = {
+    int mldsa_composite_algos[14] = {
 
         // Level 1
-        WC_MLDSA44_RSA2048_SHA256,
         WC_MLDSA44_RSAPSS2048_SHA256,
-        WC_MLDSA44_ED25519_SHA512,
+        WC_MLDSA44_RSA2048_SHA256,
+        WC_MLDSA44_ED25519_SHA256,
         WC_MLDSA44_NISTP256_SHA256,
-        WC_MLDSA44_BPOOL256_SHA256,
+        // WC_MLDSA44_BPOOL256_SHA256,
 
         // Level 3
-        WC_MLDSA65_RSA3072_SHA512,
-        WC_MLDSA65_RSAPSS3072_SHA512,
-        WC_MLDSA65_NISTP256_SHA512,
-        WC_MLDSA65_BPOOL256_SHA512,
-        WC_MLDSA65_ED25519_SHA512,
+        WC_MLDSA65_RSAPSS3072_SHA384,
+        WC_MLDSA65_RSA3072_SHA384,
+        WC_MLDSA65_RSAPSS4096_SHA384,
+        WC_MLDSA65_RSA4096_SHA384,
+        WC_MLDSA65_NISTP256_SHA384,
+        WC_MLDSA65_BPOOL256_SHA256,
+        WC_MLDSA65_ED25519_SHA384,
         
         // Level 5
-        WC_MLDSA87_NISTP384_SHA512,
-        WC_MLDSA87_BPOOL384_SHA512,
-        WC_MLDSA87_ED448_SHA512
+        WC_MLDSA87_NISTP384_SHA384,
+        WC_MLDSA87_BPOOL384_SHA384,
+        WC_MLDSA87_ED448_SHA384
     };
 
-    for (int idx = 0; idx < 13; idx++) {
+    for (int idx = 0; idx < 14; idx++) {
 
         printf("***** mldsa_composite_test: idx = %d\n", idx);
 
-        if ( idx == 0 || idx ==1 || /* idx == 4 || */ idx == 5 || idx == 6 /* || idx==7 || idx == 8*/) {
+        if ( idx == 0 || idx ==1 || idx == 4 || idx == 5 || idx == 6 || idx==7 /* || idx == 8*/) {
             printf("***** mldsa_composite_test: skipping tests for MLDSA Composite Type %d\n", mldsa_composite_algos[idx]); fflush(stdout);
             continue;
         }

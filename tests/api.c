@@ -48671,11 +48671,11 @@ printf("[%d:%s] %s(): ***** DEBUG 4\n", __LINE__, __FILE__, __func__);
 printf("[%d:%s] %s(): ***** DEBUG 4\n", __LINE__, __FILE__, __func__);
 
 #ifndef WOLFSSL_NO_MLDSA44_ED25519
-    ExpectIntEQ(wc_mldsa_composite_set_type(key, WC_MLDSA44_ED25519_SHA512), 0);
+    ExpectIntEQ(wc_mldsa_composite_set_type(key, WC_MLDSA44_ED25519_SHA256), 0);
 printf("[%d:%s] %s(): ***** DEBUG 4\n", __LINE__, __FILE__, __func__);
     ExpectIntEQ(wc_mldsa_composite_get_type(key, &level), 0);
 printf("[%d:%s] %s(): ***** DEBUG 4\n", __LINE__, __FILE__, __func__);
-    ExpectIntEQ(level, WC_MLDSA44_ED25519_SHA512);
+    ExpectIntEQ(level, WC_MLDSA44_ED25519_SHA256);
 #ifdef WOLFSSL_MLDSA_COMPOSITE_PRIVATE_KEY
 printf("[%d:%s] %s(): ***** DEBUG 4\n", __LINE__, __FILE__, __func__);
     ExpectIntEQ(wc_mldsa_composite_size(key), MLDSA44_ED25519_KEY_SIZE);
@@ -48747,7 +48747,7 @@ static int test_wc_mldsa_composite_make_key(void)
     ExpectIntEQ(wc_mldsa_composite_make_key(key, 400, &rng), BAD_STATE_E);
 
 #ifndef WOLFSSL_NO_MLDSA44_ED25519
-    ExpectIntEQ(wc_mldsa_composite_set_type(key, WC_MLDSA44_ED25519_SHA512), 0);
+    ExpectIntEQ(wc_mldsa_composite_set_type(key, WC_MLDSA44_ED25519_SHA256), 0);
     ExpectIntEQ(wc_mldsa_composite_make_key(key, 0, &rng), 0);
     wc_mldsa_composite_free(key);
 
@@ -48814,13 +48814,13 @@ printf("[%d:%s] %s(): ***** DEBUG EXP \n", __LINE__, __FILE__, __func__);
 printf("[%d:%s] %s(): ***** DEBUG EXP \n", __LINE__, __FILE__, __func__);
 
 #ifndef WOLFSSL_NO_MLDSA44_ED25519
-    ExpectIntEQ(wc_mldsa_composite_set_type(key, WC_MLDSA44_ED25519_SHA512), 0);
+    ExpectIntEQ(wc_mldsa_composite_set_type(key, WC_MLDSA44_ED25519_SHA256), 0);
 #elif !defined(WOLFSSL_NO_MLDSA44_P256)
     ExpectIntEQ(wc_mldsa_composite_set_type(key, WC_MLDSA44_NISTP256_SHA256), 0);
 #endif
 
 #ifndef WOLFSSL_MLDSA_COMPOSITE_NO_MAKE_KEY
-    ExpectIntEQ(wc_mldsa_composite_make_key(key, WC_MLDSA44_ED25519_SHA512, &rng), 0);
+    ExpectIntEQ(wc_mldsa_composite_make_key(key, WC_MLDSA44_ED25519_SHA256, &rng), 0);
 #endif
 
 printf("[%d:%s] %s(): ***** DEBUG EXP \n", __LINE__, __FILE__, __func__);

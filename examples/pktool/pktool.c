@@ -624,10 +624,12 @@ int load_key_p8(void ** key, int type, const char * key_file, int format) {
     return 0;
 }
 
+#define LARGE_BUFFER_SZ 10*1024
+
 int gen_csr(const void * key, const void * altkey, const char * out_filename, int out_format)
 {
     int ret;
-    int type;
+    int type = 0;
 #ifdef HAVE_ECC
     ecc_key ecKey;
 #endif
@@ -640,18 +642,18 @@ int gen_csr(const void * key, const void * altkey, const char * out_filename, in
     void* keyPtr = NULL;
     WC_RNG rng;
     Cert req;
-    byte der[LARGE_TEMP_SZ];
+    byte der[LARGE_BUFFER_SZ];
     int  derSz;
 #ifdef WOLFSSL_DER_TO_PEM
-    byte pem[LARGE_TEMP_SZ];
+    byte pem[LARGE_BUFFER_SZ];
     int  pemSz;
     FILE* file = NULL;
-    char outFile[255];
+    // char outFile[255];
 #endif
 
-    XMEMSET(der, 0, LARGE_TEMP_SZ);
+    XMEMSET(der, 0, 10*1024);
 #ifdef WOLFSSL_DER_TO_PEM
-    XMEMSET(pem, 0, LARGE_TEMP_SZ);
+    XMEMSET(pem, 0, 10*1024);
 #endif
     
     ret = wc_InitCert(&req);
@@ -686,6 +688,52 @@ int gen_csr(const void * key, const void * altkey, const char * out_filename, in
     if (type == ED25519_TYPE)
         req.sigType = CTC_ED25519;
 #endif
+#ifdef HAVE_ED448
+    if (type == ED448_TYPE)
+        req.sigType = CTC_ED448;
+#endif
+#ifdef HAVE_DILITHIUM
+    if (type == ML_DSA_LEVEL2_TYPE)
+        req.sigType = CTC_DILITHIUM_LEVEL2;
+    if (type == ML_DSA_LEVEL3_TYPE)
+        req.sigType = CTC_DILITHIUM_LEVEL3;
+    if (type == ML_DSA_LEVEL5_TYPE)
+        req.sigType = CTC_DILITHIUM_LEVEL5;
+#endif
+#ifdef HAVE_FALCON
+    if (type == FALCON_LEVEL1_TYPE)
+        req.sigType = CTC_FALCON_LEVEL1;
+    if (type == FALCON_LEVEL5_TYPE)
+        req.sigType = CTC_FALCON_LEVEL5;
+#endif
+#ifdef HAVE_MLDSA_COMPOSITE
+    if (type == MLDSA44_NISTP256_TYPE)
+        req.sigType = CTC_MLDSA44_NISTP256_SHA256;
+    if (type == MLDSA44_RSA2048_TYPE)
+        req.sigType = CTC_MLDSA44_RSA2048_SHA256;
+    if (type == MLDSA44_RSAPSS2048_TYPE)
+        req.sigType = CTC_MLDSA44_RSAPSS2048_SHA256;
+    // if (type == MLDSA44_BPOOL256_TYPE)
+    //     req.sigType = CTC_MLDSA44_BPOOL256_SHA256;
+    if (type == MLDSA44_ED25519_TYPE)
+        req.sigType = CTC_MLDSA44_ED25519;
+    if (type == MLDSA65_NISTP384_TYPE)
+        req.sigType = CTC_MLDSA65_NISTP256_SHA384;
+    if (type == MLDSA65_RSA3072_TYPE)
+        req.sigType = CTC_MLDSA65_RSA3072_SHA384;
+    if (type == MLDSA65_RSAPSS3072_TYPE)    
+        req.sigType = CTC_MLDSA65_RSAPSS3072_SHA384;
+    if (type == MLDSA65_BPOOL256_TYPE)
+        req.sigType = CTC_MLDSA65_BPOOL256_SHA256;
+    if (type == MLDSA65_ED25519_TYPE)
+        req.sigType = CTC_MLDSA65_ED25519_SHA384;
+    if (type == MLDSA87_NISTP384_TYPE)
+        req.sigType = CTC_MLDSA87_NISTP384_SHA384;
+    if (type == MLDSA87_BPOOL384_TYPE)
+        req.sigType = CTC_MLDSA87_BPOOL384_SHA384;
+    if (type == MLDSA87_ED448_TYPE)
+        req.sigType = CTC_MLDSA87_ED448;
+#endif
     ret = wc_SignCert_ex(req.bodySz, req.sigType, der, sizeof(der), type,
         keyPtr, &rng);
     if (ret <= 0) {
@@ -704,9 +752,9 @@ int gen_csr(const void * key, const void * altkey, const char * out_filename, in
     pemSz = ret;
     printf("%s (%d)\n", pem, pemSz);
 
-    snprintf(outFile, sizeof(outFile), "%s-csr.pem", arg1);
-    printf("Saved CSR PEM to \"%s\"\n", outFile);
-    file = fopen(outFile, "wb");
+    // snprintf(outFile, sizeof(outFile), "%s-csr.pem", ou);
+    // printf("Saved CSR PEM to \"%s\"\n", outFile);
+    file = fopen(out_filename, "wb");
     if (file) {
         ret = (int)fwrite(pem, 1, pemSz, file);
         fclose(file);
@@ -729,6 +777,12 @@ exit:
         wc_ed25519_free(&edKey);
 #endif
     wc_FreeRng(&rng);
+
+    (void)altkey;
+    (void)out_format;
+    (void)out_filename;
+    (void)type;
+    (void)key;
 
     return ret;
 }

@@ -1319,6 +1319,8 @@ enum Key_Sum {
     MLDSA44_NISTP256k      = 919, /* 2.16.840.1.114027.80.8.1.24 - id-MLDSA44-ECDSA-P256-SHA256 - 78 + 900 + 24 */
     MLDSA44_BPOOL256k      = 920, 
     // Level 3
+    MLDSA65_RSAPSS4096k    = 931,
+    MLDSA65_RSA4096k       = 932,
     MLDSA65_RSAPSS3072k    = 921,
     MLDSA65_RSA3072k       = 922,
     MLDSA65_NISTP256k      = 923,
