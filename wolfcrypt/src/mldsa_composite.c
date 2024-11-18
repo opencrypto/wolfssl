@@ -3025,8 +3025,6 @@ int wc_mldsa_composite_export_private(mldsa_composite_key* key, byte* out, word3
 
 #ifdef HAVE_MLDSA_COMPOSITE_DRAFT_3
             
-            MADWOLF_DEBUG("Draft-3: Exporting ED25519 Private Key (type: %d)", key->type);
-
             ret = wc_ed25519_priv_size(&key->alt_key.ed25519);
             if (ret <= 0) goto err;
             other_BufferLen = ret;
@@ -3047,8 +3045,6 @@ int wc_mldsa_composite_export_private(mldsa_composite_key* key, byte* out, word3
             }
 
 #elif defined(HAVE_MLDSA_COMPOSITE_DRAFT_2)
-
-            MADWOLF_DEBUG("Draft-2: Exporting ED25519 Private Key (type: %d)", key->type);
 
             ret = wc_ed25519_priv_size(&key->alt_key.ed25519);
             if (ret <= 0) goto err;

@@ -32,3 +32,5 @@ int export_key_p8(void * key, int type, const char * out_file, int format);
 int load_key_p8(void ** key, int type, const char * key_file, int format);
 
 int gen_keypair(void ** key, int type, int param, const char * out_file);
+
+int gen_csr(const void * key, const void * altkey, const char * out_filename, int out_format);
