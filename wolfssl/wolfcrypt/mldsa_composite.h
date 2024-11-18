@@ -116,6 +116,11 @@
     #define WOLFSSL_MLDSA_COMPOSITE_CHECK_KEY
 #endif
 
+#define RSA1024_KEY_SIZE                256
+#define RSA1024_SIG_SIZE                128
+#define RSA1024_PUB_KEY_SIZE            192
+#define RSA1024_PRV_KEY_SIZE            608
+
 #define RSA2048_KEY_SIZE                512
 #define RSA2048_SIG_SIZE                256
 #define RSA2048_PUB_KEY_SIZE            270
@@ -124,12 +129,12 @@
 #define RSA3072_KEY_SIZE                768
 #define RSA3072_SIG_SIZE                384
 #define RSA3072_PUB_KEY_SIZE            398
-#define RSA3072_PRV_KEY_SIZE            1767
+#define RSA3072_PRV_KEY_SIZE            1768
 
 #define RSA4096_KEY_SIZE                1024
 #define RSA4096_SIG_SIZE                512
 #define RSA4096_PUB_KEY_SIZE            526
-#define RSA4096_PRV_KEY_SIZE            2349
+#define RSA4096_PRV_KEY_SIZE            2350
 
 // Sizes Returned by the API Functions
 // TODO: @madwolf Values need to be checked
@@ -197,7 +202,7 @@
 #define MLDSA87_ED448_PUB_KEY_SIZE     DILITHIUM_ML_DSA_87_PUB_KEY_SIZE + ED448_PUB_KEY_SIZE + 16 + 7
 #define MLDSA87_ED448_PRV_KEY_SIZE     DILITHIUM_ML_DSA_87_PRV_KEY_SIZE + ED448_PRV_KEY_SIZE + 16 + 7
 
-#define MLDSA_COMPOSITE_MAX_OTHER_SIG_SZ RSA4096_SIG_SIZE 
+#define MLDSA_COMPOSITE_MAX_OTHER_SIG_SZ RSA4096_SIG_SIZE + 16 + 7
 #define MLDSA_COMPOSITE_MAX_OTHER_KEY_SZ RSA4096_PRV_KEY_SIZE 
 
 #define MLDSA_COMPOSITE_MIN_KEY_SIZE   MLDSA_ED25519_KEY_SIZE

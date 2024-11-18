@@ -90,6 +90,8 @@ int export_key_p8(void * key, int type, const char * out_file, int format) {
         return -1;
     }
 
+printf("**************** Exporting key type: %d\n", type);
+
     switch (type) {
 #ifndef NO_RSA
     case RSAk:
@@ -314,7 +316,7 @@ int export_key_p8(void * key, int type, const char * out_file, int format) {
             printf("Error exporting key\n");
             return -1;
         }
-        derPtr = (byte *)XMALLOC(derSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        derPtr = (byte *)XMALLOC(derSz, ((mldsa_composite_key *)key)->heap, DYNAMIC_TYPE_PRIVATE_KEY);
         if (derPtr == NULL) {
             printf("Error exporting key\n");
             return -1;
@@ -793,7 +795,7 @@ int load_key_p8(void ** key, int type, const char * key_file, int format) {
 
 #ifdef WOLFSSL_KEY_GEN
 
-int gen_keypair(void ** key, int type, int param, const char * out_file) {
+int gen_keypair(void ** key, int type, int param) {
 
     int ret;
     int outSz = 0;
@@ -826,10 +828,12 @@ int gen_keypair(void ** key, int type, int param, const char * out_file) {
 #else
     byte der[10192]; /* 10k */
 #endif
-        // buffer to hold the key in DER format
+
+    (void)der;
+    (void)outSz;
 
     if (type < 0) {
-        printf("Invalid key type (type: %d, out: %p)\n", type, out_file);
+        printf("Invalid key type (type: %d)\n", type);
         return -1;
     } else if (!key) {
         printf("Missing function parameter (key)\n");
@@ -853,13 +857,9 @@ int gen_keypair(void ** key, int type, int param, const char * out_file) {
     case RSAPSSk:
     case RSAk:
         keyPtr = &rsaKey;
-        ret = wc_InitRsaKey(&rsaKey, NULL);
+        ret = wc_InitRsaKey(&rsaKey, rsaKey.heap);
         if (ret == 0)
             ret = wc_MakeRsaKey(&rsaKey, 2048, WC_RSA_EXPONENT, &rng);
-        if (ret == 0)
-            outSz = wc_RsaKeyToDer(&rsaKey, der, sizeof(der));
-        if (outSz < 0)
-            ret = outSz;
         break;
 #endif
 #ifdef HAVE_ECC
@@ -874,10 +874,6 @@ int gen_keypair(void ** key, int type, int param, const char * out_file) {
                 ret = keySz;
             if (ret == 0)
                 ret = wc_ecc_make_key_ex(&rng, keySz, keyPtr, param);
-            if (ret == 0)
-                outSz = wc_EccKeyToDer(&ecKey, der, sizeof(der));
-            if (outSz < 0)
-                ret = outSz;
         }
         break;
 #endif
@@ -887,10 +883,6 @@ int gen_keypair(void ** key, int type, int param, const char * out_file) {
         ret = wc_ed25519_init(&ed25519Key);
         if (ret == 0)
             ret = wc_ed25519_make_key(&rng, ED25519_KEY_SIZE, keyPtr);
-        if (ret == 0)
-            outSz = wc_Ed25519KeyToDer(&ed25519Key, der, sizeof(der));
-        if (outSz < 0)
-            ret = outSz;
         break;
 #endif
 #ifdef HAVE_ED448
@@ -899,10 +891,6 @@ int gen_keypair(void ** key, int type, int param, const char * out_file) {
         ret = wc_ed448_init(&ed448Key);
         if (ret == 0)
             ret = wc_ed448_make_key(&rng, ED448_KEY_SIZE, keyPtr);
-        if (ret == 0)
-            outSz = wc_Ed448KeyToDer(&ed448Key, der, sizeof(der));
-        if (outSz < 0)
-            ret = outSz;
         break;
 #endif
 #ifdef HAVE_DILITHIUM
@@ -923,22 +911,20 @@ int gen_keypair(void ** key, int type, int param, const char * out_file) {
         }
         if (ret == 0)
             ret = wc_dilithium_make_key(&mldsaKey, &rng);
-        if (ret == 0)
-            outSz = wc_Dilithium_PrivateKeyToDer(&mldsaKey, der, sizeof(der));
-        if (outSz < 0)
-            ret = outSz;
         break;
 #endif
 
 #ifdef HAVE_MLDSA_COMPOSITE
-    case MLDSA44_RSA2048k:
     case MLDSA44_RSAPSS2048k:
+    case MLDSA44_RSA2048k:
     case MLDSA44_NISTP256k:
-    case MLDSA44_BPOOL256k:
+    // case MLDSA44_BPOOL256k:
     case MLDSA44_ED25519k:
     case MLDSA65_ED25519k:
-    case MLDSA65_RSA3072k:
+    case MLDSA65_RSAPSS4096k:
+    case MLDSA65_RSA4096k:
     case MLDSA65_RSAPSS3072k:
+    case MLDSA65_RSA3072k:
     case MLDSA65_NISTP256k:
     case MLDSA65_BPOOL256k:
     case MLDSA87_BPOOL384k:
@@ -952,10 +938,11 @@ int gen_keypair(void ** key, int type, int param, const char * out_file) {
             return ret;
         if (ret == 0)
             ret = wc_mldsa_composite_make_key(&mldsa_compositeKey, key_type, &rng);
-        if (ret == 0)
-            outSz = wc_MlDsaComposite_PrivateKeyToDer(&mldsa_compositeKey, der, sizeof(der));
-        if (outSz < 0)
-            ret = outSz;
+        // if (ret == 0)
+        //     outSz = wc_MlDsaComposite_PrivateKeyToDer(&mldsa_compositeKey, der, sizeof(der));
+        // if (outSz < 0)
+        //     ret = outSz;
+        printf("******** FESTIVE ******************\n");
         break;
 #endif
 
@@ -1197,7 +1184,7 @@ int main(int argc, char** argv) {
         // PKEY
         case 0: {
 #ifdef WOLFSSL_KEY_GEN
-            if (gen_keypair(&keyPtr, keySum, param, out_file) < 0) {
+            if (gen_keypair(&keyPtr, keySum, param) < 0) {
                 printf("Error generating keypair\n");
                 return 1;
             }

@@ -48742,8 +48742,6 @@ static int test_wc_mldsa_composite(void)
     ExpectIntEQ(wc_InitRng(&rng), 0);
 #endif
 
-printf("[%d:%s] %s(): ***** DEBUG 1\n", __LINE__, __FILE__, __func__);
-
     ExpectIntEQ(wc_mldsa_composite_init(NULL), BAD_FUNC_ARG);
     ExpectIntEQ(wc_mldsa_composite_init_ex(NULL, NULL, INVALID_DEVID), BAD_FUNC_ARG);
     wc_mldsa_composite_free(NULL);
@@ -48752,101 +48750,62 @@ printf("[%d:%s] %s(): ***** DEBUG 1\n", __LINE__, __FILE__, __func__);
     wc_mldsa_composite_free(key);
     ExpectIntEQ(wc_mldsa_composite_init_ex(key, NULL, INVALID_DEVID), 0);
 
-printf("[%d:%s] %s(): ***** DEBUG 2\n", __LINE__, __FILE__, __func__);
-
 #ifndef WOLFSSL_MLDSA_COMPOSITE_NO_VERIFY
-printf("[%d:%s] %s(): ***** DEBUG 2\n", __LINE__, __FILE__, __func__);
     ExpectIntEQ(wc_mldsa_composite_export_public(key, pubKey, &pubKeyLen),
         BAD_FUNC_ARG);
 #endif
 #ifndef WOLFSSL_MLDSA_COMPOSITE_NO_SIGN
-printf("[%d:%s] %s(): ***** DEBUG 2\n", __LINE__, __FILE__, __func__);
     ExpectIntEQ(wc_mldsa_composite_export_private(key, privKey, &privKeyLen),
         BAD_FUNC_ARG);
-printf("[%d:%s] %s(): ***** DEBUG 2\n", __LINE__, __FILE__, __func__);
 #endif
 
-printf("[%d:%s] %s(): ***** DEBUG 3\n", __LINE__, __FILE__, __func__);
-
 #ifdef WOLFSSL_MLDSA_COMPOSITE_PRIVATE_KEY
-printf("[%d:%s] %s(): ***** DEBUG 3\n", __LINE__, __FILE__, __func__);
     ExpectIntEQ(wc_mldsa_composite_size(NULL), BAD_FUNC_ARG);
 #ifdef WOLFSSL_MLDSA_COMPOSITE_PUBLIC_KEY
-printf("[%d:%s] %s(): ***** DEBUG 3\n", __LINE__, __FILE__, __func__);
     ExpectIntEQ(wc_mldsa_composite_priv_size(NULL), BAD_FUNC_ARG);
 #endif
 #endif
 #ifdef WOLFSSL_MLDSA_COMPOSITE_PUBLIC_KEY
-printf("[%d:%s] %s(): ***** DEBUG 3\n", __LINE__, __FILE__, __func__);
     ExpectIntEQ(wc_mldsa_composite_pub_size(NULL), BAD_FUNC_ARG);
 #endif
 #if !defined(WOLFSSL_MLDSA_COMPOSITE_NO_SIGN) || !defined(WOLFSSL_MLDSA_COMPOSITE_NO_VERIFY)
-printf("[%d:%s] %s(): ***** DEBUG 3\n", __LINE__, __FILE__, __func__);
     ExpectIntEQ(wc_mldsa_composite_sig_size(NULL), BAD_FUNC_ARG);
 #endif
 #ifdef WOLFSSL_MLDSA_COMPOSITE_PRIVATE_KEY
-printf("[%d:%s] %s(): ***** DEBUG 3.a\n", __LINE__, __FILE__, __func__);
     ExpectIntEQ(wc_mldsa_composite_size(key), BAD_FUNC_ARG);
-printf("[%d:%s] %s(): ***** DEBUG 3.b\n", __LINE__, __FILE__, __func__);
 
 #ifdef WOLFSSL_MLDSA_COMPOSITE_PUBLIC_KEY
-printf("[%d:%s] %s(): ***** DEBUG 4\n", __LINE__, __FILE__, __func__);
     ExpectIntEQ(wc_mldsa_composite_priv_size(key), BAD_FUNC_ARG);
 #endif
 #endif
 #ifdef WOLFSSL_MLDSA_COMPOSITE_PUBLIC_KEY
-printf("[%d:%s] %s(): ***** DEBUG 4\n", __LINE__, __FILE__, __func__);
     ExpectIntEQ(wc_mldsa_composite_pub_size(key), BAD_FUNC_ARG);
 #endif
 #if !defined(WOLFSSL_MLDSA_COMPOSITE_NO_SIGN) || !defined(WOLFSSL_MLDSA_COMPOSITE_NO_VERIFY)
-printf("[%d:%s] %s(): ***** DEBUG 4\n", __LINE__, __FILE__, __func__);
     ExpectIntEQ(wc_mldsa_composite_sig_size(key), BAD_FUNC_ARG);
 #endif
 
-printf("[%d:%s] %s(): ***** DEBUG 4\n", __LINE__, __FILE__, __func__);
-
     ExpectIntEQ(wc_mldsa_composite_set_type(NULL, 0), BAD_FUNC_ARG);
-
-printf("[%d:%s] %s(): ***** DEBUG 4\n", __LINE__, __FILE__, __func__);
-
     ExpectIntEQ(wc_mldsa_composite_set_type(key, 999), BAD_FUNC_ARG);
-
-printf("[%d:%s] %s(): ***** DEBUG 4\n", __LINE__, __FILE__, __func__);
-
     ExpectIntEQ(wc_mldsa_composite_get_type(NULL, NULL), BAD_FUNC_ARG);
-
-printf("[%d:%s] %s(): ***** DEBUG 4\n", __LINE__, __FILE__, __func__);
-
     ExpectIntEQ(wc_mldsa_composite_get_type(key, NULL), BAD_FUNC_ARG);
-printf("[%d:%s] %s(): ***** DEBUG 4\n", __LINE__, __FILE__, __func__);
-
-
     ExpectIntEQ(wc_mldsa_composite_get_type(NULL, &level), BAD_FUNC_ARG);
-printf("[%d:%s] %s(): ***** DEBUG 4\n", __LINE__, __FILE__, __func__);
     ExpectIntEQ(wc_mldsa_composite_get_type(key, &level), BAD_FUNC_ARG);
-printf("[%d:%s] %s(): ***** DEBUG 4\n", __LINE__, __FILE__, __func__);
 
 #ifndef WOLFSSL_NO_MLDSA44_ED25519
     ExpectIntEQ(wc_mldsa_composite_set_type(key, WC_MLDSA44_ED25519_SHA256), 0);
-printf("[%d:%s] %s(): ***** DEBUG 4\n", __LINE__, __FILE__, __func__);
     ExpectIntEQ(wc_mldsa_composite_get_type(key, &level), 0);
-printf("[%d:%s] %s(): ***** DEBUG 4\n", __LINE__, __FILE__, __func__);
     ExpectIntEQ(level, WC_MLDSA44_ED25519_SHA256);
 #ifdef WOLFSSL_MLDSA_COMPOSITE_PRIVATE_KEY
-printf("[%d:%s] %s(): ***** DEBUG 4\n", __LINE__, __FILE__, __func__);
     ExpectIntEQ(wc_mldsa_composite_size(key), MLDSA44_ED25519_KEY_SIZE);
 #ifdef WOLFSSL_MLDSA_COMPOSITE_PUBLIC_KEY
-printf("[%d:%s] %s(): ***** DEBUG 4\n", __LINE__, __FILE__, __func__);
     ExpectIntEQ(wc_mldsa_composite_pub_size(key), MLDSA44_ED25519_PUB_KEY_SIZE);
 #endif
 #endif
 #if !defined(WOLFSSL_MLDSA_COMPOSITE_NO_SIGN) || !defined(WOLFSSL_MLDSA_COMPOSITE_NO_VERIFY)
-printf("[%d:%s] %s(): ***** DEBUG 4\n", __LINE__, __FILE__, __func__);
     ExpectIntEQ(wc_mldsa_composite_sig_size(key), MLDSA44_ED25519_SIG_SIZE);
 #endif
 #endif
-
-printf("[%d:%s] %s(): ***** DEBUG 5\n", __LINE__, __FILE__, __func__);
 
 #ifndef WOLFSSL_NO_MLDSA44_P256
     ExpectIntEQ(wc_mldsa_composite_set_type(key, WC_MLDSA44_NISTP256_SHA256), 0);
@@ -48862,9 +48821,6 @@ printf("[%d:%s] %s(): ***** DEBUG 5\n", __LINE__, __FILE__, __func__);
     ExpectIntEQ(wc_mldsa_composite_sig_size(key), MLDSA44_NISTP256_SIG_SIZE);
 #endif
 #endif
-
-printf("[%d:%s] %s(): ***** DEBUG 6\n", __LINE__, __FILE__, __func__);
-
     wc_mldsa_composite_free(key);
 
 #if !defined(WOLFSSL_MLDSA_COMPOSITE_NO_MAKE_KEY) || \
@@ -48875,8 +48831,6 @@ printf("[%d:%s] %s(): ***** DEBUG 6\n", __LINE__, __FILE__, __func__);
     XFREE(privKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
-
-printf("[%d:%s] %s(): ***** DEBUG 7\n", __LINE__, __FILE__, __func__);
 
     return EXPECT_RESULT();
 }
@@ -48953,8 +48907,6 @@ EXPECT_DECLS;
         DYNAMIC_TYPE_TMP_BUFFER);
     ExpectNotNull(sig);
 
-printf("[%d:%s] %s(): ***** DEBUG EXP \n", __LINE__, __FILE__, __func__);
-
     if (key != NULL) {
         XMEMSET(key, 0, sizeof(*key));
     }
@@ -48967,8 +48919,6 @@ printf("[%d:%s] %s(): ***** DEBUG EXP \n", __LINE__, __FILE__, __func__);
     ExpectIntEQ(wc_InitRng(&rng), 0);
     ExpectIntEQ(wc_mldsa_composite_init(key), 0);
 
-printf("[%d:%s] %s(): ***** DEBUG EXP \n", __LINE__, __FILE__, __func__);
-
 #ifndef WOLFSSL_NO_MLDSA44_ED25519
     ExpectIntEQ(wc_mldsa_composite_set_type(key, WC_MLDSA44_ED25519_SHA256), 0);
 #elif !defined(WOLFSSL_NO_MLDSA44_P256)
@@ -48978,8 +48928,6 @@ printf("[%d:%s] %s(): ***** DEBUG EXP \n", __LINE__, __FILE__, __func__);
 #ifndef WOLFSSL_MLDSA_COMPOSITE_NO_MAKE_KEY
     ExpectIntEQ(wc_mldsa_composite_make_key(key, WC_MLDSA44_ED25519_SHA256, &rng), 0);
 #endif
-
-printf("[%d:%s] %s(): ***** DEBUG EXP \n", __LINE__, __FILE__, __func__);
 
     ExpectIntEQ(wc_mldsa_composite_sign_msg(NULL, 32, NULL, NULL, NULL, NULL),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
@@ -49003,10 +48951,7 @@ printf("[%d:%s] %s(): ***** DEBUG EXP \n", __LINE__, __FILE__, __func__);
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wc_mldsa_composite_sign_msg(msg, 32, sig, &sigLen, key, NULL),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-printf("[%d:%s] %s(): ***** DEBUG EXP \n", __LINE__, __FILE__, __func__);
     ExpectIntEQ(wc_mldsa_composite_sign_msg(msg, 32, sig, &sigLen, key, &rng), 0);
-
-printf("[%d:%s] %s(): ***** DEBUG EXP \n", __LINE__, __FILE__, __func__);
 
     ExpectIntEQ(wc_mldsa_composite_export_private(NULL, NULL, NULL),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
@@ -49023,8 +48968,6 @@ printf("[%d:%s] %s(): ***** DEBUG EXP \n", __LINE__, __FILE__, __func__);
     ExpectIntEQ(wc_mldsa_composite_export_private(key, privKey, NULL),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 
-printf("[%d:%s] %s(): ***** DEBUG EXP \n", __LINE__, __FILE__, __func__);
-
     badKeyLen = 0;
     ExpectIntEQ(wc_mldsa_composite_export_private(key, privKey, &badKeyLen),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
@@ -49036,8 +48979,6 @@ printf("[%d:%s] %s(): ***** DEBUG EXP \n", __LINE__, __FILE__, __func__);
     ExpectIntEQ(privKeyLen, MLDSA44_ED25519_PRV_KEY_SIZE);
 #endif
 
-printf("[%d:%s] %s(): ***** DEBUG EXP \n", __LINE__, __FILE__, __func__);
-
     ExpectIntEQ(wc_mldsa_composite_init(importKey), 0);
     ExpectIntEQ(wc_mldsa_composite_import_private(privKey, privKeyLen, importKey, 0),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
@@ -49045,9 +48986,6 @@ printf("[%d:%s] %s(): ***** DEBUG EXP \n", __LINE__, __FILE__, __func__);
     // ExpectIntEQ(wc_mldsa_composite_set_type(importKey, WC_MLDSA44_NISTP256_SHA256), 0);
     // ExpectIntEQ(wc_mldsa_composite_set_type(importKey, WC_MLDSA44_ED25519_SHA512), 0);
     // ExpectIntEQ(wc_mldsa_composite_set_type(importKey, WC_MLDSA44_BPOOL256_SHA256), 0);
-
-printf("[%d:%s] %s(): ***** DEBUG EXP \n", __LINE__, __FILE__, __func__);
-
 
     ExpectIntEQ(wc_mldsa_composite_import_private(NULL, 0, NULL, 0),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
@@ -49070,19 +49008,9 @@ printf("[%d:%s] %s(): ***** DEBUG EXP \n", __LINE__, __FILE__, __func__);
     ExpectIntEQ(wc_mldsa_composite_check_key(importKey),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 #endif
-printf("[%d:%s] %s(): ***** DEBUG EXP \n", __LINE__, __FILE__, __func__);
-
     wc_mldsa_composite_free(importKey);
-
-printf("[%d:%s] %s(): ***** DEBUG EXP \n", __LINE__, __FILE__, __func__);
-
     wc_mldsa_composite_free(key);
-
-printf("[%d:%s] %s(): ***** DEBUG EXP \n", __LINE__, __FILE__, __func__);
-
     wc_FreeRng(&rng);
-
-printf("[%d:%s] %s(): ***** DEBUG EXP \n", __LINE__, __FILE__, __func__);
 
     XFREE(sig, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(privKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
