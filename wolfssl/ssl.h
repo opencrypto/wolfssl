@@ -2759,15 +2759,19 @@ WOLFSSL_API void wolfSSL_ERR_print_errors(WOLFSSL_BIO *bio);
 enum { /* ssl Constants */
     WOLFSSL_ERROR_NONE      =  0,   /* for most functions */
     WOLFSSL_FAILURE         =  0,   /* for some functions */
+    WOLFSSL_SUCCESS         =  1,
 
     #if defined(WOLFSSL_DEBUG_TRACE_ERROR_CODES) && \
             (defined(BUILDING_WOLFSSL) || \
              defined(WOLFSSL_DEBUG_TRACE_ERROR_CODES_ALWAYS))
         #define WOLFSSL_FAILURE WC_ERR_TRACE(WOLFSSL_FAILURE)
         #define CONST_NUM_ERR_WOLFSSL_FAILURE 0
+        /* include CONST_NUM_ERR_ variants of the success codes, so that they
+         * can be harmlessly wrapped in WC_NO_ERR_TRACE().
+         */
+        #define CONST_NUM_ERR_WOLFSSL_ERROR_NONE 0
+        #define CONST_NUM_ERR_WOLFSSL_SUCCESS 1
     #endif
-
-    WOLFSSL_SUCCESS         =  1,
 
 /* WOLFSSL_SHUTDOWN_NOT_DONE is returned by wolfSSL_shutdown and
  * wolfSSL_SendUserCanceled when the other end
@@ -4955,6 +4959,8 @@ WOLFSSL_API int wolfSSL_PEM_write_bio_X509(WOLFSSL_BIO *bp, WOLFSSL_X509 *x);
 WOLFSSL_API int wolfSSL_i2d_X509_REQ(WOLFSSL_X509* req, unsigned char** out);
 WOLFSSL_API WOLFSSL_X509* wolfSSL_X509_REQ_new(void);
 WOLFSSL_API void wolfSSL_X509_REQ_free(WOLFSSL_X509* req);
+WOLFSSL_API long wolfSSL_X509_REQ_get_version(const WOLFSSL_X509 *req);
+WOLFSSL_API int wolfSSL_X509_REQ_set_version(WOLFSSL_X509 *x, long version);
 WOLFSSL_API int wolfSSL_X509_REQ_sign(WOLFSSL_X509 *req, WOLFSSL_EVP_PKEY *pkey,
                                       const WOLFSSL_EVP_MD *md);
 WOLFSSL_API int wolfSSL_X509_REQ_sign_ctx(WOLFSSL_X509 *req,

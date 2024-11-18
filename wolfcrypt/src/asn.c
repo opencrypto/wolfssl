@@ -105,6 +105,8 @@ ASN Options:
  * WOLFSSL_ECC_SIGALG_PARAMS_NULL_ALLOWED: Allows the ECDSA/EdDSA signature
  *  algorithms in certificates to have NULL parameter instead of empty.
  *  DO NOT enable this unless required for interoperability.
+ * WOLFSSL_ASN_EXTRA: Make more ASN.1 APIs available regardless of internal
+ *  usage.
 */
 
 #include <wolfssl/wolfcrypt/error-crypt.h>
@@ -3182,7 +3184,7 @@ int GetMyVersion(const byte* input, word32* inOutIdx,
 }
 
 
-#ifndef NO_PWDBASED
+#if !defined(NO_PWDBASED) || defined(WOLFSSL_ASN_EXTRA)
 /* Decode small integer, 32 bits or less.
  *
  * @param [in]      input     Buffer of BER data.
@@ -3247,8 +3249,10 @@ int GetShortInt(const byte* input, word32* inOutIdx, int* number, word32 maxIdx)
     return ret;
 #endif
 }
+#endif /* !NO_PWDBASED || WOLFSSL_ASN_EXTRA */
 
 
+#ifndef NO_PWDBASED
 #if !defined(WOLFSSL_ASN_TEMPLATE) || defined(HAVE_PKCS8) || \
      defined(HAVE_PKCS12)
 /* Set small integer, 32 bits or less. DER encoding with no leading 0s
@@ -34963,7 +34967,7 @@ int wc_EccPrivateKeyDecode(const byte* input, word32* inOutIdx, ecc_key* key,
     byte version = 0;
     int ret = 0;
     int curve_id = ECC_CURVE_DEF;
-#if defined(HAVE_PKCS8) || defined(HAVE_PKCS12) || defined(SM2)
+#if defined(HAVE_PKCS8) || defined(HAVE_PKCS12) || defined(WOLFSSL_SM2)
     word32 algId = 0;
     word32 eccOid = 0;
 #endif
@@ -34973,7 +34977,7 @@ int wc_EccPrivateKeyDecode(const byte* input, word32* inOutIdx, ecc_key* key,
         ret = BAD_FUNC_ARG;
     }
 
-#if defined(HAVE_PKCS8) || defined(HAVE_PKCS12) || defined(SM2)
+#if defined(HAVE_PKCS8) || defined(HAVE_PKCS12) || defined(WOLFSSL_SM2)
     /* if has pkcs8 header skip it */
     if (ToTraditionalInline_ex2(input, inOutIdx, inSz, &algId, &eccOid) < 0) {
         /* ignore error, did not have pkcs8 header */
@@ -39488,7 +39492,34 @@ static int ParseCRL_Extensions(DecodedCRL* dcrl, const byte* buf, word32 idx,
                 }
             #endif
             }
-            /* TODO: Parse CRL Number extension */
+            else if (oid == CRL_NUMBER_OID) {
+            #ifdef WOLFSSL_SMALL_STACK
+                mp_int* m = (mp_int*)XMALLOC(sizeof(*m), NULL,
+                        DYNAMIC_TYPE_BIGINT);
+                if (m == NULL) {
+                    ret = MEMORY_E;
+                }
+            #else
+                mp_int m[1];
+            #endif
+
+                if (ret == 0) {
+                    if (mp_init(m) != MP_OKAY) {
+                        ret = MP_INIT_E;
+                    }
+                }
+                if (ret == 0) {
+                    ret = GetInt(m, buf, &idx, maxIdx);
+                }
+                if (ret == 0) {
+                    dcrl->crlNumber = (int)m->dp[0];
+                }
+
+                mp_free(m);
+            #ifdef WOLFSSL_SMALL_STACK
+                XFREE(m, NULL, DYNAMIC_TYPE_BIGINT);
+            #endif
+            }
             /* TODO: check criticality */
             /* Move index on to next extension. */
             idx += (word32)length;
@@ -41219,11 +41250,11 @@ int wc_RsaPublicKeyDecodeRaw(const byte* n, word32 nSz, const byte* e,
 void InitDecodedAcert(DecodedAcert* acert, const byte* source, word32 inSz,
                       void* heap)
 {
+    WOLFSSL_MSG("InitDecodedAcert");
+
     if (acert == NULL) {
         return;
     }
-
-    WOLFSSL_MSG("InitDecodedAcert");
 
     XMEMSET(acert, 0, sizeof(DecodedAcert));
     acert->heap = heap;
@@ -41242,11 +41273,11 @@ void InitDecodedAcert(DecodedAcert* acert, const byte* source, word32 inSz,
  */
 void FreeDecodedAcert(DecodedAcert * acert)
 {
+    WOLFSSL_MSG("FreeDecodedAcert");
+
     if (acert == NULL) {
         return;
     }
-
-    WOLFSSL_MSG("FreeDecodedAcert");
 
     if (acert->holderIssuerName) {
         FreeAltNames(acert->holderIssuerName, acert->heap);
@@ -41415,6 +41446,7 @@ static int DecodeAcertGeneralName(const byte* input, word32* inOutIdx,
  *
  * @param [in]      input    Buffer holding encoded data.
  * @param [in]      sz       Size of encoded data in bytes.
+ * @param [in]      tag      ASN.1 tag value expected in header.
  * @param [in, out] cert     Decoded certificate object.
  * @param [in, out] entries  Linked list of DNS name entries.
  *
@@ -41426,7 +41458,7 @@ static int DecodeAcertGeneralName(const byte* input, word32* inOutIdx,
  * @return  MEMORY_E when dynamic memory allocation fails.
  */
 static int DecodeAcertGeneralNames(const byte* input, word32 sz,
-                                   DecodedAcert* acert,
+                                   byte tag, DecodedAcert* acert,
                                    DNS_entry** entries)
 {
     word32 idx = 0;
@@ -41434,28 +41466,35 @@ static int DecodeAcertGeneralNames(const byte* input, word32 sz,
     int    ret = 0;
     word32 numNames = 0;
 
-    /* Get SEQUENCE and expect all data to be accounted for. */
-    if (GetASN_Sequence(input, &idx, &length, sz, 1) != 0) {
-        WOLFSSL_MSG("\tBad Sequence");
+    if (GetASNHeader(input, tag, &idx, &length, sz) <= 0) {
+        WOLFSSL_MSG("error: acert general names: bad header");
         return ASN_PARSE_E;
     }
 
     if (length == 0) {
-        /* There is supposed to be a non-empty sequence here. */
-        WOLFSSL_ERROR_VERBOSE(ASN_PARSE_E);
+        WOLFSSL_MSG("error: acert general names: zero length");
         return ASN_PARSE_E;
     }
 
     if ((word32)length + idx != sz) {
+        #ifdef DEBUG_WOLFSSL
+        WOLFSSL_MSG_EX("error: acert general names: got %d, expected %d",
+                       (word32)length + idx, sz);
+        #endif
         return ASN_PARSE_E;
     }
 
     while ((ret == 0) && (idx < sz)) {
         ASNGetData dataASN[altNameASN_Length];
 
+        /* Not sure what a reasonable max would be for attribute certs,
+         * therefore observing WOLFSSL_MAX_ALT_NAMES limit. */
         numNames++;
         if (numNames > WOLFSSL_MAX_ALT_NAMES) {
-            WOLFSSL_MSG("error: acert: too many subject alternative names");
+            #ifdef DEBUG_WOLFSSL
+            WOLFSSL_MSG_EX("error: acert general names: too many names, %d",
+                           numNames);
+            #endif
             ret = ASN_ALT_NAME_E;
             break;
         }
@@ -41511,13 +41550,15 @@ static const ASNItem HolderASN[] =
                      /* Holder root sequence. */
 /* HOLDER_SEQ  */    { 0, ASN_SEQUENCE, 1, 1, 0 },
                          /* Holder Option 0:*/
+                         /* baseCertificateID   [0] IssuerSerial OPTIONAL */
 /* ISSUERSERIAL_SEQ  */  { 1, ASN_CONTEXT_SPECIFIC | 0, 1, 1, 2 },
                              /* issuer         GeneralNames, */
 /* GN_SEQ  */                { 2, ASN_SEQUENCE, 1, 0, 0 },
                              /* serial     CertificateSerialNumber */
 /* SERIAL_INT  */            { 2, ASN_INTEGER, 0, 0, 0 },
-                         /* Holder Option 1:*/
-/* GN_SEQ  */            { 1,  ASN_CONTEXT_SPECIFIC | 1, 1, 0, 2 },
+                         /* Holder Option 1: */
+                         /* entityName          [1] GeneralNames OPTIONAL */
+/* ENTITYNAME_SEQ  */  { 1, ASN_CONTEXT_SPECIFIC | 1, 1, 1, 2 },
 };
 
 enum {
@@ -41556,6 +41597,10 @@ static int DecodeHolder(const byte* input, word32 len, DecodedAcert* acert)
         return BUFFER_E;
     }
 
+    #ifdef WOLFSSL_DEBUG_ASN_TEMPLATE
+    printf("debug: decode holder: holder len: %d\n", len);
+    #endif /* WOLFSSL_DEBUG_ASN_TEMPLATE */
+
     CALLOC_ASNGETDATA(dataASN, HolderASN_Length, ret, acert->heap);
 
     if (ret != 0) {
@@ -41589,20 +41634,50 @@ static int DecodeHolder(const byte* input, word32 len, DecodedAcert* acert)
          * Use the HOLDER_IDX_GN_SEQ offset for input. */
         const byte * gn_input = NULL;
         word32       gn_len = 0;
-        word32       holder_index = HOLDER_IDX_GN_SEQ;
+        byte         tag = 0x00;
 
         /* Determine which tag was seen. */
         if (dataASN[HOLDER_IDX_GN_SEQ].tag != 0) {
-            gn_input = input + dataASN[holder_index].offset;
-            gn_len = dataASN[holder_index].length + 2;
-        }
-        else {
-            gn_input = input;
-            gn_len = len;
+            gn_input = input + dataASN[HOLDER_IDX_GN_SEQ].offset;
+            gn_len = dataASN[HOLDER_IDX_GN_SEQ].length;
+            tag = dataASN[HOLDER_IDX_GN_SEQ].tag;
+
+            if (gn_len >= ASN_LONG_LENGTH) {
+                gn_len += 3;
+            }
+            else {
+                gn_len += 2;
+            }
+
+            #ifdef WOLFSSL_DEBUG_ASN_TEMPLATE
+            printf("debug: decode holder: holder index: %d\n",
+                   HOLDER_IDX_GN_SEQ);
+            #endif /* WOLFSSL_DEBUG_ASN_TEMPLATE */
+
+            ret = DecodeAcertGeneralNames(gn_input, gn_len, tag, acert,
+                                          &acert->holderIssuerName);
         }
 
-        ret = DecodeAcertGeneralNames(gn_input, gn_len, acert,
-                                      &acert->holderIssuerName);
+        if (dataASN[HOLDER_IDX_GN_SEQ_OPT1].tag != 0) {
+            gn_input = input + dataASN[HOLDER_IDX_GN_SEQ_OPT1].offset;
+            gn_len = dataASN[HOLDER_IDX_GN_SEQ_OPT1].length;
+            tag = dataASN[HOLDER_IDX_GN_SEQ_OPT1].tag;
+
+            if (gn_len >= ASN_LONG_LENGTH) {
+                gn_len += 3;
+            }
+            else {
+                gn_len += 2;
+            }
+
+            #ifdef WOLFSSL_DEBUG_ASN_TEMPLATE
+            printf("debug: decode holder: holder index: %d\n",
+                   HOLDER_IDX_GN_SEQ_OPT1);
+            #endif /* WOLFSSL_DEBUG_ASN_TEMPLATE */
+
+            ret = DecodeAcertGeneralNames(gn_input, gn_len, tag, acert,
+                                          &acert->holderEntityName);
+        }
 
         if (ret != 0) {
             WOLFSSL_MSG("error: Holder: DecodeAcertGeneralNames failed");
@@ -41615,7 +41690,14 @@ static int DecodeHolder(const byte* input, word32 len, DecodedAcert* acert)
     return 0;
 }
 
-/* From RFC 5755.
+/* Note on AttCertIssuer field. ACERTs are supposed to follow
+ * v2form, but some (acert_bc1.pem) follow v1form. Because
+ * of the limited set of example ACERTs, the v1form will be
+ * tolerated for now but the field will not be parsed.
+ *
+ * More info from RFC below:
+ *
+ * From RFC 5755.
  * 4.2.3.  Issuer
  *
  * ACs conforming to this profile MUST use the v2Form choice, which MUST
@@ -41657,7 +41739,6 @@ enum {
 
 /* Decode the AttCertIssuer Field of an x509 attribute certificate.
  *
- *
  * @param [in]      input     Buffer containing encoded AttCertIssuer field.
  * @param [in]      len       Length of Holder field.
  * @param [in]      cert      Decoded certificate object.
@@ -41677,6 +41758,7 @@ static int DecodeAttCertIssuer(const byte* input, word32 len,
     word32       idx = 0;
     const byte * gn_input = NULL;
     word32       gn_len = 0;
+    byte         tag = 0x00;
 
     if (input == NULL || len <= 0 || cert == NULL) {
         return BUFFER_E;
@@ -41700,9 +41782,17 @@ static int DecodeAttCertIssuer(const byte* input, word32 len,
     /* Now parse the GeneralNames field.
      * Use the HOLDER_IDX_GN_SEQ offset for input. */
     gn_input = input + dataASN[ATTCERTISSUER_IDX_GN_SEQ].offset;
-    gn_len = dataASN[ATTCERTISSUER_IDX_GN_SEQ].length + 2;
+    gn_len = dataASN[ATTCERTISSUER_IDX_GN_SEQ].length;
+    tag = dataASN[ATTCERTISSUER_IDX_GN_SEQ].tag;
 
-    ret = DecodeAcertGeneralNames(gn_input, gn_len, cert,
+    if (gn_len >= ASN_LONG_LENGTH) {
+        gn_len += 3;
+    }
+    else {
+        gn_len += 2;
+    }
+
+    ret = DecodeAcertGeneralNames(gn_input, gn_len, tag, cert,
                                   &cert->AttCertIssuerName);
 
     if (ret != 0) {
@@ -41730,8 +41820,10 @@ static const ASNItem AcertASN[] =
                                   /* holder   Holder */
 /* ACINFO_HOLDER_SEQ  */          { 2, ASN_SEQUENCE, 1, 0, 0 },
                                   /* issuer   AttCertIssuer */
-/* ACINFO_CHOICE_SEQ  */          { 2, ASN_CONTEXT_SPECIFIC | 0, 1, 0, 2 },
-/* ACINFO_ISSUER_SEQ  */          { 2, ASN_SEQUENCE | 0, 1, 0, 2 },
+                                  /* v2Form   [0] V2Form  */
+/* ACINFO_ISSUER_V2FORM */        { 2, ASN_CONTEXT_SPECIFIC | 0, 1, 0, 2 },
+                                  /* v1Form   GeneralNames */
+/* ACINFO_ISSUER_V1FORM  */       { 2, ASN_SEQUENCE, 1, 0, 2 },
                                   /* signature    AlgorithmIdentifier */
                                   /* AlgorithmIdentifier ::= SEQUENCE */
 /* ACINFO_ALGOID_SEQ */           { 2, ASN_SEQUENCE, 1, 1, 0 },
@@ -41777,8 +41869,9 @@ enum {
     ACERT_IDX_ACINFO_VER_INT,
     /* ACINFO holder and issuer */
     ACERT_IDX_ACINFO_HOLDER_SEQ,
-    ACERT_IDX_ACINFO_CHOICE_SEQ,
-    ACERT_IDX_ACINFO_ISSUER_SEQ,
+    /* The issuer should be in V2 form, but tolerate V1 for now. */
+    ACERT_IDX_ACINFO_ISSUER_V2,
+    ACERT_IDX_ACINFO_ISSUER_V1,
     /* ACINFO sig alg*/
     ACERT_IDX_ACINFO_ALGOID_SEQ,
     ACERT_IDX_ACINFO_ALGOID_OID,
@@ -41835,6 +41928,8 @@ int ParseX509Acert(DecodedAcert* acert, int verify)
     int    badDate = 0;
     byte   version = 0;
     word32 serialSz = EXTERNAL_SERIAL_SIZE;
+
+    WOLFSSL_MSG("ParseX509Acert");
 
     if (acert == NULL) {
         return BAD_FUNC_ARG;
@@ -41984,8 +42079,14 @@ int ParseX509Acert(DecodedAcert* acert, int verify)
 
         /* Determine which issuer tag was seen. We need this to determine
          * the holder_input. */
-        i_issuer = (dataASN[ACERT_IDX_ACINFO_CHOICE_SEQ].tag != 0) ?
-                    ACERT_IDX_ACINFO_CHOICE_SEQ : ACERT_IDX_ACINFO_ISSUER_SEQ;
+        i_issuer = (dataASN[ACERT_IDX_ACINFO_ISSUER_V2].tag != 0) ?
+                    ACERT_IDX_ACINFO_ISSUER_V2 : ACERT_IDX_ACINFO_ISSUER_V1;
+
+        #ifdef WOLFSSL_DEBUG_ASN_TEMPLATE
+        printf("debug: parse acert: issuer index: %d\n", i_issuer);
+        printf("debug: parse acert: issuer seq offset: %d\n",
+               dataASN[i_issuer].offset);
+        #endif /* WOLFSSL_DEBUG_ASN_TEMPLATE */
 
         holder_input = acert->source + dataASN[i_holder].offset;
         holder_len = dataASN[i_issuer].offset - dataASN[i_holder].offset;
@@ -41997,13 +42098,9 @@ int ParseX509Acert(DecodedAcert* acert, int verify)
             return ret;
         }
 
-        #ifdef WOLFSSL_DEBUG_ASN_TEMPLATE
-        printf("debug: parse acert:issuer index: %d\n", i_issuer);
-        #endif /* WOLFSSL_DEBUG_ASN_TEMPLATE */
-
         GetASN_GetConstRef(&dataASN[i_issuer], &issuer_input, &issuer_len);
 
-        if (i_issuer == ACERT_IDX_ACINFO_CHOICE_SEQ && issuer_len > 0) {
+        if (i_issuer == ACERT_IDX_ACINFO_ISSUER_V2 && issuer_len > 0) {
             /* Try to decode the AttCertIssuer as well. */
             ret = DecodeAttCertIssuer(issuer_input, issuer_len, acert);
 
@@ -42121,6 +42218,8 @@ int VerifyX509Acert(const byte* der, word32 derSz,
     word32         sigOID = 0;
     const byte *   sigParams = NULL;
     word32         sigParamsSz = 0;
+
+    WOLFSSL_MSG("ParseX509Acert");
 
     if (der == NULL || pubKey == NULL || derSz == 0 || pubKeySz == 0) {
         WOLFSSL_MSG("error: VerifyX509Acert: bad args");

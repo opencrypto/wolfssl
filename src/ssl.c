@@ -1032,12 +1032,12 @@ int GetEchConfigsEx(WOLFSSL_EchConfig* configs, byte* output, word32* outputLen)
 #endif
 
 /* prevent multiple mutex initializations */
-static volatile WOLFSSL_GLOBAL int initRefCount = 0;
+static volatile WC_THREADSHARED int initRefCount = 0;
 /* init ref count mutex */
-static WOLFSSL_GLOBAL wolfSSL_Mutex inits_count_mutex
+static WC_THREADSHARED wolfSSL_Mutex inits_count_mutex
     WOLFSSL_MUTEX_INITIALIZER_CLAUSE(inits_count_mutex);
 #ifndef WOLFSSL_MUTEX_INITIALIZER
-static WOLFSSL_GLOBAL int inits_count_mutex_valid = 0;
+static WC_THREADSHARED volatile int inits_count_mutex_valid = 0;
 #endif
 
 /* Create a new WOLFSSL_CTX struct and return the pointer to created struct.
@@ -1136,7 +1136,7 @@ WOLFSSL_CTX* wolfSSL_CTX_new(WOLFSSL_METHOD* method)
 int wolfSSL_CTX_up_ref(WOLFSSL_CTX* ctx)
 {
     int ret;
-    wolfSSL_RefInc(&ctx->ref, &ret);
+    wolfSSL_RefWithMutexInc(&ctx->ref, &ret);
 #ifdef WOLFSSL_REFCNT_ERROR_RETURN
     return ((ret == 0) ? WOLFSSL_SUCCESS : WOLFSSL_FAILURE);
 #else
@@ -5032,8 +5032,13 @@ int AlreadyTrustedPeer(WOLFSSL_CERT_MANAGER* cm, DecodedCert* cert)
         return  ret;
     tp = cm->tpTable[row];
     while (tp) {
-        if (XMEMCMP(cert->subjectHash, tp->subjectNameHash,
+        if ((XMEMCMP(cert->subjectHash, tp->subjectNameHash,
                 SIGNER_DIGEST_SIZE) == 0)
+    #ifndef WOLFSSL_NO_ISSUERHASH_TDPEER
+         && (XMEMCMP(cert->issuerHash, tp->issuerHash,
+                SIGNER_DIGEST_SIZE) == 0)
+    #endif
+        )
             ret = 1;
     #ifndef NO_SKID
         if (cert->extSubjKeyIdSet) {
@@ -5073,8 +5078,13 @@ TrustedPeerCert* GetTrustedPeer(void* vp, DecodedCert* cert)
 
     tp = cm->tpTable[row];
     while (tp) {
-        if (XMEMCMP(cert->subjectHash, tp->subjectNameHash,
+        if ((XMEMCMP(cert->subjectHash, tp->subjectNameHash,
                 SIGNER_DIGEST_SIZE) == 0)
+        #ifndef WOLFSSL_NO_ISSUERHASH_TDPEER
+             && (XMEMCMP(cert->issuerHash, tp->issuerHash,
+                SIGNER_DIGEST_SIZE) == 0)
+        #endif
+            )
             ret = tp;
     #ifndef NO_SKID
         if (cert->extSubjKeyIdSet) {
@@ -5340,6 +5350,10 @@ int AddTrustedPeer(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int verify)
         #endif
             XMEMCPY(peerCert->subjectNameHash, cert->subjectHash,
                     SIGNER_DIGEST_SIZE);
+        #ifndef WOLFSSL_NO_ISSUERHASH_TDPEER
+            XMEMCPY(peerCert->issuerHash, cert->issuerHash,
+                    SIGNER_DIGEST_SIZE);
+        #endif
             /* If Key Usage not set, all uses valid. */
             peerCert->next    = NULL;
             cert->subjectCN = 0;
@@ -5641,12 +5655,48 @@ int AddCA(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int type, int verify)
 static int wolfSSL_RAND_InitMutex(void);
 #endif
 
+/* If we don't have static mutex initializers, but we do have static atomic
+ * initializers, activate WOLFSSL_CLEANUP_THREADSAFE_BY_ATOMIC_OPS to leverage
+ * the latter.
+ *
+ * See further explanation below in wolfSSL_Init().
+ */
+#ifndef WOLFSSL_CLEANUP_THREADSAFE_BY_ATOMIC_OPS
+    #if !defined(WOLFSSL_MUTEX_INITIALIZER) && !defined(SINGLE_THREADED) && \
+            defined(WOLFSSL_ATOMIC_OPS) && defined(WOLFSSL_ATOMIC_INITIALIZER)
+        #define WOLFSSL_CLEANUP_THREADSAFE_BY_ATOMIC_OPS 1
+    #else
+        #define WOLFSSL_CLEANUP_THREADSAFE_BY_ATOMIC_OPS 0
+    #endif
+#elif defined(WOLFSSL_MUTEX_INITIALIZER) || defined(SINGLE_THREADED)
+    #undef WOLFSSL_CLEANUP_THREADSAFE_BY_ATOMIC_OPS
+    #define WOLFSSL_CLEANUP_THREADSAFE_BY_ATOMIC_OPS 0
+#endif
+
+#if WOLFSSL_CLEANUP_THREADSAFE_BY_ATOMIC_OPS
+    #ifndef WOLFSSL_ATOMIC_OPS
+        #error WOLFSSL_CLEANUP_THREADSAFE_BY_ATOMIC_OPS requires WOLFSSL_ATOMIC_OPS
+    #endif
+    #ifndef WOLFSSL_ATOMIC_INITIALIZER
+        #error WOLFSSL_CLEANUP_THREADSAFE_BY_ATOMIC_OPS requires WOLFSSL_ATOMIC_INITIALIZER
+    #endif
+    static wolfSSL_Atomic_Int inits_count_mutex_atomic_initing_flag =
+        WOLFSSL_ATOMIC_INITIALIZER(0);
+#endif /* WOLFSSL_CLEANUP_THREADSAFE_BY_ATOMIC_OPS && !WOLFSSL_MUTEX_INITIALIZER */
+
 #if defined(OPENSSL_EXTRA) && defined(HAVE_ATEXIT)
 static void AtExitCleanup(void)
 {
     if (initRefCount > 0) {
         initRefCount = 1;
         (void)wolfSSL_Cleanup();
+#if WOLFSSL_CLEANUP_THREADSAFE_BY_ATOMIC_OPS
+        if (inits_count_mutex_valid == 1) {
+            (void)wc_FreeMutex(&inits_count_mutex);
+            inits_count_mutex_valid = 0;
+            inits_count_mutex_atomic_initing_flag = 0;
+        }
+#endif
     }
 }
 #endif
@@ -5663,8 +5713,31 @@ int wolfSSL_Init(void)
 
 #ifndef WOLFSSL_MUTEX_INITIALIZER
     if (inits_count_mutex_valid == 0) {
+    #if WOLFSSL_CLEANUP_THREADSAFE_BY_ATOMIC_OPS
+
+        /* Without this mitigation, if two threads enter wolfSSL_Init() at the
+         * same time, and both see zero inits_count_mutex_valid, then both will
+         * run wc_InitMutex(&inits_count_mutex), leading to process corruption
+         * or (best case) a resource leak.
+         *
+         * When WOLFSSL_ATOMIC_INITIALIZER() is available, we can mitigate this
+         * by use an atomic counting int as a mutex.
+         */
+
+        if (wolfSSL_Atomic_Int_FetchAdd(&inits_count_mutex_atomic_initing_flag,
+                                        1) != 0)
+        {
+            (void)wolfSSL_Atomic_Int_FetchSub(
+                &inits_count_mutex_atomic_initing_flag, 1);
+            return DEADLOCK_AVERTED_E;
+        }
+    #endif /* WOLFSSL_CLEANUP_THREADSAFE_BY_ATOMIC_OPS */
         if (wc_InitMutex(&inits_count_mutex) != 0) {
             WOLFSSL_MSG("Bad Init Mutex count");
+    #if WOLFSSL_CLEANUP_THREADSAFE_BY_ATOMIC_OPS
+            (void)wolfSSL_Atomic_Int_FetchSub(
+                &inits_count_mutex_atomic_initing_flag, 1);
+    #endif
             return BAD_MUTEX_E;
         }
         else {
@@ -10422,7 +10495,8 @@ int wolfSSL_Cleanup(void)
     #endif
 #endif /* !NO_SESSION_CACHE */
 
-#ifndef WOLFSSL_MUTEX_INITIALIZER
+#if !defined(WOLFSSL_MUTEX_INITIALIZER) && \
+      !WOLFSSL_CLEANUP_THREADSAFE_BY_ATOMIC_OPS
     if ((inits_count_mutex_valid == 1) &&
             (wc_FreeMutex(&inits_count_mutex) != 0)) {
         if (ret == WOLFSSL_SUCCESS)
@@ -11044,18 +11118,30 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
 
     int wolfSSL_CTX_UnloadIntermediateCerts(WOLFSSL_CTX* ctx)
     {
+        int ret;
+
         WOLFSSL_ENTER("wolfSSL_CTX_UnloadIntermediateCerts");
 
         if (ctx == NULL)
             return BAD_FUNC_ARG;
 
+        ret = wolfSSL_RefWithMutexLock(&ctx->ref);
+        if (ret < 0)
+            return ret;
+
         if (ctx->ref.count > 1) {
             WOLFSSL_MSG("ctx object must have a ref count of 1 before "
                         "unloading intermediate certs");
-            return BAD_STATE_E;
+            ret = BAD_STATE_E;
+        }
+        else {
+            ret = wolfSSL_CertManagerUnloadIntermediateCerts(ctx->cm);
         }
 
-        return wolfSSL_CertManagerUnloadIntermediateCerts(ctx->cm);
+        if (wolfSSL_RefWithMutexUnlock(&ctx->ref) != 0)
+            WOLFSSL_MSG("Failed to unlock mutex!");
+
+        return ret;
     }
 
 
@@ -14572,19 +14658,19 @@ const char* wolfSSL_get_curve_name(WOLFSSL* ssl)
         case WOLFSSL_P521_ML_KEM_1024:
             return "P521_ML_KEM_1024";
 #elif defined(WOLFSSL_WC_KYBER)
-    #ifdef WOLFSSL_WC_ML_KEM_512
+    #ifndef WOLFSSL_NO_ML_KEM_512
         case WOLFSSL_ML_KEM_512:
             return "ML_KEM_512";
         case WOLFSSL_P256_ML_KEM_512:
             return "P256_ML_KEM_512";
     #endif
-    #ifdef WOLFSSL_WC_ML_KEM_768
+    #ifndef WOLFSSL_NO_ML_KEM_768
         case WOLFSSL_ML_KEM_768:
             return "ML_KEM_768";
         case WOLFSSL_P384_ML_KEM_768:
             return "P384_ML_KEM_768";
     #endif
-    #ifdef WOLFSSL_WC_ML_KEM_1024
+    #ifndef WOLFSSL_NO_ML_KEM_1024
         case WOLFSSL_ML_KEM_1024:
             return "ML_KEM_1024";
         case WOLFSSL_P521_ML_KEM_1024:
@@ -14607,19 +14693,19 @@ const char* wolfSSL_get_curve_name(WOLFSSL* ssl)
         case WOLFSSL_P521_KYBER_LEVEL5:
             return "P521_KYBER_LEVEL5";
 #elif defined(WOLFSSL_WC_KYBER)
-    #ifdef WOLFSSL_KYBER512
+    #ifndef WOLFSSL_NO_KYBER512
         case WOLFSSL_KYBER_LEVEL1:
             return "KYBER_LEVEL1";
         case WOLFSSL_P256_KYBER_LEVEL1:
             return "P256_KYBER_LEVEL1";
     #endif
-    #ifdef WOLFSSL_KYBER768
+    #ifndef WOLFSSL_NO_KYBER768
         case WOLFSSL_KYBER_LEVEL3:
             return "KYBER_LEVEL3";
         case WOLFSSL_P384_KYBER_LEVEL3:
             return "P384_KYBER_LEVEL3";
     #endif
-    #ifdef WOLFSSL_KYBER1024
+    #ifndef WOLFSSL_NO_KYBER1024
         case WOLFSSL_KYBER_LEVEL5:
             return "KYBER_LEVEL5";
         case WOLFSSL_P521_KYBER_LEVEL5:
@@ -15729,11 +15815,11 @@ int wolfSSL_ERR_GET_REASON(unsigned long err)
         return ASN1_R_HEADER_TOO_LONG;
 #endif
 
-    /* check if error value is in range of wolfSSL errors */
+    /* check if error value is in range of wolfCrypt or wolfSSL errors */
     ret = 0 - ret; /* setting as negative value */
-    /* wolfCrypt range is less than MAX (-100)
-       wolfSSL range is MIN (-300) and lower */
-    if ((ret <= WC_FIRST_E && ret >=  WC_LAST_E) ||
+
+    if ((ret <= WC_SPAN1_FIRST_E && ret >= WC_SPAN1_LAST_E) ||
+        (ret <= WC_SPAN2_FIRST_E && ret >= WC_SPAN2_LAST_E) ||
         (ret <= WOLFSSL_FIRST_E && ret >= WOLFSSL_LAST_E))
     {
         return ret;
@@ -17456,7 +17542,7 @@ const WOLFSSL_ObjectInfo wolfssl_object_info[] = {
     #ifdef WOLFSSL_MD2
         { WC_NID_md2, MD2h, oidHashType, "MD2", "md2"},
     #endif
-    #ifdef WOLFSSL_MD5
+    #ifndef NO_MD5
         { WC_NID_md5, MD5h, oidHashType, "MD5", "md5"},
     #endif
     #ifndef NO_SHA
@@ -20519,7 +20605,7 @@ WOLFSSL_CTX* wolfSSL_set_SSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
         InitSSL_CTX_Suites(ctx);
     }
 
-    wolfSSL_RefInc(&ctx->ref, &ret);
+    wolfSSL_RefWithMutexInc(&ctx->ref, &ret);
 #ifdef WOLFSSL_REFCNT_ERROR_RETURN
     if (ret != 0) {
         /* can only fail on serious stuff, like mutex not working

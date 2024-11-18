@@ -2790,14 +2790,16 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t error_test(void)
         int last;
     } missing[] = {
         { -124, -124 },
-        { -166, -169 }
+        { -166, -169 },
+        { WC_SPAN1_LAST_E - 1, WC_SPAN2_FIRST_E + 1 },
+        { WC_SPAN2_LAST_E - 1, WC_SPAN2_MIN_CODE_E }
     };
 
     /* Check that all errors have a string and it's the same through the two
      * APIs. Check that the values that are not errors map to the unknown
      * string.
      */
-    for (i = WC_FIRST_E; i >= WC_LAST_E; i--) {
+    for (i = WC_SPAN1_FIRST_E; i >= WC_SPAN2_MIN_CODE_E; i--) {
         int this_missing = 0;
         for (j = 0; j < (int)XELEM_CNT(missing); ++j) {
             if ((i <= missing[j].first) && (i >= missing[j].last)) {
@@ -21941,9 +21943,6 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rsa_test(void)
 #endif
 
 #ifdef WOLFSSL_TEST_CERT
-#if defined(WOLFSSL_MDK_ARM)
-    #define sizeof(s) XSTRLEN((char *)(s))
-#endif
 
 #ifdef USE_CERT_BUFFERS_1024
     XMEMCPY(tmp, client_cert_der_1024, (size_t)sizeof_client_cert_der_1024);
@@ -21972,9 +21971,6 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rsa_test(void)
     ERROR_OUT(WC_TEST_RET_ENC_NC, exit_rsa);
 #endif
 
-#ifdef sizeof
-    #undef sizeof
-#endif
     InitDecodedCert(cert, tmp, (word32)bytes, NULL);
 
     ret = ParseCert(cert, CERT_TYPE, NO_VERIFY, NULL);

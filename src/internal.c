@@ -2297,7 +2297,7 @@ int InitSSL_Ctx(WOLFSSL_CTX* ctx, WOLFSSL_METHOD* method, void* heap)
         ctx->minDowngrade = WOLFSSL_MIN_DOWNGRADE;
     }
 
-    wolfSSL_RefInit(&ctx->ref, &ret);
+    wolfSSL_RefWithMutexInit(&ctx->ref, &ret);
 #ifdef WOLFSSL_REFCNT_ERROR_RETURN
     if (ret < 0) {
         WOLFSSL_MSG("Mutex error on CTX init");
@@ -2769,25 +2769,6 @@ void SSL_CtxResourceFree(WOLFSSL_CTX* ctx)
     (void)heapAtCTXInit;
 }
 
-#ifdef WOLFSSL_STATIC_MEMORY
-static void SSL_CtxResourceFreeStaticMem(void* heap)
-{
-#ifndef SINGLE_THREADED
-    if (heap != NULL
-    #ifdef WOLFSSL_HEAP_TEST
-        /* avoid dereferencing a test value */
-         && heap != (void*)WOLFSSL_HEAP_TEST
-    #endif
-    ) {
-        WOLFSSL_HEAP_HINT* hint = (WOLFSSL_HEAP_HINT*)heap;
-        WOLFSSL_HEAP*      mem  = hint->memory;
-        wc_FreeMutex(&mem->memory_mutex);
-    }
-#else
-    (void)heap;
-#endif
-}
-#endif /* WOLFSSL_STATIC_MEMORY */
 
 void FreeSSL_Ctx(WOLFSSL_CTX* ctx)
 {
@@ -2801,7 +2782,7 @@ void FreeSSL_Ctx(WOLFSSL_CTX* ctx)
 #endif
 
     /* decrement CTX reference count */
-    wolfSSL_RefDec(&ctx->ref, &isZero, &ret);
+    wolfSSL_RefWithMutexDec(&ctx->ref, &isZero, &ret);
 #ifdef WOLFSSL_REFCNT_ERROR_RETURN
     if (ret < 0) {
         /* check error state, if mutex error code then mutex init failed but
@@ -2809,9 +2790,6 @@ void FreeSSL_Ctx(WOLFSSL_CTX* ctx)
         if (ctx->err == WC_NO_ERR_TRACE(CTX_INIT_MUTEX_E)) {
             SSL_CtxResourceFree(ctx);
             XFREE(ctx, heap, DYNAMIC_TYPE_CTX);
-        #ifdef WOLFSSL_STATIC_MEMORY
-            SSL_CtxResourceFreeStaticMem(heap);
-        #endif
         }
         return;
     }
@@ -2829,9 +2807,6 @@ void FreeSSL_Ctx(WOLFSSL_CTX* ctx)
 #endif
         wolfSSL_RefFree(&ctx->ref);
         XFREE(ctx, heap, DYNAMIC_TYPE_CTX);
-    #ifdef WOLFSSL_STATIC_MEMORY
-        SSL_CtxResourceFreeStaticMem(heap);
-    #endif
     }
     else {
         WOLFSSL_MSG("CTX ref count not 0 yet, no free");
@@ -20647,33 +20622,54 @@ int DoApplicationData(WOLFSSL* ssl, byte* input, word32* inOutIdx, int sniff)
 #ifdef HAVE_LIBZ
     byte   decomp[MAX_RECORD_SIZE + MAX_COMP_EXTRA];
 #endif
+#ifdef WOLFSSL_EARLY_DATA
+    int    isEarlyData = ssl->options.tls1_3 &&
+                         ssl->options.handShakeDone == 0 &&
+                         ssl->options.side == WOLFSSL_SERVER_END;
+    int    acceptEarlyData = ssl->earlyData != no_early_data &&
+                         ssl->options.clientState == CLIENT_HELLO_COMPLETE;
+#endif
+
+#if defined(WOLFSSL_EARLY_DATA) && defined(WOLFSSL_DTLS13)
+    if (ssl->options.tls1_3 && ssl->options.dtls)
+        isEarlyData = isEarlyData && w64Equal(ssl->keys.curEpoch64,
+                w64From32(0x0, DTLS13_EPOCH_EARLYDATA));
+#endif
 
 #ifdef WOLFSSL_EARLY_DATA
-    if (ssl->options.tls1_3 && ssl->options.handShakeDone == 0) {
-        int process = 0;
-
-        if (ssl->options.side == WOLFSSL_SERVER_END) {
-            if ((ssl->earlyData != no_early_data) &&
-                          (ssl->options.clientState == CLIENT_HELLO_COMPLETE)) {
-                process = 1;
-            }
-            if (!process) {
-                WOLFSSL_MSG("Ignoring EarlyData!");
-                *inOutIdx += ssl->curSize;
-                if (*inOutIdx > ssl->buffers.inputBuffer.length)
-                    return BUFFER_E;
-
-                return 0;
-            }
-        }
-        if (!process) {
-            WOLFSSL_MSG("Received App data before a handshake completed");
-            if (sniff == NO_SNIFF) {
-                SendAlert(ssl, alert_fatal, unexpected_message);
-            }
-            WOLFSSL_ERROR_VERBOSE(OUT_OF_ORDER_E);
-            return OUT_OF_ORDER_E;
-        }
+    if (isEarlyData && acceptEarlyData) {
+        WOLFSSL_MSG("Processing EarlyData");
+    }
+    else if (isEarlyData && !acceptEarlyData) {
+        WOLFSSL_MSG("Ignoring EarlyData!");
+        *inOutIdx += ssl->curSize;
+        if (*inOutIdx > ssl->buffers.inputBuffer.length)
+            return BUFFER_E;
+#ifdef WOLFSSL_DTLS13
+        /* Receiving app data from the traffic epoch before the handshake is
+         * done means that there was a disruption. */
+        if (ssl->options.dtls && !w64Equal(ssl->keys.curEpoch64,
+                                        w64From32(0x0, DTLS13_EPOCH_EARLYDATA)))
+            ssl->dtls13Rtx.sendAcks = 1;
+#endif
+        return 0;
+    }
+    else
+#endif
+#ifdef WOLFSSL_DTLS
+    if (ssl->options.handShakeDone == 0 && ssl->options.dtls) {
+        WOLFSSL_MSG("Dropping app data received before handshake complete");
+        *inOutIdx += ssl->curSize;
+        if (*inOutIdx > ssl->buffers.inputBuffer.length)
+            return BUFFER_E;
+#ifdef WOLFSSL_DTLS13
+        /* Receiving app data from the traffic epoch before the handshake is
+         * done means that there was a disruption. */
+        if (ssl->options.tls1_3 && !w64Equal(ssl->keys.curEpoch64,
+                                        w64From32(0x0, DTLS13_EPOCH_EARLYDATA)))
+            ssl->dtls13Rtx.sendAcks = 1;
+#endif
+        return 0;
     }
     else
 #endif
@@ -24904,15 +24900,15 @@ int SendData(WOLFSSL* ssl, const void* data, int sz)
         groupMsgs = 1;
     #endif
     }
-    else if (IsAtLeastTLSv1_3(ssl->version) &&
+    else
+#endif
+    if (IsAtLeastTLSv1_3(ssl->version) &&
             ssl->options.side == WOLFSSL_SERVER_END &&
             ssl->options.acceptState >= TLS13_ACCEPT_FINISHED_SENT) {
         /* We can send data without waiting on peer finished msg */
         WOLFSSL_MSG("server sending data before receiving client finished");
     }
-    else
-#endif
-    if (ssl_in_handshake(ssl, 1)) {
+    else if (ssl_in_handshake(ssl, 1)) {
         int err;
         WOLFSSL_MSG("handshake not complete, trying to finish");
         if ( (err = wolfSSL_negotiate(ssl)) != WOLFSSL_SUCCESS) {
@@ -25672,7 +25668,9 @@ const char* wolfSSL_ERR_reason_error_string(unsigned long e)
     }
 
     /* pass to wolfCrypt */
-    if (error <= WC_FIRST_E && error >= WC_LAST_E) {
+    if ((error <= WC_SPAN1_FIRST_E && error >= WC_SPAN1_MIN_CODE_E) ||
+        (error <= WC_SPAN2_FIRST_E && error >= WC_SPAN2_MIN_CODE_E))
+    {
         return wc_GetErrorString(error);
     }
 
@@ -25684,7 +25682,7 @@ const char* wolfSSL_ERR_reason_error_string(unsigned long e)
 #endif
     }
 
-    switch ((enum wolfSSL_ErrorCodes)error) {
+    switch ((enum wolfSSL_ErrorCodes)error) { /* // NOLINT(clang-analyzer-optin.core.EnumCastOutOfRange) */
 
     case UNSUPPORTED_SUITE :
         return "unsupported cipher suite";
@@ -36314,7 +36312,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                                     goto exit_sske;
                                 }
                             }
-                            #if defined(HAVE_E25519) || defined(HAVE_ED448)
+                            #if defined(HAVE_ED25519) || defined(HAVE_ED448)
                             FALL_THROUGH;
                             #endif
                         #endif /*  WOLFSSL_CHECK_SIG_FAULTS */
