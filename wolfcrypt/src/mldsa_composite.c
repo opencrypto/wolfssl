@@ -662,8 +662,22 @@ int wc_mldsa_composite_verify_msg_ex(const byte* sig, word32 sigLen, const byte*
 
             // Sets the type of padding
             if (key->type == WC_MLDSA65_RSAPSS3072_SHA384 || key->type == WC_MLDSA65_RSAPSS4096_SHA384) {
+                
+                int mgf = 0;
+                int saltLen = 0;
+
+                // Sets the MGF and Salt Length (PSS Params)
+                if (key->type == WC_MLDSA65_RSAPSS4096_SHA384) {
+                    mgf = WC_MGF1SHA384;
+                    saltLen = 48;
+                } else {
+                    mgf = WC_MGF1SHA256;
+                    saltLen = 32;
+                }
+
+                // Sets the Padding and Verify
                 key->alt_key.rsa.type = WC_RSA_PSS_PAD;
-                if ((ret = wc_RsaPSS_Verify_ex(other_Buffer, other_BufferLen, sigBuffer, sigSz, WC_HASH_TYPE_SHA512, WC_MGF1SHA512, RSA_PSS_SALT_LEN_DEFAULT, &key->alt_key.rsa)) < 0) {
+                if ((ret = wc_RsaPSS_Verify_ex(other_Buffer, other_BufferLen, sigBuffer, sigSz, WC_HASH_TYPE_SHA384, mgf, saltLen, &key->alt_key.rsa)) < 0) {
                     MADWOLF_DEBUG("wc_RsaPSS_Verify_ex() failed with %d (type: %d)", ret, key->type);
                     return ret;
                 }
@@ -1071,46 +1085,74 @@ MADWOLF_DEBUG("ML-DSA signature generated: mldsaSig_bufferLen=%d", mldsaSig_buff
             sigSz = (word32)wc_RsaEncryptSize(&key->alt_key.rsa);
             MADWOLF_DEBUG("RSA signature buffer size: %d", sigSz);
 
-            // Hash the message using SHA-512
+            // Sets the type of padding
+            if (key->type == WC_MLDSA65_RSAPSS3072_SHA384 || 
+                        key->type == WC_MLDSA65_RSAPSS4096_SHA384) {
+                key->alt_key.rsa.type = WC_RSA_PSS_PAD;
+            } else {
+                key->alt_key.rsa.type = WC_RSA_PKCSV15_PAD;
+            }
+
+            // Hash the message using SHA-384
             if (wc_Sha384Hash(tbsMsg, tbsMsgLen, hash) != 0) {
                 // handle error
-                MADWOLF_DEBUG("wc_Sha512Hash failed with %d", ret);
+                MADWOLF_DEBUG("wc_Sha384Hash failed with %d", ret);
                 return BAD_STATE_E;
             }
 
-            if (key->type == WC_MLDSA65_RSAPSS3072_SHA384 || key->type == WC_MLDSA65_RSAPSS4096_SHA384) {
+            if (key->type == WC_MLDSA65_RSAPSS3072_SHA384 || 
+                        key->type == WC_MLDSA65_RSAPSS4096_SHA384) {
+
+                int mgf = 0;
+                int saltLen = 0;
+
+                if (key->type == WC_MLDSA65_RSAPSS4096_SHA384) {
+                    mgf = WC_MGF1SHA384;
+                    saltLen = 48;
+                } else {
+                    mgf = WC_MGF1SHA256;
+                    saltLen = 32;
+                }
+                
+                // Sets the Padding
+                key->alt_key.rsa.type = WC_RSA_PSS_PAD;
+
                 // Sign the message digest
-                if ((ret = wc_RsaPSS_Sign(hash, WC_SHA384_DIGEST_SIZE, sigBuffer, sigSz, WC_HASH_TYPE_SHA384, WC_MGF1SHA512, &key->alt_key.rsa, rng)) < 0) {
+                if ((ret = wc_RsaPSS_Sign_ex(hash, WC_SHA384_DIGEST_SIZE, sigBuffer, sigSz, WC_HASH_TYPE_SHA384, mgf, saltLen, &key->alt_key.rsa, rng)) < 0) {
                     // handle error
                     MADWOLF_DEBUG("wc_RsaPSS_Sign failed with %d", ret);
                     return BAD_STATE_E;
                 }
+                // Checks the RSA signature size
                 if (key->type == WC_MLDSA65_RSAPSS3072_SHA384 && sigSz != RSA3072_SIG_SIZE) {
                     MADWOLF_DEBUG0("RSA signature buffer size error");
                     return ASN_PARSE_E;
                 } else if (key->type == WC_MLDSA65_RSAPSS4096_SHA384 && sigSz != RSA4096_SIG_SIZE) {
                     MADWOLF_DEBUG0("RSA signature buffer size error");
                     return ASN_PARSE_E;
-                } else {
-                    MADWOLF_DEBUG("Good RSAPSS signature buffer size: %d", sigSz);
                 }
+
             } else {
+                // Sets the Padding
+                key->alt_key.rsa.type = WC_RSA_PKCSV15_PAD;
+
                 // Sign the message digest
                 if ((ret = wc_RsaSSL_Sign(hash, WC_SHA384_DIGEST_SIZE, sigBuffer, sigSz, &key->alt_key.rsa, rng)) < 0) {
                     // handle error
                     MADWOLF_DEBUG("wc_RsaSSL_Sign failed with %d", ret);
                     return BAD_STATE_E;
                 }
+
+                // Checks the RSA signature size
                 if (key->type == WC_MLDSA65_RSA3072_SHA384 && sigSz != RSA3072_SIG_SIZE) {
                     MADWOLF_DEBUG0("RSA signature buffer size error");
                     return ASN_PARSE_E;
                 } else if (key->type == WC_MLDSA65_RSA4096_SHA384 && sigSz != RSA4096_SIG_SIZE) {
                     MADWOLF_DEBUG0("RSA signature buffer size error");
                     return ASN_PARSE_E;
-                } else {
-                    MADWOLF_DEBUG("Good RSA signature buffer size: %d (type: %d)", sigSz, key->type);
                 }
             }
+
             if ((int)sigSz != ret) {
                 MADWOLF_DEBUG("RSA signature buffer size error (retrieved: %d, expected: %d)", ret, sigSz);
                 return ASN_PARSE_E;

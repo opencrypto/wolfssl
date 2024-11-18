@@ -46265,7 +46265,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t mldsa_composite_test(void)
         printf("***** mldsa_composite_test: idx = %d\n", idx);
 
         // RSA is giving us problem when exporting/importing into the composite key
-        if ( idx == 0 || /* idx ==1 || */ idx == 4 || /* idx == 5 || */ idx == 6 /* || idx == 7 || idx == 8*/) {
+        if ( /* idx == 0 ||  idx ==1 || idx == 4  || idx == 5 || idx == 6 || idx == 7 || idx == 8 */ 0 ) {
             printf("***** mldsa_composite_test: skipping tests for MLDSA Composite Type %d\n", mldsa_composite_algos[idx]); fflush(stdout);
             continue;
         }
