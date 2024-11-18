@@ -791,6 +791,8 @@ int load_key_p8(void ** key, int type, const char * key_file, int format) {
 //     return ret;
 // }
 
+#ifdef WOLFSSL_KEY_GEN
+
 int gen_keypair(void ** key, int type, int param, const char * out_file) {
 
     int ret;
@@ -992,6 +994,7 @@ int gen_keypair(void ** key, int type, int param, const char * out_file) {
 
     return 0;
 }
+#endif // WOLFSSL_KEY_GEN
 
 int main(int argc, char** argv) {
 
@@ -1193,6 +1196,7 @@ int main(int argc, char** argv) {
     switch (cmd) {
         // PKEY
         case 0: {
+#ifdef WOLFSSL_KEY_GEN
             if (gen_keypair(&keyPtr, keySum, param, out_file) < 0) {
                 printf("Error generating keypair\n");
                 return 1;
@@ -1201,6 +1205,10 @@ int main(int argc, char** argv) {
                 printf("Error exporting keypair\n");
                 return 1;
             }
+#else
+            printf("Key generation not supported\n");
+            return 1;
+#endif
         } break;
 
         // Gen CSR
