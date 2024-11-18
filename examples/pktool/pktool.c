@@ -624,168 +624,172 @@ int load_key_p8(void ** key, int type, const char * key_file, int format) {
     return 0;
 }
 
-#define LARGE_BUFFER_SZ 10*1024
+// #define LARGE_BUFFER_SZ 10*1024
 
-int gen_csr(const void * key, const void * altkey, const char * out_filename, int out_format)
-{
-    int ret;
-    int type = 0;
-#ifdef HAVE_ECC
-    ecc_key ecKey;
-#endif
-#ifndef NO_RSA
-    RsaKey rsaKey;
-#endif
-#ifdef HAVE_ED25519
-    ed25519_key edKey;
-#endif
-    void* keyPtr = NULL;
-    WC_RNG rng;
-    Cert req;
-    byte der[LARGE_BUFFER_SZ];
-    int  derSz;
-#ifdef WOLFSSL_DER_TO_PEM
-    byte pem[LARGE_BUFFER_SZ];
-    int  pemSz;
-    FILE* file = NULL;
-    // char outFile[255];
-#endif
+// int gen_csr(const void * key, const void * altkey, const char * out_filename, int out_format)
+// {
+//     int ret;
+//     int type = 0;
+// #ifdef HAVE_ECC
+//     ecc_key ecKey;
+// #endif
+// #ifndef NO_RSA
+//     RsaKey rsaKey;
+// #endif
+// #ifdef HAVE_ED25519
+//     ed25519_key edKey;
+// #endif
+//     void* keyPtr = NULL;
+//     WC_RNG rng;
+//     Cert req;
+//     byte der[LARGE_BUFFER_SZ];
+//     int  derSz;
+// #ifdef WOLFSSL_DER_TO_PEM
+//     byte pem[LARGE_BUFFER_SZ];
+//     int  pemSz;
+//     FILE* file = NULL;
+//     // char outFile[255];
+// #endif
 
-    XMEMSET(der, 0, 10*1024);
-#ifdef WOLFSSL_DER_TO_PEM
-    XMEMSET(pem, 0, 10*1024);
-#endif
+//     XMEMSET(der, 0, 10*1024);
+// #ifdef WOLFSSL_DER_TO_PEM
+//     XMEMSET(pem, 0, 10*1024);
+// #endif
     
-    ret = wc_InitCert(&req);
-    if (ret != 0) {
-        printf("Init Cert failed: %d\n", ret);
-        goto exit;
-    }
-    strncpy(req.subject.country, "US", CTC_NAME_SIZE);
-    // strncpy(req.subject.state, "OR", CTC_NAME_SIZE);
-    // strncpy(req.subject.locality, "Portland", CTC_NAME_SIZE);
-    strncpy(req.subject.org, "wolfSSL", CTC_NAME_SIZE);
-    strncpy(req.subject.unit, "Test", CTC_NAME_SIZE);
-    strncpy(req.subject.commonName, out_filename, CTC_NAME_SIZE);
-    strncpy(req.subject.email, "info@wolfssl.com", CTC_NAME_SIZE);
-    req.version = 0;
-    ret = wc_MakeCertReq_ex(&req, der, sizeof(der), type, keyPtr);
-    if (ret <= 0) {
-        printf("Make Cert Req failed: %d\n", ret);
-        goto exit;
-    }
-    derSz = ret;
+//     ret = wc_InitCert(&req);
+//     if (ret != 0) {
+//         printf("Init Cert failed: %d\n", ret);
+//         goto exit;
+//     }
+//     strncpy(req.subject.country, "US", CTC_NAME_SIZE);
+//     // strncpy(req.subject.state, "OR", CTC_NAME_SIZE);
+//     // strncpy(req.subject.locality, "Portland", CTC_NAME_SIZE);
+//     strncpy(req.subject.org, "wolfSSL", CTC_NAME_SIZE);
+//     strncpy(req.subject.unit, "Test", CTC_NAME_SIZE);
+//     strncpy(req.subject.commonName, out_filename, CTC_NAME_SIZE);
+//     strncpy(req.subject.email, "info@wolfssl.com", CTC_NAME_SIZE);
+//     req.version = 0;
+//     ret = wc_MakeCertReq_ex(&req, der, sizeof(der), type, keyPtr);
+//     if (ret <= 0) {
+//         printf("Make Cert Req failed: %d\n", ret);
+//         goto exit;
+//     }
+//     derSz = ret;
 
-#ifdef HAVE_ECC
-    if (type == ECC_TYPE)
-        req.sigType = CTC_SHA256wECDSA;
-#endif
-#ifndef NO_RSA
-    if (type == RSA_TYPE)
-        req.sigType = CTC_SHA256wRSA;
-#endif
-#ifdef HAVE_ED25519
-    if (type == ED25519_TYPE)
-        req.sigType = CTC_ED25519;
-#endif
-#ifdef HAVE_ED448
-    if (type == ED448_TYPE)
-        req.sigType = CTC_ED448;
-#endif
-#ifdef HAVE_DILITHIUM
-    if (type == ML_DSA_LEVEL2_TYPE)
-        req.sigType = CTC_DILITHIUM_LEVEL2;
-    if (type == ML_DSA_LEVEL3_TYPE)
-        req.sigType = CTC_DILITHIUM_LEVEL3;
-    if (type == ML_DSA_LEVEL5_TYPE)
-        req.sigType = CTC_DILITHIUM_LEVEL5;
-#endif
-#ifdef HAVE_FALCON
-    if (type == FALCON_LEVEL1_TYPE)
-        req.sigType = CTC_FALCON_LEVEL1;
-    if (type == FALCON_LEVEL5_TYPE)
-        req.sigType = CTC_FALCON_LEVEL5;
-#endif
-#ifdef HAVE_MLDSA_COMPOSITE
-    if (type == MLDSA44_NISTP256_TYPE)
-        req.sigType = CTC_MLDSA44_NISTP256_SHA256;
-    if (type == MLDSA44_RSA2048_TYPE)
-        req.sigType = CTC_MLDSA44_RSA2048_SHA256;
-    if (type == MLDSA44_RSAPSS2048_TYPE)
-        req.sigType = CTC_MLDSA44_RSAPSS2048_SHA256;
-    // if (type == MLDSA44_BPOOL256_TYPE)
-    //     req.sigType = CTC_MLDSA44_BPOOL256_SHA256;
-    if (type == MLDSA44_ED25519_TYPE)
-        req.sigType = CTC_MLDSA44_ED25519;
-    if (type == MLDSA65_NISTP384_TYPE)
-        req.sigType = CTC_MLDSA65_NISTP256_SHA384;
-    if (type == MLDSA65_RSA3072_TYPE)
-        req.sigType = CTC_MLDSA65_RSA3072_SHA384;
-    if (type == MLDSA65_RSAPSS3072_TYPE)    
-        req.sigType = CTC_MLDSA65_RSAPSS3072_SHA384;
-    if (type == MLDSA65_BPOOL256_TYPE)
-        req.sigType = CTC_MLDSA65_BPOOL256_SHA256;
-    if (type == MLDSA65_ED25519_TYPE)
-        req.sigType = CTC_MLDSA65_ED25519_SHA384;
-    if (type == MLDSA87_NISTP384_TYPE)
-        req.sigType = CTC_MLDSA87_NISTP384_SHA384;
-    if (type == MLDSA87_BPOOL384_TYPE)
-        req.sigType = CTC_MLDSA87_BPOOL384_SHA384;
-    if (type == MLDSA87_ED448_TYPE)
-        req.sigType = CTC_MLDSA87_ED448;
-#endif
-    ret = wc_SignCert_ex(req.bodySz, req.sigType, der, sizeof(der), type,
-        keyPtr, &rng);
-    if (ret <= 0) {
-        printf("Sign Cert failed: %d\n", ret);
-        goto exit;
-    }
-    derSz = ret;
+// #ifdef HAVE_ECC
+//     if (type == ECC_TYPE)
+//         req.sigType = CTC_SHA256wECDSA;
+// #endif
+// #ifndef NO_RSA
+//     if (type == RSA_TYPE)
+//         req.sigType = CTC_SHA256wRSA;
+// #endif
+// #ifdef HAVE_ED25519
+//     if (type == ED25519_TYPE)
+//         req.sigType = CTC_ED25519;
+// #endif
+// #ifdef HAVE_ED448
+//     if (type == ED448_TYPE)
+//         req.sigType = CTC_ED448;
+// #endif
+// #ifdef HAVE_DILITHIUM
+//     if (type == ML_DSA_LEVEL2_TYPE)
+//         req.sigType = CTC_DILITHIUM_LEVEL2;
+//     if (type == ML_DSA_LEVEL3_TYPE)
+//         req.sigType = CTC_DILITHIUM_LEVEL3;
+//     if (type == ML_DSA_LEVEL5_TYPE)
+//         req.sigType = CTC_DILITHIUM_LEVEL5;
+// #endif
+// #ifdef HAVE_FALCON
+//     if (type == FALCON_LEVEL1_TYPE)
+//         req.sigType = CTC_FALCON_LEVEL1;
+//     if (type == FALCON_LEVEL5_TYPE)
+//         req.sigType = CTC_FALCON_LEVEL5;
+// #endif
+// #ifdef HAVE_MLDSA_COMPOSITE
+//     if (type == MLDSA44_NISTP256_TYPE)
+//         req.sigType = CTC_MLDSA44_NISTP256_SHA256;
+//     if (type == MLDSA44_RSA2048_TYPE)
+//         req.sigType = CTC_MLDSA44_RSA2048_SHA256;
+//     if (type == MLDSA44_RSAPSS2048_TYPE)
+//         req.sigType = CTC_MLDSA44_RSAPSS2048_SHA256;
+//     // if (type == MLDSA44_BPOOL256_TYPE)
+//     //     req.sigType = CTC_MLDSA44_BPOOL256_SHA256;
+//     if (type == MLDSA44_ED25519_TYPE)
+//         req.sigType = CTC_MLDSA44_ED25519;
+//     if (type == MLDSA65_NISTP384_TYPE)
+//         req.sigType = CTC_MLDSA65_NISTP256_SHA384;
+//     if (type == MLDSA65_RSA3072_TYPE)
+//         req.sigType = CTC_MLDSA65_RSA3072_SHA384;
+//     if (type == MLDSA65_RSAPSS3072_TYPE)    
+//         req.sigType = CTC_MLDSA65_RSAPSS3072_SHA384;
+//     if (type == MLDSA65_RSA4096_TYPE)
+//         req.sigType = CTC_MLDSA65_RSA4096_SHA384;
+//     if (type == MLDSA65_RSAPSS4096_TYPE)    
+//         req.sigType = CTC_MLDSA65_RSAPSS4096_SHA384;
+//     if (type == MLDSA65_BPOOL256_TYPE)
+//         req.sigType = CTC_MLDSA65_BPOOL256_SHA256;
+//     if (type == MLDSA65_ED25519_TYPE)
+//         req.sigType = CTC_MLDSA65_ED25519_SHA384;
+//     if (type == MLDSA87_NISTP384_TYPE)
+//         req.sigType = CTC_MLDSA87_NISTP384_SHA384;
+//     if (type == MLDSA87_BPOOL384_TYPE)
+//         req.sigType = CTC_MLDSA87_BPOOL384_SHA384;
+//     if (type == MLDSA87_ED448_TYPE)
+//         req.sigType = CTC_MLDSA87_ED448;
+// #endif
+//     ret = wc_SignCert_ex(req.bodySz, req.sigType, der, sizeof(der), type,
+//         keyPtr, &rng);
+//     if (ret <= 0) {
+//         printf("Sign Cert failed: %d\n", ret);
+//         goto exit;
+//     }
+//     derSz = ret;
 
-#ifdef WOLFSSL_DER_TO_PEM
-    memset(pem, 0, sizeof(pem));
-    ret = wc_DerToPem(der, derSz, pem, sizeof(pem), CERTREQ_TYPE);
-    if (ret <= 0) {
-        printf("CSR DER to PEM failed: %d\n", ret);
-        goto exit;
-    }
-    pemSz = ret;
-    printf("%s (%d)\n", pem, pemSz);
+// #ifdef WOLFSSL_DER_TO_PEM
+//     memset(pem, 0, sizeof(pem));
+//     ret = wc_DerToPem(der, derSz, pem, sizeof(pem), CERTREQ_TYPE);
+//     if (ret <= 0) {
+//         printf("CSR DER to PEM failed: %d\n", ret);
+//         goto exit;
+//     }
+//     pemSz = ret;
+//     printf("%s (%d)\n", pem, pemSz);
 
-    // snprintf(outFile, sizeof(outFile), "%s-csr.pem", ou);
-    // printf("Saved CSR PEM to \"%s\"\n", outFile);
-    file = fopen(out_filename, "wb");
-    if (file) {
-        ret = (int)fwrite(pem, 1, pemSz, file);
-        fclose(file);
-    }
-#endif
+//     // snprintf(outFile, sizeof(outFile), "%s-csr.pem", ou);
+//     // printf("Saved CSR PEM to \"%s\"\n", outFile);
+//     file = fopen(out_filename, "wb");
+//     if (file) {
+//         ret = (int)fwrite(pem, 1, pemSz, file);
+//         fclose(file);
+//     }
+// #endif
 
-    ret = 0; /* success */
+//     ret = 0; /* success */
     
-exit:
-#ifdef HAVE_ECC
-    if (type == ECC_TYPE)
-        wc_ecc_free(&ecKey);
-#endif
-#ifndef NO_RSA
-    if (type == RSA_TYPE)
-        wc_FreeRsaKey(&rsaKey);
-#endif
-#ifdef HAVE_ED25519
-    if (type == ED25519_TYPE)
-        wc_ed25519_free(&edKey);
-#endif
-    wc_FreeRng(&rng);
+// exit:
+// #ifdef HAVE_ECC
+//     if (type == ECC_TYPE)
+//         wc_ecc_free(&ecKey);
+// #endif
+// #ifndef NO_RSA
+//     if (type == RSA_TYPE)
+//         wc_FreeRsaKey(&rsaKey);
+// #endif
+// #ifdef HAVE_ED25519
+//     if (type == ED25519_TYPE)
+//         wc_ed25519_free(&edKey);
+// #endif
+//     wc_FreeRng(&rng);
 
-    (void)altkey;
-    (void)out_format;
-    (void)out_filename;
-    (void)type;
-    (void)key;
+//     (void)altkey;
+//     (void)out_format;
+//     (void)out_filename;
+//     (void)type;
+//     (void)key;
 
-    return ret;
-}
+//     return ret;
+// }
 
 int gen_keypair(void ** key, int type, int param, const char * out_file) {
 
@@ -1217,9 +1221,10 @@ int main(int argc, char** argv) {
                     return 1;
                 }
             }
-            if (gen_csr(keyPtr, altkey_file, out_file, out_format) < 0) {
-                return -1;
-            }
+            // if (gen_csr(keyPtr, altkey_file, out_file, out_format) < 0) {
+            //     return -1;
+            // }
+            return 0;
         } break;
 
         // Gen CERT
