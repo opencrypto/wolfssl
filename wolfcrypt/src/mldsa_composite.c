@@ -224,8 +224,6 @@ static int wc_mldsa_compositeTBS_msg(byte* tbsMsg, word32 *tbsLen, const byte* m
             return ALGO_ID_E;
     }
 
-    MADWOLF_DEBUG("CompositeTBS Message Length: %d", *tbsLen);
-
     return ret;
 }
 
@@ -260,7 +258,6 @@ int wc_mldsa_composite_make_key(mldsa_composite_key* key, enum mldsa_composite_t
         case WC_MLDSA44_RSA2048_SHA256:
         case WC_MLDSA44_ED25519_SHA256:
         case WC_MLDSA44_NISTP256_SHA256:
-        // case WC_MLDSA44_BPOOL256_SHA256:
             mldsa_level = WC_ML_DSA_44;
             break;
         
@@ -303,19 +300,8 @@ int wc_mldsa_composite_make_key(mldsa_composite_key* key, enum mldsa_composite_t
             return BAD_FUNC_ARG;
         } break;
 
-        // // Level 1
-        // case WC_MLDSA44_RSAPSS2048_SHA256:
-        // case WC_MLDSA44_RSA2048_SHA256: {
-        //     if ((ret = wc_InitRsaKey_ex(&key->alt_key.rsa, key->heap, key->devId)) < 0) {
-        //         MADWOLF_DEBUG("wc_InitRsaKey_ex failed with %d", ret);
-        //         return BAD_STATE_E;
-        //     }
-        //     if ((ret = wc_MakeRsaKey(&key->alt_key.rsa, 2048, WC_RSA_EXPONENT, rng)) < 0) {
-        //         MADWOLF_DEBUG("wc_MakeRsaKey failed with %d", ret);
-        //         return CRYPTGEN_E;
-        //     }
-        // } break;
-
+        // Ed25519 Component
+        case WC_MLDSA65_ED25519_SHA384:
         case WC_MLDSA44_ED25519_SHA256: {
             if (wc_ed25519_init_ex(&key->alt_key.ed25519, key->heap, key->devId) < 0) {
                 return BAD_STATE_E;
@@ -324,8 +310,9 @@ int wc_mldsa_composite_make_key(mldsa_composite_key* key, enum mldsa_composite_t
                 return CRYPTGEN_E;
         } break;
 
+        // NISTP256 Component
+        case WC_MLDSA65_NISTP256_SHA384:
         case WC_MLDSA44_NISTP256_SHA256: {
-            // int kSz = wc_ecc_get_curve_size_from_id(ECC_SECP256R1);
             if (wc_ecc_init_ex(&key->alt_key.ecc, key->heap, key->devId) < 0) {
                 return BAD_STATE_E;
             }
@@ -334,17 +321,7 @@ int wc_mldsa_composite_make_key(mldsa_composite_key* key, enum mldsa_composite_t
             }
         } break;
 
-        // case WC_MLDSA44_BPOOL256_SHA256: {
-        //     // int kSz = wc_ecc_get_curve_size_from_id(ECC_BRAINPOOLP256R1);
-        //     if (wc_ecc_init_ex(&key->alt_key.ecc, key->heap, key->devId) < 0) {
-        //         return BAD_STATE_E;
-        //     }
-        //     if (wc_ecc_make_key_ex(rng, 0, &key->alt_key.ecc, ECC_BRAINPOOLP256R1) < 0) {
-        //         return CRYPTGEN_E;
-        //     }
-        // } break;
-
-        // Level 3
+        // RSA Component
         case WC_MLDSA44_RSAPSS2048_SHA256:
         case WC_MLDSA44_RSA2048_SHA256:
         case WC_MLDSA65_RSAPSS4096_SHA384:
@@ -369,18 +346,8 @@ int wc_mldsa_composite_make_key(mldsa_composite_key* key, enum mldsa_composite_t
                 return CRYPTGEN_E;
         } break;
 
-        case WC_MLDSA65_NISTP256_SHA384: {
-            // int kSz = wc_ecc_get_curve_size_from_id(ECC_SECP256R1);
-            if (wc_ecc_init_ex(&key->alt_key.ecc, key->heap, key->devId) < 0) {
-                return BAD_STATE_E;
-            }
-            if (wc_ecc_make_key_ex(rng, 0, &key->alt_key.ecc, ECC_SECP256R1) < 0) {
-                return CRYPTGEN_E;
-            }
-        } break;
-
+        // Brainpool256 Component
         case WC_MLDSA65_BPOOL256_SHA256: {
-            // int kSz = wc_ecc_get_curve_size_from_id(ECC_BRAINPOOLP256R1);
             if (wc_ecc_init_ex(&key->alt_key.ecc, key->heap, key->devId) < 0) {
                 return BAD_STATE_E;
             }
@@ -389,19 +356,8 @@ int wc_mldsa_composite_make_key(mldsa_composite_key* key, enum mldsa_composite_t
             }
         } break;
 
-        case WC_MLDSA65_ED25519_SHA384: {
-            if (wc_ed25519_init_ex(&key->alt_key.ed25519, key->heap, key->devId) < 0) {
-                return BAD_STATE_E;
-            }
-            if (wc_ed25519_make_key(rng, ED25519_KEY_SIZE, &key->alt_key.ed25519) < 0) {
-                return CRYPTGEN_E;
-            }
-        } break;
-
-        // Level 5
-
+        // NISTP384 Component
         case WC_MLDSA87_NISTP384_SHA384: {
-            // int kSz = wc_ecc_get_curve_size_from_id(ECC_SECP384R1);
             if (wc_ecc_init_ex(&key->alt_key.ecc, key->heap, key->devId) < 0) {
                 return BAD_STATE_E;
             }
@@ -411,7 +367,6 @@ int wc_mldsa_composite_make_key(mldsa_composite_key* key, enum mldsa_composite_t
         } break;
 
         case WC_MLDSA87_BPOOL384_SHA384: {
-            // int kSz = wc_ecc_get_curve_size_from_id(ECC_BRAINPOOLP384R1);
             if (wc_ecc_init_ex(&key->alt_key.ecc, key->heap, key->devId) < 0) {
                 return BAD_STATE_E;
             }
@@ -499,13 +454,11 @@ int wc_mldsa_composite_verify_msg_ex(const byte* sig, word32 sigLen, const byte*
 
     // Parse the ASN.1 data
     if ((ret = GetASN_Items(sigsIT, compSigsASN, 3, 1, sig, &idx, sigLen)) < 0) {
-        MADWOLF_DEBUG("Error while parsing ASN.1 (%d)", ret);
         return ret;
     }
 
     // Gets the CompositeTBS Message
     if ((ret = wc_mldsa_compositeTBS_msg(tbsMsg, &tbsMsgLen, msg, msgLen, key, context, contextLen)) < 0) {
-        MADWOLF_DEBUG("Error while generating the CompositeTBS Message (%d)", ret);
         return ret;
     }
 
@@ -525,111 +478,71 @@ int wc_mldsa_composite_verify_msg_ex(const byte* sig, word32 sigLen, const byte*
 
             // Checks the ML-DSA key level
             if (key->mldsa_key.level != WC_ML_DSA_44) {
-                MADWOLF_DEBUG("ML-DSA key level error (%d vs. %d)", key->mldsa_key.level, WC_ML_DSA_44);
-                return SIG_VERIFY_E;
+                return BAD_STATE_E;
             }
             // Cehcks the RSA signature size
             if (other_BufferLen != RSA2048_SIG_SIZE) {
-                MADWOLF_DEBUG("RSA signature size error (%d vs. %d)", other_BufferLen, RSA2048_SIG_SIZE);
                 return BUFFER_E;
             }
             // Sets the type of padding
             if (key->type == WC_MLDSA44_RSAPSS2048_SHA256) {
+                // Sets the RSA PSS Padding
                 key->alt_key.rsa.type = WC_RSA_PSS_PAD;
                 // Verify RSA Component
-                if ((ret = wc_RsaPSS_Verify_ex(other_Buffer, other_BufferLen, sigBuffer, sigSz, WC_HASH_TYPE_SHA256, WC_MGF1SHA256, RSA_PSS_SALT_LEN_DEFAULT, &key->alt_key.rsa)) < 0) {
-                    MADWOLF_DEBUG("wc_RsaPSS_Verify failed with %d (type: %d)", ret, key->type);
+                if ((ret = wc_RsaPSS_Verify_ex(other_Buffer, other_BufferLen,
+                                               sigBuffer, sigSz, 
+                                               WC_HASH_TYPE_SHA256, WC_MGF1SHA256,
+                                               RSA_PSS_SALT_LEN_DEFAULT, &key->alt_key.rsa)) < 0) {
                     return ret;
                 }
             } else {
                 key->alt_key.rsa.type = WC_RSA_PKCSV15_PAD;
                 // Verify RSA Component
-                if ((ret = wc_RsaSSL_Verify_ex2(other_Buffer, other_BufferLen, sigBuffer, sigSz, &key->alt_key.rsa, WC_RSA_PKCSV15_PAD, WC_HASH_TYPE_SHA256)) < 0) {
-                    MADWOLF_DEBUG("wc_RsaSSL_Verify failed with %d", ret);
+                if ((ret = wc_RsaSSL_Verify_ex2(other_Buffer, other_BufferLen,
+                                                sigBuffer, sigSz, &key->alt_key.rsa,
+                                                WC_RSA_PKCSV15_PAD, WC_HASH_TYPE_SHA256)) < 0) {
                     return ret;
                 }
             }
-            
-            MADWOLF_DEBUG("RSA Verification Result - Data Written: %d", ret);
-            ret = 0;
         } break;
 
         case WC_MLDSA44_ED25519_SHA256: {
             // Checks the ML-DSA key level
             if (key->mldsa_key.level != WC_ML_DSA_44) {
-                MADWOLF_DEBUG("ML-DSA key level error (%d vs. %d)", key->mldsa_key.level, WC_ML_DSA_44);
-                return SIG_VERIFY_E;
+                return BAD_STATE_E;
             }
             // Cehcks the ED25519 signature size
             if (other_BufferLen != ED25519_SIG_SIZE) {
-                MADWOLF_DEBUG("ED25519 signature size error (%d vs. %d)", other_BufferLen, ED25519_SIG_SIZE);
                 return BUFFER_E;
             }
             // Verify ED25519 Component
             if ((ret = wc_ed25519_verify_msg_ex(other_Buffer, other_BufferLen, 
-                        tbsMsg, tbsMsgLen, res, &key->alt_key.ed25519, (byte)Ed25519, context, contextLen)) < 0) {
-                MADWOLF_DEBUG("wc_ed25519_verify_msg_ex failed with %d (res: %d)", ret, *res);
-                MADWOLF_DEBUG0("WARNING: ED25519 verification failed - ***** IGNORED *****");
-                ret = 0;
-                // return ret;
+                                                tbsMsg, tbsMsgLen, res, 
+                                                &key->alt_key.ed25519, (byte)Ed25519,
+                                                context, contextLen)) < 0) {
+                return ret;
             }
         } break;
 
         case WC_MLDSA44_NISTP256_SHA256: {
             // Checks the ML-DSA key level
             if (key->mldsa_key.level != WC_ML_DSA_44) {
-                MADWOLF_DEBUG("ML-DSA key level error (%d vs. %d)", key->mldsa_key.level, WC_ML_DSA_44);
-                return SIG_VERIFY_E;
+                return BAD_STATE_E;
             }
             if (key->alt_key.ecc.dp->id != ECC_SECP256R1) {
-                MADWOLF_DEBUG("ECDSA curve error (ecc.dp->id = %d vs. ECC_BRAINPOOL256R1 = %d)", key->alt_key.ecc.dp->id, ECC_SECP256R1);
-                // return SIG_VERIFY_E;
-            }
-            // Checks the ECDSA curve (P-256)
-            if (key->alt_key.ecc.dp->id != ECC_SECP256R1) {
-                MADWOLF_DEBUG("ECDSA curve error (%d vs. %d)", key->alt_key.ecc.dp->id, ECC_SECP256R1);
-                return SIG_VERIFY_E;
+                return BAD_STATE_E;
             }
             // Cehcks the ECDSA signature size
             if ((int)other_BufferLen > wc_ecc_sig_size(&key->alt_key.ecc)) {
-                MADWOLF_DEBUG("ECDSA signature size error (%d vs. %d)", other_BufferLen, wc_ecc_sig_size(&key->alt_key.ecc));
-                return ASN_PARSE_E;
+                return BUFFER_E;
             }
             // Verify ECDSA Component
             if ((ret = wc_ecc_verify_hash(other_Buffer, other_BufferLen,
-                                            tbsMsg, tbsMsgLen, res, &key->alt_key.ecc)) < 0) {
-                MADWOLF_DEBUG("wc_ecc_verify_hash failed with %d", ret);
+                                          tbsMsg, tbsMsgLen, 
+                                          res, &key->alt_key.ecc)) < 0) {
                 return ret;
             }
         } break;
-
-        // case WC_MLDSA44_BPOOL256_SHA256: {
-        //     // Checks the ML-DSA key level
-        //     if (key->mldsa_key.level != WC_ML_DSA_44) {
-        //         MADWOLF_DEBUG("ML-DSA key level error (%d vs. %d)", key->mldsa_key.level, WC_ML_DSA_44);
-        //         return SIG_VERIFY_E;
-        //     }
-        //     if (key->alt_key.ecc.dp->id != ECC_BRAINPOOLP256R1) {
-        //         MADWOLF_DEBUG("ECDSA curve error (ecc.dp->id = %d vs. ECC_BRAINPOOL256R1 = %d)", key->alt_key.ecc.dp->id, ECC_BRAINPOOLP256R1);
-        //         // return SIG_VERIFY_E;
-        //     }
-        //     // Checks the ECDSA curve (P-256)
-        //     if (key->alt_key.ecc.idx != wc_ecc_get_curve_idx(ECC_BRAINPOOLP256R1)) {
-        //         MADWOLF_DEBUG("ECDSA curve error (%d vs. %d) P256=%d", key->alt_key.ecc.idx, wc_ecc_get_curve_idx(ECC_BRAINPOOLP256R1), wc_ecc_get_curve_idx(ECC_SECP256R1));
-        //         return SIG_VERIFY_E;
-        //     }
-        //     // Cehcks the ECDSA signature size
-        //     if ((int)other_BufferLen > wc_ecc_sig_size(&key->alt_key.ecc)) {
-        //         MADWOLF_DEBUG("ECDSA signature size error (%d vs. %d)", other_BufferLen, wc_ecc_sig_size(&key->alt_key.ecc));
-        //         return ASN_PARSE_E;
-        //     }
-        //     // Verify ECDSA Component
-        //     if ((ret = wc_ecc_verify_hash(other_Buffer, other_BufferLen,
-        //                                     tbsMsg, tbsMsgLen, res, &key->alt_key.ecc)) < 0) {
-        //         MADWOLF_DEBUG("wc_ecc_verify_hash failed with %d", ret);
-        //         return ret;
-        //     }
-        // } break;
 
         // Level 3
         case WC_MLDSA65_RSAPSS4096_SHA384:
@@ -641,32 +554,33 @@ int wc_mldsa_composite_verify_msg_ex(const byte* sig, word32 sigLen, const byte*
 
             // Checks the ML-DSA key level
             if (key->mldsa_key.level != WC_ML_DSA_65) {
-                MADWOLF_DEBUG("ML-DSA key level error (%d vs. %d)", key->mldsa_key.level, WC_ML_DSA_65);
-                return SIG_VERIFY_E;
+                return BAD_STATE_E;
             }
 
             // Cehcks the RSA signature size
-            if (key->type == WC_MLDSA65_RSAPSS3072_SHA384 || key->type == WC_MLDSA65_RSA3072_SHA384) {
+            if (key->type == WC_MLDSA65_RSAPSS3072_SHA384 || 
+                        key->type == WC_MLDSA65_RSA3072_SHA384) {
+                // Checks the RSA signature size
                 if (other_BufferLen != RSA3072_SIG_SIZE) {
-                    MADWOLF_DEBUG("RSA 3072 signature size error (%d vs. %d)", other_BufferLen, RSA3072_SIG_SIZE);
-                    return BUFFER_E;
+                    return ASN_PARSE_E;
                 }
-            } else if (key->type == WC_MLDSA65_RSAPSS3072_SHA384 || key->type == WC_MLDSA65_RSA3072_SHA384) {
+            } else if (key->type == WC_MLDSA65_RSAPSS3072_SHA384 || 
+                        key->type == WC_MLDSA65_RSA3072_SHA384) {
+                // Checks the RSA signature size
                 if (other_BufferLen != RSA4096_SIG_SIZE) {
-                    MADWOLF_DEBUG("RSA 4096 signature size error (%d vs. %d)", other_BufferLen, RSA4096_SIG_SIZE);
-                    return BUFFER_E;
+                    return ASN_PARSE_E;
                 }
-            } else {
-                MADWOLF_DEBUG("Good RSAPSS signature size (%d vs. %d)", other_BufferLen, RSA4096_SIG_SIZE);
             }
 
-            // Sets the type of padding
-            if (key->type == WC_MLDSA65_RSAPSS3072_SHA384 || key->type == WC_MLDSA65_RSAPSS4096_SHA384) {
+            // Sets the PSS parameters
+            if (key->type == WC_MLDSA65_RSAPSS3072_SHA384 ||
+                        key->type == WC_MLDSA65_RSAPSS4096_SHA384) {
                 
                 int mgf = 0;
                 int saltLen = 0;
+                    // MGF and Salt Length
 
-                // Sets the MGF and Salt Length (PSS Params)
+                // Sets the MGF and Salt Length (PSS Params - Draft3)
                 if (key->type == WC_MLDSA65_RSAPSS4096_SHA384) {
                     mgf = WC_MGF1SHA384;
                     saltLen = 48;
@@ -677,85 +591,77 @@ int wc_mldsa_composite_verify_msg_ex(const byte* sig, word32 sigLen, const byte*
 
                 // Sets the Padding and Verify
                 key->alt_key.rsa.type = WC_RSA_PSS_PAD;
-                if ((ret = wc_RsaPSS_Verify_ex(other_Buffer, other_BufferLen, sigBuffer, sigSz, WC_HASH_TYPE_SHA384, mgf, saltLen, &key->alt_key.rsa)) < 0) {
-                    MADWOLF_DEBUG("wc_RsaPSS_Verify_ex() failed with %d (type: %d)", ret, key->type);
-                    return ret;
+                if ((ret = wc_RsaPSS_Verify_ex(other_Buffer, other_BufferLen,
+                                               sigBuffer, sigSz, 
+                                               WC_HASH_TYPE_SHA384, mgf,
+                                               saltLen, &key->alt_key.rsa)) < 0) {
+                    return SIG_VERIFY_E;
                 }
             } else {
+                // Sets the Padding and Verify
                 key->alt_key.rsa.type = WC_RSA_PKCSV15_PAD;
-                // Verify RSA Component
-                if ((ret = wc_RsaSSL_Verify_ex2(other_Buffer, other_BufferLen, sigBuffer, sigSz, &key->alt_key.rsa, WC_RSA_PKCSV15_PAD, WC_HASH_TYPE_SHA512)) < 0) {
-                    MADWOLF_DEBUG("wc_RsaSSL_Verify failed with %d", ret);
-                    return ret;
+                if ((ret = wc_RsaSSL_Verify_ex2(other_Buffer, other_BufferLen,
+                                                sigBuffer, sigSz, &key->alt_key.rsa,
+                                                WC_RSA_PKCSV15_PAD, WC_HASH_TYPE_SHA512)) < 0) {
+                    return SIG_VERIFY_E;
                 }
             }
-            MADWOLF_DEBUG("RSA Verification Result - Data Written: %d", ret);
         } break;
 
         case WC_MLDSA65_NISTP256_SHA384: {
             // Checks the ML-DSA key level
             if (key->mldsa_key.level != WC_ML_DSA_65) {
-                MADWOLF_DEBUG("ML-DSA key level error (%d vs. %d)", key->mldsa_key.level, WC_ML_DSA_65);
-                return SIG_VERIFY_E;
+                return BAD_STATE_E;
             }
             // Checks the ECDSA curve (P-256)
             if (key->alt_key.ecc.dp->id != ECC_SECP256R1) {
-                MADWOLF_DEBUG("ECDSA curve error (%d vs. %d)", key->alt_key.ecc.dp->id, ECC_SECP256R1);
-                return SIG_VERIFY_E;
+                return BAD_STATE_E;
             }
             // Cehcks the ECDSA signature size
             if ((int)other_BufferLen > wc_ecc_sig_size(&key->alt_key.ecc)) {
-                MADWOLF_DEBUG("ECDSA signature size error (%d vs. %d)", other_BufferLen, wc_ecc_sig_size(&key->alt_key.ecc));
                 return ASN_PARSE_E;
             }
             // Verify ECDSA Component
             if ((ret = wc_ecc_verify_hash(other_Buffer, other_BufferLen,
                                             tbsMsg, tbsMsgLen, res, &key->alt_key.ecc)) < 0) {
-                MADWOLF_DEBUG("wc_ecc_verify_hash failed with %d", ret);
-                return ret;
+                return SIG_VERIFY_E;
             }
         } break;
 
         case WC_MLDSA65_BPOOL256_SHA256: {
             // Checks the ML-DSA key level
             if (key->mldsa_key.level != WC_ML_DSA_65) {
-                MADWOLF_DEBUG("ML-DSA key level error (%d vs. %d)", key->mldsa_key.level, WC_ML_DSA_65);
-                return SIG_VERIFY_E;
+                return BAD_STATE_E;
             }
             // Checks the ECDSA curve (P-256)
             if (key->alt_key.ecc.dp->id != ECC_BRAINPOOLP256R1) {
-                MADWOLF_DEBUG("ECDSA curve error (%d vs. %d)", key->alt_key.ecc.dp->id, ECC_BRAINPOOLP256R1);
-                return SIG_VERIFY_E;
+                return BAD_STATE_E;
             }
             // Cehcks the ECDSA signature size
             if ((int)other_BufferLen > wc_ecc_sig_size(&key->alt_key.ecc)) {
-                MADWOLF_DEBUG("ECDSA signature size error (%d vs. %d)", other_BufferLen, wc_ecc_sig_size(&key->alt_key.ecc));
                 return ASN_PARSE_E;
             }
             // Verify ECDSA Component
             if ((ret = wc_ecc_verify_hash(other_Buffer, other_BufferLen,
                                             tbsMsg, tbsMsgLen, res, &key->alt_key.ecc)) < 0) {
-                MADWOLF_DEBUG("wc_ecc_verify_hash failed with %d", ret);
-                return ret;
+                return SIG_VERIFY_E;
             }
         } break;
 
         case WC_MLDSA65_ED25519_SHA384: {
             // Checks the ML-DSA key level
             if (key->mldsa_key.level != WC_ML_DSA_65) {
-                MADWOLF_DEBUG("ML-DSA key level error (%d vs. %d)", key->mldsa_key.level, WC_ML_DSA_65);
-                return SIG_VERIFY_E;
+                return BAD_STATE_E;
             }
             // Cehcks the ED25519 signature size
             if (other_BufferLen != ED25519_SIG_SIZE) {
-                MADWOLF_DEBUG("ED25519 signature size error (%d vs. %d)", other_BufferLen, ED25519_SIG_SIZE);
-                return BUFFER_E;
+                return BAD_STATE_E;
             }
             // Verify ED25519 Component
             if ((ret = wc_ed25519_verify_msg_ex(other_Buffer, other_BufferLen, 
-                    tbsMsg, tbsMsgLen, res, &key->alt_key.ed25519, (byte)Ed25519, context, contextLen)) < 0) {
-                MADWOLF_DEBUG("wc_ed25519_verify_msg_ex failed with %d", ret);
-                return ret;
+                                                tbsMsg, tbsMsgLen, res, &key->alt_key.ed25519,
+                                                (byte)Ed25519, context, contextLen)) < 0) {
+                return SIG_VERIFY_E;
             }
         } break;
 
@@ -763,67 +669,59 @@ int wc_mldsa_composite_verify_msg_ex(const byte* sig, word32 sigLen, const byte*
         case WC_MLDSA87_NISTP384_SHA384: {
             // Checks the ML-DSA key level
             if (key->mldsa_key.level != WC_ML_DSA_87) {
-                MADWOLF_DEBUG("ML-DSA key level error (%d vs. %d)", key->mldsa_key.level, WC_ML_DSA_87);
-                return SIG_VERIFY_E;
+                return BAD_STATE_E;
             }
             // Checks the ECDSA curve (P-384)
             if (key->alt_key.ecc.dp->id != ECC_SECP384R1) {
-                MADWOLF_DEBUG("ECDSA curve error (%d vs. %d)", key->alt_key.ecc.dp->id, ECC_SECP384R1);
-                return SIG_VERIFY_E;
+                return BAD_STATE_E;
             }
             // Cehcks the ECDSA signature size
             if ((int)other_BufferLen > wc_ecc_sig_size(&key->alt_key.ecc)) {
-                MADWOLF_DEBUG("ECDSA signature size error (%d vs. %d)", other_BufferLen, wc_ecc_sig_size(&key->alt_key.ecc));
                 return ASN_PARSE_E;
             }
             // Verify ECDSA Component
             if ((ret = wc_ecc_verify_hash(other_Buffer, other_BufferLen,
-                                            tbsMsg, tbsMsgLen, res, &key->alt_key.ecc)) < 0) {
-                MADWOLF_DEBUG("wc_ecc_verify_hash failed with %d", ret);
-                return ret;
+                                          tbsMsg, tbsMsgLen, res,
+                                          &key->alt_key.ecc)) < 0) {
+                return SIG_VERIFY_E;
             }
         } break;
 
         case WC_MLDSA87_BPOOL384_SHA384: {
             // Checks the ML-DSA key level
             if (key->mldsa_key.level != WC_ML_DSA_87) {
-                MADWOLF_DEBUG("ML-DSA key level error (%d vs. %d)", key->mldsa_key.level, WC_ML_DSA_87);
-                return SIG_VERIFY_E;
+                return BAD_STATE_E;
             }
             // Checks the ECDSA curve (P-384)
             if (key->alt_key.ecc.dp->id != ECC_BRAINPOOLP384R1) {
-                MADWOLF_DEBUG("ECDSA curve error (%d vs. %d)", key->alt_key.ecc.dp->id, ECC_BRAINPOOLP384R1);
-                return SIG_VERIFY_E;
+                return BAD_STATE_E;
             }
             // Cehcks the ECDSA signature size
             if ((int)other_BufferLen > wc_ecc_sig_size(&key->alt_key.ecc)) {
-                MADWOLF_DEBUG("ECDSA signature size error (%d vs. %d)", other_BufferLen, wc_ecc_sig_size(&key->alt_key.ecc));
                 return ASN_PARSE_E;
             }
             // Verify ECDSA Component
             if ((ret = wc_ecc_verify_hash(other_Buffer, other_BufferLen,
-                                            tbsMsg, tbsMsgLen, res, &key->alt_key.ecc)) < 0) {
-                MADWOLF_DEBUG("wc_ecc_verify_hash failed with %d", ret);
-                return ret;
+                                          tbsMsg, tbsMsgLen, res,
+                                          &key->alt_key.ecc)) < 0) {
+                return SIG_VERIFY_E;
             }
         } break;
 
         case WC_MLDSA87_ED448_SHA384: {
             // Checks the ML-DSA key level
             if (key->mldsa_key.level != WC_ML_DSA_87) {
-                MADWOLF_DEBUG("ML-DSA key level error (%d vs. %d)", key->mldsa_key.level, WC_ML_DSA_87);
-                return SIG_VERIFY_E;
+                return BAD_STATE_E;
             }
             // Cehcks the ED448 signature size
             if (other_BufferLen != ED448_SIG_SIZE) {
-                MADWOLF_DEBUG("ED448 signature size error (%d vs. %d)", other_BufferLen, ED448_SIG_SIZE);
-                return BUFFER_E;
+                return ASN_PARSE_E;
             }
             // Verify ED448 Component
             if ((ret = wc_ed448_verify_msg_ex(other_Buffer, other_BufferLen, 
-                    tbsMsg, tbsMsgLen, res, &key->alt_key.ed448, (byte)Ed448, context, contextLen)) < 0) {
-                MADWOLF_DEBUG("wc_ed448_verify_msg_ex failed with %d", ret);
-                return ret;
+                                              tbsMsg, tbsMsgLen, res, &key->alt_key.ed448,
+                                              (byte)Ed448, context, contextLen)) < 0) {
+                return SIG_VERIFY_E;
             }
         } break;
 
@@ -833,14 +731,11 @@ int wc_mldsa_composite_verify_msg_ex(const byte* sig, word32 sigLen, const byte*
 
     // Checks the size of the ML-DSA signature
     if (key->mldsa_key.level == WC_ML_DSA_44 && mldsa_BufferLen != DILITHIUM_ML_DSA_44_SIG_SIZE) {
-        MADWOLF_DEBUG("ML-DSA key level error (%d vs. %d)", key->mldsa_key.level, WC_ML_DSA_44);
-        return BUFFER_E;
+        return ASN_PARSE_E;
     } else if (key->mldsa_key.level == WC_ML_DSA_65 && mldsa_BufferLen != DILITHIUM_ML_DSA_65_SIG_SIZE) {
-        MADWOLF_DEBUG("ML-DSA key level error (%d vs. %d)", key->mldsa_key.level, WC_ML_DSA_65);
-        return BUFFER_E;
+        return ASN_PARSE_E;
     } else if (key->mldsa_key.level == WC_ML_DSA_87 && mldsa_BufferLen != DILITHIUM_ML_DSA_87_SIG_SIZE) {
-        MADWOLF_DEBUG("ML-DSA key level error (%d vs. %d)", key->mldsa_key.level, WC_ML_DSA_87);
-        return BUFFER_E;
+        return ASN_PARSE_E;
     }
 
     // Verify the ML-DSA Component
@@ -852,13 +747,13 @@ int wc_mldsa_composite_verify_msg_ex(const byte* sig, word32 sigLen, const byte*
                                            tbsMsgLen,
                                            res,
                                            &key->mldsa_key)) < 0) {
-        MADWOLF_DEBUG("wc_dilithium_verify_msg failed with %d", ret);
-        return ret;
+        return SIG_VERIFY_E;
     }
 
     // If all components are verified, then the signature is valid
     *res = 1;
 
+    // Return the result
     return ret;
 }
 #endif /* WOLFSSL_MLDSA_COMPOSITE_NO_VERIFY */
@@ -922,11 +817,8 @@ int wc_mldsa_composite_sign_msg_ex(const byte* msg, word32 msgLen, byte* sig,
     /* Gets the tbs composite data */
     ret = wc_mldsa_compositeTBS_msg(tbsMsg, &tbsMsgLen, msg, msgLen, key, context, contextLen);
     if (ret < 0) {
-        MADWOLF_DEBUG("wc_mldsa_compositeTBS_msg failed with %d", ret);
         return ret;
     }
-
-    MADWOLF_DEBUG("TBS message generated: tbsMsgLen=%d, sigBufferLen=%d", tbsMsgLen, mldsaSig_bufferLen);
 
     /* Sign the message with the ML-DSA key. */
     if ((ret = wc_dilithium_sign_ctx_msg(NULL,
@@ -940,8 +832,6 @@ int wc_mldsa_composite_sign_msg_ex(const byte* msg, word32 msgLen, byte* sig,
         MADWOLF_DEBUG("wc_dilithium_sign_ctx_msg failed with %d", ret);
         return ret;
     }
-
-MADWOLF_DEBUG("ML-DSA signature generated: mldsaSig_bufferLen=%d", mldsaSig_bufferLen);
 
     // Sign The Traditional component
     switch (key->type) {
@@ -961,8 +851,7 @@ MADWOLF_DEBUG("ML-DSA signature generated: mldsaSig_bufferLen=%d", mldsaSig_buff
 
             // Checks the ML-DSA key level
             if (key->mldsa_key.level != WC_ML_DSA_44) {
-                MADWOLF_DEBUG("ML-DSA key level error (%d vs. %d)", key->mldsa_key.level, WC_ML_DSA_44);
-                return ALGO_ID_E;
+                return BAD_STATE_E;
             }
             // Sets the type of padding
             if (key->type == WC_MLDSA44_RSAPSS2048_SHA256) {
@@ -970,100 +859,73 @@ MADWOLF_DEBUG("ML-DSA signature generated: mldsaSig_bufferLen=%d", mldsaSig_buff
             } else {
                 key->alt_key.rsa.type = WC_RSA_PKCSV15_PAD;
             }
-            // Sign RSA Component
-            // if ((ret = wc_RsaFunction(tbsMsg, tbsMsgLen, sigBuffer, &sigSz, WC_RSA_PKCSV15_PAD, &key->alt_key.rsa, rng)) < 0) {
-            //     MADWOLF_DEBUG("wc_RsaFunction failed with %d", ret);
-            //     return ret;
-            // }
-            // if (sigSz != RSA2048_SIG_SIZE) {
-            //     MADWOLF_DEBUG("RSA signature buffer size error (retrieved: %d, expected: %d)", sigSz, RSA2048_SIG_SIZE);
-            //     return ASN_PARSE_E;
-            // }
+
+            // Gets the RSA signature size
             sigSz = (word32)wc_RsaEncryptSize(&key->alt_key.rsa);
-            MADWOLF_DEBUG("RSA signature buffer size: %d", sigSz);
 
             // Hash the message using SHA-256
             if (wc_Sha256Hash(tbsMsg, tbsMsgLen, hash) != 0) {
-                // handle error
-                MADWOLF_DEBUG("wc_Sha256Hash failed with %d", ret);
                 return BAD_STATE_E;
             }
 
+            // Sign the message digest (PSS vs PKCS#1 v1.5)
             if (key->type == WC_MLDSA44_RSAPSS2048_SHA256) {
                 // Sign the message digest
-                if ((ret = wc_RsaPSS_Sign(hash, WC_SHA256_DIGEST_SIZE, sigBuffer, sigSz, WC_HASH_TYPE_SHA256, WC_MGF1SHA256, &key->alt_key.rsa, rng)) < 0) {
+                if ((ret = wc_RsaPSS_Sign(hash, WC_SHA256_DIGEST_SIZE, 
+                                          sigBuffer, sigSz, WC_HASH_TYPE_SHA256, 
+                                          WC_MGF1SHA256, &key->alt_key.rsa, rng)) < 0) {
                     // handle error
-                    MADWOLF_DEBUG("wc_RsaPSS_Sign failed with %d", ret);
-                    return BAD_STATE_E;
+                    return ret;
                 }
             } else {
                 // Sign the message digest
-                if ((ret = wc_RsaSSL_Sign(hash, WC_SHA256_DIGEST_SIZE, sigBuffer, sigSz, &key->alt_key.rsa, rng)) < 0) {
-                    // handle error
-                    MADWOLF_DEBUG("wc_RsaSSL_Sign failed with %d", ret);
-                    return BAD_STATE_E;
+                if ((ret = wc_RsaSSL_Sign(hash, WC_SHA256_DIGEST_SIZE, 
+                                          sigBuffer, sigSz, &key->alt_key.rsa, rng)) < 0) {
+                    return ret;
                 }
             }
+
+            // Check the size of the signature
             if ((int)sigSz != ret) {
-                MADWOLF_DEBUG("RSA signature buffer size error (retrieved: %d, expected: %d)", ret, sigSz);
-                return ASN_PARSE_E;
+                return BAD_STATE_E;
             }
+
+            // Copy the signature to the output buffer
             XMEMCPY(otherSig_buffer, sigBuffer, sigSz);
             otherSig_bufferLen = sigSz;
+
         } break;
 
         case WC_MLDSA44_ED25519_SHA256: {
             // Sign ED25519 Component
             if ((ret = wc_ed25519_sign_msg_ex(tbsMsg, tbsMsgLen, otherSig_buffer, 
-                    &otherSig_bufferLen, &key->alt_key.ed25519, (byte)Ed25519, context, contextLen)) < 0) {
-                MADWOLF_DEBUG("ED25519 signature generation failed with %d", ret);
+                                              &otherSig_bufferLen, &key->alt_key.ed25519,
+                                              (byte)Ed25519, context, contextLen)) < 0) {
                 return ret;
             }
             if (otherSig_bufferLen != ED25519_SIG_SIZE) {
-                MADWOLF_DEBUG0("ED25519 signature buffer size error");
-                return ASN_PARSE_E;
+                return BAD_STATE_E;
             }
         } break;
 
         case WC_MLDSA44_NISTP256_SHA256: {
             // Sign ECC Component
-            wc_Sha256 sha256_hash;
             byte msg_digest[WC_SHA256_DIGEST_SIZE];
 
-            wc_InitSha256(&sha256_hash);
-            wc_Sha256Update(&sha256_hash, tbsMsg, tbsMsgLen);
-            wc_Sha256Final(&sha256_hash, msg_digest);
+            // wc_InitSha256(&sha256_hash);
+            // wc_Sha256Update(&sha256_hash, tbsMsg, tbsMsgLen);
+            // wc_Sha256Final(&sha256_hash, msg_digest);
 
-            if ((ret = wc_ecc_sign_hash(msg_digest, sizeof(msg_digest), otherSig_buffer, &otherSig_bufferLen, 
-                    rng, &key->alt_key.ecc)) < 0) {
-                MADWOLF_DEBUG("wc_ecc_sign_hash failed with %d", ret);
-                MADWOLF_DEBUG("ECC signature buffer size error (%d vs. %d)", otherSig_bufferLen, wc_ecc_sig_size(&key->alt_key.ecc));
-                MADWOLF_DEBUG("BUFFER is %p (%d)", otherSig_buffer, otherSig_bufferLen);
-                MADWOLF_DEBUG("MSG is %p (%d)", msg, msgLen);
-                MADWOLF_DEBUG("HASH is %p (%lu)", msg_digest, sizeof(msg_digest));
+            if (wc_Sha256Hash(tbsMsg, tbsMsgLen, msg_digest) < 0) {
+                return BAD_STATE_E;
+            }
+
+            if ((ret = wc_ecc_sign_hash(msg_digest, sizeof(msg_digest), 
+                                        otherSig_buffer, &otherSig_bufferLen, 
+                                        rng, &key->alt_key.ecc)) < 0) {
                 return ret;
             }
         } break;
-
-        // case WC_MLDSA44_BPOOL256_SHA256: {
-        //     // Sign ECC Component
-        //     wc_Sha256 sha256_hash;
-        //     byte msg_digest[WC_SHA256_DIGEST_SIZE];
-
-        //     wc_InitSha256(&sha256_hash);
-        //     wc_Sha256Update(&sha256_hash, tbsMsg, tbsMsgLen);
-        //     wc_Sha256Final(&sha256_hash, msg_digest);
-
-        //     if ((ret = wc_ecc_sign_hash(msg_digest, sizeof(msg_digest), otherSig_buffer, &otherSig_bufferLen, 
-        //             rng, &key->alt_key.ecc)) < 0) {
-        //         MADWOLF_DEBUG("wc_ecc_sign_hash failed with %d", ret);
-        //         MADWOLF_DEBUG("ECC signature buffer size error (%d vs. %d)", otherSig_bufferLen, wc_ecc_sig_size(&key->alt_key.ecc));
-        //         MADWOLF_DEBUG("BUFFER is %p (%d)", otherSig_buffer, otherSig_bufferLen);
-        //         MADWOLF_DEBUG("MSG is %p (%d)", msg, msgLen);
-        //         MADWOLF_DEBUG("HASH is %p (%lu)", msg_digest, sizeof(msg_digest));
-        //         return ret;
-        //     }
-        // } break;
 
         // Level 3
         case WC_MLDSA65_RSAPSS3072_SHA384:
@@ -1079,11 +941,11 @@ MADWOLF_DEBUG("ML-DSA signature generated: mldsaSig_bufferLen=%d", mldsaSig_buff
 
             // Checks the ML-DSA key level
             if (key->mldsa_key.level != WC_ML_DSA_65) {
-                MADWOLF_DEBUG("ML-DSA key level error (%d vs. %d)", key->mldsa_key.level, WC_ML_DSA_65);
-                return ALGO_ID_E;
+                return BAD_STATE_E;
             }
+
+            // Gets the RSA signature size
             sigSz = (word32)wc_RsaEncryptSize(&key->alt_key.rsa);
-            MADWOLF_DEBUG("RSA signature buffer size: %d", sigSz);
 
             // Sets the type of padding
             if (key->type == WC_MLDSA65_RSAPSS3072_SHA384 || 
@@ -1094,9 +956,8 @@ MADWOLF_DEBUG("ML-DSA signature generated: mldsaSig_bufferLen=%d", mldsaSig_buff
             }
 
             // Hash the message using SHA-384
-            if (wc_Sha384Hash(tbsMsg, tbsMsgLen, hash) != 0) {
+            if (wc_Sha384Hash(tbsMsg, tbsMsgLen, hash) < 0) {
                 // handle error
-                MADWOLF_DEBUG("wc_Sha384Hash failed with %d", ret);
                 return BAD_STATE_E;
             }
 
@@ -1118,18 +979,19 @@ MADWOLF_DEBUG("ML-DSA signature generated: mldsaSig_bufferLen=%d", mldsaSig_buff
                 key->alt_key.rsa.type = WC_RSA_PSS_PAD;
 
                 // Sign the message digest
-                if ((ret = wc_RsaPSS_Sign_ex(hash, WC_SHA384_DIGEST_SIZE, sigBuffer, sigSz, WC_HASH_TYPE_SHA384, mgf, saltLen, &key->alt_key.rsa, rng)) < 0) {
+                if ((ret = wc_RsaPSS_Sign_ex(hash, WC_SHA384_DIGEST_SIZE, 
+                                             sigBuffer, sigSz, WC_HASH_TYPE_SHA384,
+                                             mgf, saltLen, &key->alt_key.rsa, rng)) < 0) {
                     // handle error
-                    MADWOLF_DEBUG("wc_RsaPSS_Sign failed with %d", ret);
                     return BAD_STATE_E;
                 }
                 // Checks the RSA signature size
-                if (key->type == WC_MLDSA65_RSAPSS3072_SHA384 && sigSz != RSA3072_SIG_SIZE) {
-                    MADWOLF_DEBUG0("RSA signature buffer size error");
-                    return ASN_PARSE_E;
-                } else if (key->type == WC_MLDSA65_RSAPSS4096_SHA384 && sigSz != RSA4096_SIG_SIZE) {
-                    MADWOLF_DEBUG0("RSA signature buffer size error");
-                    return ASN_PARSE_E;
+                if (key->type == WC_MLDSA65_RSAPSS3072_SHA384 && 
+                                sigSz != RSA3072_SIG_SIZE) {
+                    return BAD_STATE_E;
+                } else if (key->type == WC_MLDSA65_RSAPSS4096_SHA384 && 
+                                sigSz != RSA4096_SIG_SIZE) {
+                    return BAD_STATE_E;
                 }
 
             } else {
@@ -1137,26 +999,26 @@ MADWOLF_DEBUG("ML-DSA signature generated: mldsaSig_bufferLen=%d", mldsaSig_buff
                 key->alt_key.rsa.type = WC_RSA_PKCSV15_PAD;
 
                 // Sign the message digest
-                if ((ret = wc_RsaSSL_Sign(hash, WC_SHA384_DIGEST_SIZE, sigBuffer, sigSz, &key->alt_key.rsa, rng)) < 0) {
+                if ((ret = wc_RsaSSL_Sign(hash, WC_SHA384_DIGEST_SIZE,
+                                          sigBuffer, sigSz, &key->alt_key.rsa, rng)) < 0) {
                     // handle error
-                    MADWOLF_DEBUG("wc_RsaSSL_Sign failed with %d", ret);
                     return BAD_STATE_E;
                 }
 
                 // Checks the RSA signature size
                 if (key->type == WC_MLDSA65_RSA3072_SHA384 && sigSz != RSA3072_SIG_SIZE) {
-                    MADWOLF_DEBUG0("RSA signature buffer size error");
-                    return ASN_PARSE_E;
+                    return BAD_STATE_E;
                 } else if (key->type == WC_MLDSA65_RSA4096_SHA384 && sigSz != RSA4096_SIG_SIZE) {
-                    MADWOLF_DEBUG0("RSA signature buffer size error");
-                    return ASN_PARSE_E;
+                    return BAD_STATE_E;
                 }
             }
 
+            // Check the size of the signature
             if ((int)sigSz != ret) {
-                MADWOLF_DEBUG("RSA signature buffer size error (retrieved: %d, expected: %d)", ret, sigSz);
                 return ASN_PARSE_E;
             }
+
+            // Copy the signature to the output buffer
             XMEMCPY(otherSig_buffer, sigBuffer, sigSz);
             otherSig_bufferLen = sigSz;
 
@@ -1164,115 +1026,112 @@ MADWOLF_DEBUG("ML-DSA signature generated: mldsaSig_bufferLen=%d", mldsaSig_buff
         
         case WC_MLDSA65_NISTP256_SHA384: {
             // Sign ECC Component
-            wc_Sha384 sha384_hash;
             byte msg_digest[WC_SHA384_DIGEST_SIZE];
 
-            wc_InitSha384(&sha384_hash);
-            wc_Sha384Update(&sha384_hash, tbsMsg, tbsMsgLen);
-            wc_Sha384Final(&sha384_hash, msg_digest);
+            // wc_InitSha384(&sha384_hash);
+            // wc_Sha384Update(&sha384_hash, tbsMsg, tbsMsgLen);
+            // wc_Sha384Final(&sha384_hash, msg_digest);
 
-            if ((ret = wc_ecc_sign_hash(msg_digest, sizeof(msg_digest), otherSig_buffer, &otherSig_bufferLen, 
-                    rng, &key->alt_key.ecc)) < 0) {
-                MADWOLF_DEBUG("wc_ecc_sign_hash failed with %d", ret);
-                MADWOLF_DEBUG("ECC signature buffer size error (%d vs. %d)", otherSig_bufferLen, wc_ecc_sig_size(&key->alt_key.ecc));
-                MADWOLF_DEBUG("BUFFER is %p (%d)", otherSig_buffer, otherSig_bufferLen);
-                MADWOLF_DEBUG("MSG is %p (%d)", msg, msgLen);
-                MADWOLF_DEBUG("HASH is %p (%lu)", msg_digest, sizeof(msg_digest));
+            if (wc_Sha384Hash(tbsMsg, tbsMsgLen, msg_digest) < 0) {
+                return BAD_STATE_E;
+            }
+
+            if ((ret = wc_ecc_sign_hash(msg_digest, sizeof(msg_digest), 
+                                        otherSig_buffer, &otherSig_bufferLen, 
+                                        rng, &key->alt_key.ecc)) < 0) {
                 return ret;
             }
         } break;
 
         case WC_MLDSA65_ED25519_SHA384: {
             // Sign ED25519 Component
-            if ((ret = wc_ed25519_sign_msg_ex(tbsMsg, tbsMsgLen, otherSig_buffer, 
-                    &otherSig_bufferLen, &key->alt_key.ed25519, (byte)Ed25519, context, contextLen)) < 0) {
-                MADWOLF_DEBUG("ED25519 signature generation failed with %d", ret);
+            if ((ret = wc_ed25519_sign_msg_ex(tbsMsg, tbsMsgLen, 
+                                              otherSig_buffer, &otherSig_bufferLen,
+                                              &key->alt_key.ed25519, (byte)Ed25519,
+                                              context, contextLen)) < 0) {
                 return ret;
             }
             if (otherSig_bufferLen != ED25519_SIG_SIZE) {
-                MADWOLF_DEBUG0("ED25519 signature buffer size error");
-                return ASN_PARSE_E;
+                return BAD_STATE_E;
             }
         } break;
 
         case WC_MLDSA65_BPOOL256_SHA256: {
             // Sign ECC Component
-            wc_Sha384 sha256_hash;
             byte msg_digest[WC_SHA256_DIGEST_SIZE];
 
-            wc_InitSha512(&sha256_hash);
-            wc_Sha512Update(&sha256_hash, tbsMsg, tbsMsgLen);
-            wc_Sha512Final(&sha256_hash, msg_digest);
+            // wc_InitSha512(&sha256_hash);
+            // wc_Sha512Update(&sha256_hash, tbsMsg, tbsMsgLen);
+            // wc_Sha512Final(&sha256_hash, msg_digest);
 
-            if ((ret = wc_ecc_sign_hash(msg_digest, sizeof(msg_digest), otherSig_buffer, &otherSig_bufferLen, 
-                    rng, &key->alt_key.ecc)) < 0) {
-                MADWOLF_DEBUG("wc_ecc_sign_hash failed with %d", ret);
-                MADWOLF_DEBUG("ECC signature buffer size error (%d vs. %d)", otherSig_bufferLen, wc_ecc_sig_size(&key->alt_key.ecc));
-                MADWOLF_DEBUG("BUFFER is %p (%d)", otherSig_buffer, otherSig_bufferLen);
-                MADWOLF_DEBUG("MSG is %p (%d)", msg, msgLen);
-                MADWOLF_DEBUG("HASH is %p (%lu)", msg_digest, sizeof(msg_digest));
+            // Hash the message using SHA-256
+            if (wc_Sha256Hash(tbsMsg, tbsMsgLen, msg_digest) < 0) {
+                return BAD_STATE_E;
+            }
+
+            // Sign the message digest
+            if ((ret = wc_ecc_sign_hash(msg_digest, sizeof(msg_digest),
+                                        otherSig_buffer, &otherSig_bufferLen, 
+                                        rng, &key->alt_key.ecc)) < 0) {
                 return ret;
             }
         } break;
 
         case WC_MLDSA87_NISTP384_SHA384: {
             // Sign ECC Component
-            wc_Sha384 sha384_hash;
             byte msg_digest[WC_SHA384_DIGEST_SIZE];
 
-            wc_InitSha384(&sha384_hash);
-            wc_Sha384Update(&sha384_hash, tbsMsg, tbsMsgLen);
-            wc_Sha384Final(&sha384_hash, msg_digest);
+            // wc_InitSha384(&sha384_hash);
+            // wc_Sha384Update(&sha384_hash, tbsMsg, tbsMsgLen);
+            // wc_Sha384Final(&sha384_hash, msg_digest);
 
-            if ((ret = wc_ecc_sign_hash(msg_digest, sizeof(msg_digest), otherSig_buffer, &otherSig_bufferLen, 
-                    rng, &key->alt_key.ecc)) < 0) {
-                MADWOLF_DEBUG("wc_ecc_sign_hash failed with %d", ret);
-                MADWOLF_DEBUG("ECC signature buffer size error (%d vs. %d)", otherSig_bufferLen, wc_ecc_sig_size(&key->alt_key.ecc));
-                MADWOLF_DEBUG("BUFFER is %p (%d)", otherSig_buffer, otherSig_bufferLen);
-                MADWOLF_DEBUG("MSG is %p (%d)", msg, msgLen);
-                MADWOLF_DEBUG("HASH is %p (%lu)", msg_digest, sizeof(msg_digest));
+            if (wc_Sha384Hash(tbsMsg, tbsMsgLen, msg_digest) < 0) {
+                return BAD_STATE_E;
+            }
+
+            if ((ret = wc_ecc_sign_hash(msg_digest, sizeof(msg_digest),
+                                        otherSig_buffer, &otherSig_bufferLen, 
+                                        rng, &key->alt_key.ecc)) < 0) {
                 return ret;
             }
         } break;
 
         case WC_MLDSA87_BPOOL384_SHA384: {
             // Sign ECC Component
-            wc_Sha384 sha384_hash;
             byte msg_digest[WC_SHA384_DIGEST_SIZE];
 
-            wc_InitSha384(&sha384_hash);
-            wc_Sha384Update(&sha384_hash, tbsMsg, tbsMsgLen);
-            wc_Sha384Final(&sha384_hash, msg_digest);
+            // wc_InitSha384(&sha384_hash);
+            // wc_Sha384Update(&sha384_hash, tbsMsg, tbsMsgLen);
+            // wc_Sha384Final(&sha384_hash, msg_digest);
 
-            if ((ret = wc_ecc_sign_hash(msg_digest, sizeof(msg_digest), otherSig_buffer, &otherSig_bufferLen, 
-                    rng, &key->alt_key.ecc)) < 0) {
-                MADWOLF_DEBUG("wc_ecc_sign_hash failed with %d", ret);
-                MADWOLF_DEBUG("ECC signature buffer size error (%d vs. %d)", otherSig_bufferLen, wc_ecc_sig_size(&key->alt_key.ecc));
-                MADWOLF_DEBUG("BUFFER is %p (%d)", otherSig_buffer, otherSig_bufferLen);
-                MADWOLF_DEBUG("MSG is %p (%d)", msg, msgLen);
-                MADWOLF_DEBUG("HASH is %p (%lu)", msg_digest, sizeof(msg_digest));
+            if (wc_Sha384Hash(tbsMsg, tbsMsgLen, msg_digest) < 0) {
+                return BAD_STATE_E;
+            }
+
+            if ((ret = wc_ecc_sign_hash(msg_digest, sizeof(msg_digest),
+                                        otherSig_buffer, &otherSig_bufferLen, 
+                                        rng, &key->alt_key.ecc)) < 0) {
+
                 return ret;
             }
         } break;
 
         case WC_MLDSA87_ED448_SHA384: {
             // Sign ED448 Component
-            if ((ret = wc_ed448_sign_msg_ex(tbsMsg, tbsMsgLen, otherSig_buffer, 
-                    &otherSig_bufferLen, &key->alt_key.ed448, (byte)Ed448, context, contextLen)) < 0) {
-                MADWOLF_DEBUG("ED448 signature generation failed with %d", ret);
+            if ((ret = wc_ed448_sign_msg_ex(tbsMsg, tbsMsgLen,
+                                            otherSig_buffer, 
+                                            &otherSig_bufferLen, &key->alt_key.ed448, 
+                                            (byte)Ed448, context, contextLen)) < 0) {
                 return ret;
             }
             if (otherSig_bufferLen != ED448_SIG_SIZE) {
-                MADWOLF_DEBUG0("ED448 signature buffer size error");
-                return ASN_PARSE_E;
+                return BAD_STATE_E;
             }
         } break;
 
         default:
             return ALGO_ID_E;
     }
-
-MADWOLF_DEBUG0("Other signature generated");
 
     // Clears the memory (required because of a bug in wolfSSL)
     XMEMSET(sigsASN, 0, sizeof(sigsASN));
@@ -1281,34 +1140,20 @@ MADWOLF_DEBUG0("Other signature generated");
     SetASN_Buffer(&sigsASN[MLDSA_COMPASN_IDX_MLDSA], mldsaSig_buffer, mldsaSig_bufferLen);
     SetASN_Buffer(&sigsASN[MLDSA_COMPASN_IDX_OTHER], otherSig_buffer, otherSig_bufferLen);
 
-MADWOLF_DEBUG("ASN1 data set: mldsaSig_bufferLen=%d, otherSig_bufferLen=%d", mldsaSig_bufferLen, otherSig_bufferLen);
-
     // Let's calculate the size of the ASN1 data
     if ((ret = SizeASN_Items(compositeIT, sigsASN, 3, (int *)sigLen)) < 0) {
-        WOLFSSL_MSG_VSNPRINTF("error cannot calculate SizeASN_Items");
-        return ret;
+        return ASN_PARSE_E;
     }
 
-MADWOLF_DEBUG0("ASN1 data size calculated");
-
+    // Check if the output buffer is large enough
     if (*sigLen > inSigLen) {
-        MADWOLF_DEBUG("error not enough space for ASN1 data (needed: %d, provided: %d)", *sigLen, inSigLen);
-        WOLFSSL_MSG_VSNPRINTF("error not enough space for ASN1 data (needed: %d, provided: %d)", *sigLen, inSigLen);
         return BUFFER_E;
     }
-
-MADWOLF_DEBUG0("ASN1 data size checked");
 
     // Let's encode the ASN1 data
     if ((*sigLen = SetASN_Items(compositeIT, sigsASN, 3, sig)) <= 0) { 
         return ASN_PARSE_E;
     }
-
-MADWOLF_DEBUG0("ASN1 data encoded");
-
-    // WOLFSSL_MSG_VSNPRINTF("composite context is not used");
-    (void)context;
-    (void)contextLen;
 
     return 0;
 }
