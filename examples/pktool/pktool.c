@@ -90,8 +90,6 @@ int export_key_p8(void * key, int type, const char * out_file, int format) {
         return -1;
     }
 
-printf("**************** Exporting key type: %d\n", type);
-
     switch (type) {
 #ifndef NO_RSA
     case RSAk:

@@ -46211,25 +46211,21 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t mldsa_composite_test(void)
 
     mldsa_composite_key * c_key = XMALLOC(sizeof(mldsa_composite_key), NULL, DYNAMIC_TYPE_PRIVATE_KEY);
     if (!c_key) {
-        printf("***** mldsa_composite_test: failed to allocate memory for mldsa_composite_key\n");
         return 100;
     }
 
     ret = wc_mldsa_composite_init_ex(c_key, NULL, INVALID_DEVID);
     if (ret != 0) {
-        printf("***** mldsa_composite_test: failed to initialize mldsa_composite_key\n");
         return 101;
     }
 
     ret = wc_mldsa_composite_set_type(c_key, WC_MLDSA44_RSA2048_SHA256);
     if (ret < 0) {
-        printf("[%d] ***** mldsa_composite_test: failed to set type for mldsa_composite_key\n", __LINE__);
         return 102;
     }
 
     ret = wc_mldsa_composite_make_key(c_key, WC_MLDSA44_RSA2048_SHA256, &rng);
     if (ret < 0) {
-        printf("[%d] ***** mldsa_composite_test: failed to make key for mldsa_composite_key\n", __LINE__);
         return 103;
     }
 
@@ -46238,42 +46234,27 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t mldsa_composite_test(void)
 
     ret = wc_mldsa_composite_export_private(c_key, tmpBuffer, &tmpBufferLen);
     if (ret < 0) {
-        printf("[%d] ***** mldsa_composite_test: failed to export private key for mldsa_composite_key (ret: %d)\n", __LINE__, ret);
         return 104;
     }
 
     mldsa_composite_key * c_key2 = XMALLOC(sizeof(mldsa_composite_key), NULL, DYNAMIC_TYPE_PRIVATE_KEY);
     if (!c_key2) {
-        printf("[%d] ***** mldsa_composite_test: failed to allocate memory for mldsa_composite_key\n", __LINE__);
         return 100;
     }
 
     ret = wc_mldsa_composite_init_ex(c_key2, NULL, INVALID_DEVID);
     if (ret != 0) {
-        printf("[%d] ***** mldsa_composite_test: failed to initialize mldsa_composite_key\n", __LINE__);
         return 101;
     }
-    // DecodeAsymKey(tmpBuffer, tmpBufferLen, tmpBufferLen, privKeyBuffer, &privKeyBufferLen, NULL, 0,  )
     ret = wc_mldsa_composite_import_private(tmpBuffer, tmpBufferLen, c_key2, WC_MLDSA44_RSA2048_SHA256);
     if (ret != 0) {
-        printf("[%d] ***** mldsa_composite_test: failed to import private key for mldsa_composite_key\n", __LINE__);
         return 105;
     }
 
     for (int idx = 0; idx < 14; idx++) {
-
-        printf("***** mldsa_composite_test: idx = %d\n", idx);
-
-        // RSA is giving us problem when exporting/importing into the composite key
-        if ( /* idx == 0 ||  idx ==1 || idx == 4  || idx == 5 || idx == 6 || idx == 7 || idx == 8 */ 0 ) {
-            printf("***** mldsa_composite_test: skipping tests for MLDSA Composite Type %d\n", mldsa_composite_algos[idx]); fflush(stdout);
-            continue;
-        }
-
         ret = mldsa_composite_param_test(mldsa_composite_algos[idx], &rng);
-
-        printf("***** mldsa_composite_test: ret = %d\n", ret); fflush(stdout);
-        if (ret != 0) ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+        if (ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     }
 
 #endif
