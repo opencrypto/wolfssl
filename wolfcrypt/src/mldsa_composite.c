@@ -829,7 +829,6 @@ int wc_mldsa_composite_sign_msg_ex(const byte* msg, word32 msgLen, byte* sig,
                                          &mldsaSig_bufferLen,
                                          &key->mldsa_key,
                                          rng)) < 0) {
-        MADWOLF_DEBUG("wc_dilithium_sign_ctx_msg failed with %d", ret);
         return ret;
     }
 
@@ -911,10 +910,6 @@ int wc_mldsa_composite_sign_msg_ex(const byte* msg, word32 msgLen, byte* sig,
         case WC_MLDSA44_NISTP256_SHA256: {
             // Sign ECC Component
             byte msg_digest[WC_SHA256_DIGEST_SIZE];
-
-            // wc_InitSha256(&sha256_hash);
-            // wc_Sha256Update(&sha256_hash, tbsMsg, tbsMsgLen);
-            // wc_Sha256Final(&sha256_hash, msg_digest);
 
             if (wc_Sha256Hash(tbsMsg, tbsMsgLen, msg_digest) < 0) {
                 return BAD_STATE_E;
@@ -1028,10 +1023,6 @@ int wc_mldsa_composite_sign_msg_ex(const byte* msg, word32 msgLen, byte* sig,
             // Sign ECC Component
             byte msg_digest[WC_SHA384_DIGEST_SIZE];
 
-            // wc_InitSha384(&sha384_hash);
-            // wc_Sha384Update(&sha384_hash, tbsMsg, tbsMsgLen);
-            // wc_Sha384Final(&sha384_hash, msg_digest);
-
             if (wc_Sha384Hash(tbsMsg, tbsMsgLen, msg_digest) < 0) {
                 return BAD_STATE_E;
             }
@@ -1060,10 +1051,6 @@ int wc_mldsa_composite_sign_msg_ex(const byte* msg, word32 msgLen, byte* sig,
             // Sign ECC Component
             byte msg_digest[WC_SHA256_DIGEST_SIZE];
 
-            // wc_InitSha512(&sha256_hash);
-            // wc_Sha512Update(&sha256_hash, tbsMsg, tbsMsgLen);
-            // wc_Sha512Final(&sha256_hash, msg_digest);
-
             // Hash the message using SHA-256
             if (wc_Sha256Hash(tbsMsg, tbsMsgLen, msg_digest) < 0) {
                 return BAD_STATE_E;
@@ -1081,10 +1068,6 @@ int wc_mldsa_composite_sign_msg_ex(const byte* msg, word32 msgLen, byte* sig,
             // Sign ECC Component
             byte msg_digest[WC_SHA384_DIGEST_SIZE];
 
-            // wc_InitSha384(&sha384_hash);
-            // wc_Sha384Update(&sha384_hash, tbsMsg, tbsMsgLen);
-            // wc_Sha384Final(&sha384_hash, msg_digest);
-
             if (wc_Sha384Hash(tbsMsg, tbsMsgLen, msg_digest) < 0) {
                 return BAD_STATE_E;
             }
@@ -1099,10 +1082,6 @@ int wc_mldsa_composite_sign_msg_ex(const byte* msg, word32 msgLen, byte* sig,
         case WC_MLDSA87_BPOOL384_SHA384: {
             // Sign ECC Component
             byte msg_digest[WC_SHA384_DIGEST_SIZE];
-
-            // wc_InitSha384(&sha384_hash);
-            // wc_Sha384Update(&sha384_hash, tbsMsg, tbsMsgLen);
-            // wc_Sha384Final(&sha384_hash, msg_digest);
 
             if (wc_Sha384Hash(tbsMsg, tbsMsgLen, msg_digest) < 0) {
                 return BAD_STATE_E;

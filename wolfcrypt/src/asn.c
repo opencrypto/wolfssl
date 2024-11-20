@@ -7350,14 +7350,14 @@ int ToTraditionalInline_ex2(const byte* input, word32* inOutIdx, word32 sz,
         /* Parse data. */
         ret = GetASN_Items(pkcs8KeyASN, dataASN, pkcs8KeyASN_Length, 1, input,
                            &idx, sz);
+        
+        /* Sets the algID early, useful for debugging OID issues*/
+        *algId = oid;
     }
 
     if (ret == 0) {
         /* Key type OID. */
         oid = dataASN[PKCS8KEYASN_IDX_PKEY_ALGO_OID_KEY].data.oid.sum;
-
-        /* Sets the algID early, useful for debugging OID issues*/
-        *algId = oid;
 
         /* Version 1 includes an optional public key.
          * If public key is included then the parsing will fail as it did not
@@ -7477,7 +7477,7 @@ int ToTraditionalInline_ex2(const byte* input, word32* inOutIdx, word32 sz,
             case MLDSA44_NISTP256k:
             case MLDSA44_RSA2048k:
             case MLDSA44_RSAPSS2048k:
-            case MLDSA44_BPOOL256k:
+            // case MLDSA44_BPOOL256k:
             case MLDSA44_ED25519k:
 
             // Composite - Level 3
@@ -8170,7 +8170,7 @@ int wc_CheckPrivateKey(const byte* privKey, word32 privKeySz,
         (ks == MLDSA44_RSAPSS2048k) ||
         (ks == MLDSA44_NISTP256k) ||
         (ks == MLDSA44_ED25519k) ||
-        (ks == MLDSA44_BPOOL256k) ||
+        // (ks == MLDSA44_BPOOL256k) ||
         (ks == MLDSA65_RSA3072k) ||
         (ks == MLDSA65_RSAPSS3072k) ||
         (ks == MLDSA65_NISTP256k) ||
@@ -27341,9 +27341,9 @@ const char * wc_KeySum_name(const int keySum) {
         case MLDSA44_NISTP256k:
             return "MLDSA44-NISTP256";
             break;
-        case MLDSA44_BPOOL256k:
-            return "MLDSA44-BPOOL256";
-            break;
+        // case MLDSA44_BPOOL256k:
+        //     return "MLDSA44-BPOOL256";
+        //     break;
         
         case MLDSA65_RSAPSS3072k:
             return "MLDSA65-RSAPSS3072";

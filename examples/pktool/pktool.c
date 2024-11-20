@@ -297,7 +297,7 @@ int export_key_p8(void * key, int type, const char * out_file, int format) {
     case MLDSA44_RSA2048k:
     case MLDSA44_RSAPSS2048k:
     case MLDSA44_NISTP256k:
-    case MLDSA44_BPOOL256k:
+    // case MLDSA44_BPOOL256k:
     case MLDSA44_ED25519k:
 
     case MLDSA65_ED25519k:
@@ -391,11 +391,18 @@ int load_key_p8(void ** key, int type, const char * key_file, int format) {
     FILE * file = NULL;
     byte * keyData = NULL;
     byte * derPtr = NULL;
-    // int    derSz = 0;
+
     byte * buff = NULL;
     int buff_sz = 0;
 
     word32 algorSum = 0;
+
+    word32 idx = 0;
+    char * privKey = NULL;
+    word32 privKeySz = 0;
+
+    char * pubKey = NULL;
+    word32 pubKeySz = 0;
 
     // Input checks
     if (!key) {
@@ -456,13 +463,6 @@ int load_key_p8(void ** key, int type, const char * key_file, int format) {
     } else {
         derPtr = keyData;
     }
-
-    word32 idx = 0;
-    char * privKey = NULL;
-    word32 privKeySz = 0;
-
-    char * pubKey = NULL;
-    word32 pubKeySz = 0;
 
     // Retrieves the PKCS8 information
     if ((ret = wc_PKCS8_info(derPtr, keySz, &algorSum)) < 0) {
@@ -569,7 +569,7 @@ int load_key_p8(void ** key, int type, const char * key_file, int format) {
     case MLDSA44_RSA2048k:
     case MLDSA44_RSAPSS2048k:
     case MLDSA44_NISTP256k:
-    case MLDSA44_BPOOL256k:
+    // case MLDSA44_BPOOL256k:
     case MLDSA44_ED25519k:
 
     case MLDSA65_ED25519k:
@@ -597,18 +597,22 @@ int load_key_p8(void ** key, int type, const char * key_file, int format) {
         }
         XMEMSET(mldsaCompKey, 0, sizeof(mldsa_composite_key));
 
+        printf("Loading Key: %d (%d)\n", algorSum, comp_type);
+
         // Decodes the key
-        if ((ret = wc_mldsa_composite_import_private(derPtr, keySz, mldsaCompKey, comp_type)) < 0) {
-            return ret;
-        }
-        // if ((ret = wc_MlDsaComposite_PrivateKeyDecode(derPtr, &idx, mldsaCompKey, keySz, comp_type)) < 0) {
+        // if ((ret = wc_mldsa_composite_import_private(derPtr, keySz, mldsaCompKey, comp_type)) < 0) {
         //     return ret;
         // }
+        if ((ret = wc_MlDsaComposite_PrivateKeyDecode(derPtr, &idx, mldsaCompKey, keySz, comp_type)) < 0) {
+            return ret;
+        }
         break;
 #endif
         default:
-            return BAD_FUNC_ARG;
+            return ALGO_ID_E;
     }
+
+    printf("Key Loaded Successfully: %d\n", algorSum);
 
     if (derPtr) XFREE(derPtr, NULL, DYNAMIC_TYPE_PRIVATE_KEY);
 
@@ -618,8 +622,6 @@ int load_key_p8(void ** key, int type, const char * key_file, int format) {
     (void)pubKey;
     (void)pubKeySz;
     (void)type;
-
-    printf("Key Loaded Successfully: %d\n", type);
 
     return 0;
 }
