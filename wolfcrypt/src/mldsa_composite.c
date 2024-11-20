@@ -2725,7 +2725,6 @@ MADWOLF_DEBUG0(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> Importing ML-DSA Composite Priva
     if ((ret = GetASN_Items(compPrivKeyIT, compPrivKeyASN, 3, 0, keyBuffer, &idx, privSz)) < 0) {
         MADWOLF_DEBUG("Error while parsing ASN.1 (%d, privSz: %d, idx: %d, type: %d)", ret, privSz, idx, type);
         goto err;
-        return ret;
     }
 
     // If no passed type, let's check the key type

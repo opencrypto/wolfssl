@@ -203,8 +203,7 @@ enum CertType {
     MLDSA87_BPOOL384_SHA512_TYPE,
     MLDSA87_ED448_SHA512_TYPE,
     // End Composite Types
-# endif
-#ifdef HAVE_MLDSA_COMPOSITE_DRAFT_3
+#elif defined(HAVE_MLDSA_COMPOSITE_DRAFT_3)
     // Composite Types
     // Level 1
     MLDSA44_RSAPSS2048_TYPE,

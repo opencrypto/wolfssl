@@ -1313,23 +1313,23 @@ enum Key_Sum {
     SPHINCS_SMALL_LEVEL3k  = 285, /* 1 3 9999 6 8 7 */
     SPHINCS_SMALL_LEVEL5k  = 286,  /* 1 3 9999 6 9 7 */
     // ML-DSA Composite
-    MLDSA44_RSAPSS2048k    = 916, /* 2.16.840.1.114027.80.8.1.21 - id-MLDSA44-RSA2048-SHA256 - 78 + 900 + 21 */
-    MLDSA44_RSA2048k       = 917, /* 2.16.840.1.114027.80.8.1.22 - id-MLDSA44-RSAPSS2048-SHA256 - 78 + 900 + 22 */
-    MLDSA44_ED25519k       = 918, /* 2.16.840.1.114027.80.8.1.23 - id-MLDSA44-Ed25519-SHA512 - 78 + 900 + 23*/
-    MLDSA44_NISTP256k      = 919, /* 2.16.840.1.114027.80.8.1.24 - id-MLDSA44-ECDSA-P256-SHA256 - 78 + 900 + 24 */
-    MLDSA44_BPOOL256k      = 920, 
+    MLDSA44_RSAPSS2048k    = 904, /* 2.16.840.1.114027.80.8.1.21 - id-MLDSA44-RSA2048-SHA256 - 78 + 900 + 21 */
+    MLDSA44_RSA2048k       = 905, /* 2.16.840.1.114027.80.8.1.22 - id-MLDSA44-RSAPSS2048-SHA256 - 78 + 900 + 22 */
+    MLDSA44_ED25519k       = 906, /* 2.16.840.1.114027.80.8.1.23 - id-MLDSA44-Ed25519-SHA512 - 78 + 900 + 23*/
+    MLDSA44_NISTP256k      = 907, /* 2.16.840.1.114027.80.8.1.24 - id-MLDSA44-ECDSA-P256-SHA256 - 78 + 900 + 24 */
+    MLDSA44_BPOOL256k      = 908, 
     // Level 3
-    MLDSA65_RSAPSS4096k    = 931,
-    MLDSA65_RSA4096k       = 932,
-    MLDSA65_RSAPSS3072k    = 921,
-    MLDSA65_RSA3072k       = 922,
-    MLDSA65_NISTP256k      = 923,
-    MLDSA65_BPOOL256k      = 924,
-    MLDSA65_ED25519k       = 925,
+    MLDSA65_RSAPSS3072k    = 910,
+    MLDSA65_RSA3072k       = 911,
+    MLDSA65_RSAPSS4096k    = 918,
+    MLDSA65_RSA4096k       = 919,
+    MLDSA65_NISTP256k      = 912,
+    MLDSA65_BPOOL256k      = 913,
+    MLDSA65_ED25519k       = 914,
     // Level 5
-    MLDSA87_NISTP384k      = 926,
-    MLDSA87_BPOOL384k      = 927,
-    MLDSA87_ED448k         = 928,
+    MLDSA87_NISTP384k      = 915,
+    MLDSA87_BPOOL384k      = 916,
+    MLDSA87_ED448k         = 917,
 };
 
 #if !defined(NO_AES) || defined(HAVE_PKCS7)
@@ -1663,6 +1663,9 @@ struct SignatureCtx {
     #endif
     #if defined(HAVE_SPHINCS)
         struct sphincs_key* sphincs;
+    #endif
+    #if defined(HAVE_MLDSA_COMPOSITE)
+        struct mldsa_composite_key *mldsa_composite;
     #endif
         void* ptr;
     } key;
@@ -2621,7 +2624,24 @@ enum cert_enums {
     SPHINCS_FAST_LEVEL5_KEY  = 26,
     SPHINCS_SMALL_LEVEL1_KEY = 27,
     SPHINCS_SMALL_LEVEL3_KEY = 28,
-    SPHINCS_SMALL_LEVEL5_KEY = 29
+    SPHINCS_SMALL_LEVEL5_KEY = 29,
+#ifdef HAVE_MLDSA_COMPOSITE
+    MLDSA44_RSAPSS2048_KEY   = 30,
+    MLDSA44_RSA2048_KEY      = 31,
+    MLDSA44_NISTP256_KEY     = 32,
+    MLDSA44_ED25519_KEY      = 33,
+    // MLDSA44_BPOOL256_KEY     = 34,
+    MLDSA65_RSAPSS3072_KEY   = 35,
+    MLDSA65_RSA3072_KEY      = 36,
+    MLDSA65_RSAPSS4096_KEY   = 37,
+    MLDSA65_RSA4096_KEY      = 38,
+    MLDSA65_NISTP384_KEY     = 39,
+    MLDSA65_ED25519_KEY      = 40,
+    MLDSA65_BPOOL256_KEY     = 41,
+    MLDSA87_NISTP384_KEY     = 42,
+    MLDSA87_BPOOL384_KEY     = 43,
+    MLDSA87_ED448_KEY        = 44,
+#endif
 };
 
 #endif /* WOLFSSL_CERT_GEN */
