@@ -654,12 +654,6 @@ int gen_csr(const void * key, const void * altkey, const char * out_filename, in
     // char outFile[255];
 #endif
 
-    (void)altkey;
-    (void)out_format;
-    (void)out_filename;
-    (void)type;
-    (void)key;
-
     XMEMSET(der, 0, 10240);
 #ifdef WOLFSSL_DER_TO_PEM
     XMEMSET(pem, 0, 10240);
@@ -791,6 +785,12 @@ exit:
     wc_FreeRng(&rng);
 #endif
 
+    (void)altkey;
+    (void)out_format;
+    (void)out_filename;
+    (void)type;
+    (void)key;
+    
     return ret;
 }
 
