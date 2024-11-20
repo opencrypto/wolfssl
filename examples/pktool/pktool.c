@@ -506,6 +506,7 @@ int load_key_p8(void ** key, int type, const char * key_file, int format) {
         //     printf("[%d] Error loading key\n", __LINE__);
         //     return -1;
         // }
+        *key = ecKey;
         break;
 #endif
 #ifdef HAVE_ED25519
@@ -517,6 +518,7 @@ int load_key_p8(void ** key, int type, const char * key_file, int format) {
             printf("[%d] Error loading key\n", __LINE__);
             return -1;
         }
+        *key = edKey;
         break;
 #endif
 #ifdef HAVE_ED448
@@ -528,6 +530,7 @@ int load_key_p8(void ** key, int type, const char * key_file, int format) {
             printf("[%d] Error loading key\n", __LINE__);
             return -1;
         }
+        *key = ed448Key;
         break;
 #endif
 #ifdef HAVE_DILITHIUM
@@ -551,6 +554,7 @@ int load_key_p8(void ** key, int type, const char * key_file, int format) {
         if ((ret = wc_Dilithium_PrivateKeyDecode(derPtr, &idx, mlDsaKey, keySz)) < 0) {
             return ret;
         }
+        *key = mlDsaKey;
         break;
 #endif
 // #ifdef HAVE_FALCON
@@ -607,6 +611,8 @@ int load_key_p8(void ** key, int type, const char * key_file, int format) {
             printf("[%d] Failed to PrivateKeyDecode\n", __LINE__);
             return ret;
         }
+
+        *key = mldsaCompKey;
         break;
 #endif
         default:
@@ -632,7 +638,7 @@ int gen_csr(const void * key, const void * altkey, const char * out_filename, in
 {
     int ret = NOT_COMPILED_IN;
 #ifdef WOLFSSL_CERT_REQ
-    int type = 0;
+    int type = MLDSA44_NISTP256_TYPE; // MLDSA87_ED448_TYPE
     void* keyPtr = NULL;
     WC_RNG rng;
     Cert req;
@@ -655,6 +661,7 @@ int gen_csr(const void * key, const void * altkey, const char * out_filename, in
         printf("Init Cert failed: %d\n", ret);
         goto exit;
     }
+
     strncpy(req.subject.country, "US", CTC_NAME_SIZE);
     // strncpy(req.subject.state, "OR", CTC_NAME_SIZE);
     // strncpy(req.subject.locality, "Portland", CTC_NAME_SIZE);
@@ -663,7 +670,7 @@ int gen_csr(const void * key, const void * altkey, const char * out_filename, in
     strncpy(req.subject.commonName, out_filename, CTC_NAME_SIZE);
     strncpy(req.subject.email, "info@wolfssl.com", CTC_NAME_SIZE);
     req.version = 0;
-    ret = wc_MakeCertReq_ex(&req, der, sizeof(der), type, keyPtr);
+    ret = wc_MakeCertReq_ex(&req, der, sizeof(der), type, (void *)key);
     if (ret <= 0) {
         printf("Make Cert Req failed: %d\n", ret);
         goto exit;
@@ -918,11 +925,7 @@ int gen_keypair(void ** key, int type, int param) {
             return ret;
         if (ret == 0)
             ret = wc_mldsa_composite_make_key(&mldsa_compositeKey, key_type, &rng);
-        // if (ret == 0)
-        //     outSz = wc_MlDsaComposite_PrivateKeyToDer(&mldsa_compositeKey, der, sizeof(der));
-        // if (outSz < 0)
-        //     ret = outSz;
-        printf("******** FESTIVE ******************\n");
+
         break;
 #endif
 
@@ -1196,9 +1199,9 @@ int main(int argc, char** argv) {
                     return 1;
                 }
             }
-            // if (gen_csr(keyPtr, altkey_file, out_file, out_format) < 0) {
-            //     return -1;
-            // }
+            if (gen_csr(keyPtr, altkey_file, out_file, out_format) < 0) {
+                return -1;
+            }
             return 0;
         } break;
 

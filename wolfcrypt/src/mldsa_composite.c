@@ -2454,10 +2454,10 @@ int wc_mldsa_composite_export_public(mldsa_composite_key* key, byte* out, word32
         return BAD_FUNC_ARG;
     }
 
-    if (key->pubKeySet != 1) {
-        WOLFSSL_MSG_VSNPRINTF("public key not set, cannot export it");
-        return BAD_FUNC_ARG;
-    }
+    // if (key->pubKeySet != 1) {
+    //     WOLFSSL_MSG_VSNPRINTF("public key not set, cannot export it");
+    //     return BAD_FUNC_ARG;
+    // }
 
     /* Get length passed in for checking. */
     inLen = *outLen;
@@ -2668,8 +2668,6 @@ int wc_mldsa_composite_import_private(const byte* priv, word32 privSz,
         return MEMORY_E;
     }
 
-MADWOLF_DEBUG0(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> Importing ML-DSA Composite Private Key <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<\n\n");
-
     // Removes the PKCS8 header
     if ((ret = ToTraditional_ex(keyBuffer, privSz, &algorSum)) > 0) {
         privSz = ret;
@@ -2690,7 +2688,6 @@ MADWOLF_DEBUG0(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> Importing ML-DSA Composite Priva
             MADWOLF_DEBUG("Error while parsing ASN.1 (%d, privSz: %d, idx: %d, type: %d)", ret, privSz, idx, type);
             goto err;
         }
-        MADWOLF_DEBUG("PKCS8 header removed (privSz: %d, idx: %d)", privSz, idx);
     }
 
     // Sets the buffers to 0
@@ -3283,8 +3280,6 @@ int wc_mldsa_composite_export_private(mldsa_composite_key* key, byte* out, word3
     }
     *outLen = encodedLen;
 
-MADWOLF_DEBUG("MLDSA-COMPOSITE -> EXPORT PRIVATE (type: %d, ret: %d)", key->type, ret);
-
 err:
 
     if (mldsa_Buffer != NULL) {
@@ -3570,11 +3565,11 @@ int wc_MlDsaComposite_PublicKeyToDer(mldsa_composite_key* key, byte* output, wor
     if (key == NULL) {
         ret = BAD_FUNC_ARG;
     }
-    /* Check we have a public key to encode. */
-    if ((ret == 0) && (!key->pubKeySet) ) {
-        WOLFSSL_MSG_VSNPRINTF("public key not set, cannot export it");
-        ret = BAD_FUNC_ARG;
-    }
+    // /* Check we have a public key to encode. */
+    // if ((ret == 0) && (!key->pubKeySet) ) {
+    //     WOLFSSL_MSG_VSNPRINTF("public key not set, cannot export it");
+    //     ret = BAD_FUNC_ARG;
+    // }
 
     if (ret == 0) {
         /* Get OID and length for level. */
@@ -3588,6 +3583,7 @@ int wc_MlDsaComposite_PublicKeyToDer(mldsa_composite_key* key, byte* output, wor
         }
         else {
             /* Level not set. */
+            MADWOLF_DEBUG("MISSING CODE: Unsupported ML-DSA Composite WC Type: %d", key->type);
             ret = BAD_FUNC_ARG;
         }
     }

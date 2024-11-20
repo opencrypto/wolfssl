@@ -27272,8 +27272,6 @@ int wc_KeySum_get(const char * name) {
         }
     }
 
-    printf("*************** KeySum: %d\n", ret);
-
     return ret;
 }
 
