@@ -3380,7 +3380,7 @@ int wc_MlDsaComposite_PrivateKeyDecode(const byte* input, word32* inOutIdx,
     if (ret == 0) {
         /* Decode the asymmetric key and get out private and public key data. */
         ret = DecodeAsymKey_Assign(input, inOutIdx, inSz, &privKey, &privKeyLen,
-            &pubKey, &pubKeyLen, keytype);
+            &pubKey, &pubKeyLen, (int *)&keytype);
     }
 
     if (ret == 0) {
@@ -3508,7 +3508,7 @@ int wc_MlDsaComposite_PublicKeyDecode(const byte* input, word32* inOutIdx,
             if (ret == 0) {
                 /* Decode the asymmetric key and get out public key data. */
                 ret = DecodeAsymKeyPublic_Assign(input, inOutIdx, inSz, &pubKey,
-                    &pubKeyLen, keytype);
+                    &pubKeyLen, (int *)&keytype);
             }
     #else
             /* Get OID sum for level. */

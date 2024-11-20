@@ -630,7 +630,8 @@ int load_key_p8(void ** key, int type, const char * key_file, int format) {
 
 int gen_csr(const void * key, const void * altkey, const char * out_filename, int out_format)
 {
-    int ret;
+    int ret = NOT_COMPILED_IN;
+#ifdef WOLFSSL_CERT_REQ
     int type = 0;
 #ifdef HAVE_ECC
     ecc_key ecKey;
@@ -652,6 +653,12 @@ int gen_csr(const void * key, const void * altkey, const char * out_filename, in
     FILE* file = NULL;
     // char outFile[255];
 #endif
+
+    (void)altkey;
+    (void)out_format;
+    (void)out_filename;
+    (void)type;
+    (void)key;
 
     XMEMSET(der, 0, 10240);
 #ifdef WOLFSSL_DER_TO_PEM
@@ -782,12 +789,7 @@ exit:
         wc_ed25519_free(&edKey);
 #endif
     wc_FreeRng(&rng);
-
-    (void)altkey;
-    (void)out_format;
-    (void)out_filename;
-    (void)type;
-    (void)key;
+#endif
 
     return ret;
 }
