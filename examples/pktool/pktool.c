@@ -768,7 +768,6 @@ exit:
     (void)altkey;
     (void)out_format;
     (void)out_filename;
-    (void)type;
     (void)key;
 
     return ret;
