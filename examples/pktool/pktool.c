@@ -633,15 +633,6 @@ int gen_csr(const void * key, const void * altkey, const char * out_filename, in
     int ret = NOT_COMPILED_IN;
 #ifdef WOLFSSL_CERT_REQ
     int type = 0;
-#ifdef HAVE_ECC
-    ecc_key ecKey;
-#endif
-#ifndef NO_RSA
-    RsaKey rsaKey;
-#endif
-#ifdef HAVE_ED25519
-    ed25519_key edKey;
-#endif
     void* keyPtr = NULL;
     WC_RNG rng;
     Cert req;
@@ -770,27 +761,16 @@ int gen_csr(const void * key, const void * altkey, const char * out_filename, in
     ret = 0; /* success */
     
 exit:
-#ifdef HAVE_ECC
-    if (type == ECC_TYPE)
-        wc_ecc_free(&ecKey);
-#endif
-#ifndef NO_RSA
-    if (type == RSA_TYPE)
-        wc_FreeRsaKey(&rsaKey);
-#endif
-#ifdef HAVE_ED25519
-    if (type == ED25519_TYPE)
-        wc_ed25519_free(&edKey);
-#endif
     wc_FreeRng(&rng);
-#endif
+
+#endif /* WOLFSSL_CERT_REQ */
 
     (void)altkey;
     (void)out_format;
     (void)out_filename;
     (void)type;
     (void)key;
-    
+
     return ret;
 }
 
