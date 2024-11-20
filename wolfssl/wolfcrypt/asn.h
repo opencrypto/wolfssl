@@ -1317,19 +1317,19 @@ enum Key_Sum {
     MLDSA44_RSA2048k       = 905, /* 2.16.840.1.114027.80.8.1.22 - id-MLDSA44-RSAPSS2048-SHA256 - 78 + 900 + 22 */
     MLDSA44_ED25519k       = 906, /* 2.16.840.1.114027.80.8.1.23 - id-MLDSA44-Ed25519-SHA512 - 78 + 900 + 23*/
     MLDSA44_NISTP256k      = 907, /* 2.16.840.1.114027.80.8.1.24 - id-MLDSA44-ECDSA-P256-SHA256 - 78 + 900 + 24 */
-    MLDSA44_BPOOL256k      = 908, 
+    // MLDSA44_BPOOL256k      = 908, 
     // Level 3
-    MLDSA65_RSAPSS3072k    = 910,
-    MLDSA65_RSA3072k       = 911,
-    MLDSA65_RSAPSS4096k    = 918,
-    MLDSA65_RSA4096k       = 919,
-    MLDSA65_NISTP256k      = 912,
-    MLDSA65_BPOOL256k      = 913,
-    MLDSA65_ED25519k       = 914,
+    MLDSA65_RSAPSS3072k    = 909,
+    MLDSA65_RSA3072k       = 910,
+    MLDSA65_RSAPSS4096k    = 917,
+    MLDSA65_RSA4096k       = 918,
+    MLDSA65_NISTP256k      = 911,
+    MLDSA65_BPOOL256k      = 912,
+    MLDSA65_ED25519k       = 913,
     // Level 5
-    MLDSA87_NISTP384k      = 915,
-    MLDSA87_BPOOL384k      = 916,
-    MLDSA87_ED448k         = 917,
+    MLDSA87_NISTP384k      = 914,
+    MLDSA87_BPOOL384k      = 915,
+    MLDSA87_ED448k         = 916,
 };
 
 #if !defined(NO_AES) || defined(HAVE_PKCS7)
