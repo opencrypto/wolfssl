@@ -344,10 +344,10 @@ struct mldsa_composite_key {
         /* Alternative Key Parameters */
 
     union {
-        RsaKey rsa; /* RSAOAEPk, RSAPSSk */
-        ecc_key ecc; /* ECDSAk */
-        ed25519_key ed25519; /* ED25519k */
-        ed448_key ed448; /* ED448k */
+        RsaKey * rsa; /* RSAOAEPk, RSAPSSk */
+        ecc_key * ecc; /* ECDSAk */
+        ed25519_key * ed25519; /* ED25519k */
+        ed448_key * ed448; /* ED448k */
     } alt_key;
         /* Alternative Key */
 };
@@ -502,33 +502,42 @@ int wc_mldsa_composite_init_label(mldsa_composite_key* key, const char* label, v
  * level [in]   One of WC_MLDSA_COMPOSITE_TYPE_* values.
  * returns BAD_FUNC_ARG when key is NULL or level is a bad values.
  */
-WOLFSSL_API int wc_mldsa_composite_set_type(mldsa_composite_key* key, int type);
+WOLFSSL_API int wc_mldsa_composite_key_set_type(mldsa_composite_key* key, int type);
 
 /* Get the level of the MlDsaComposite private/public key.
  *
  * key   [in]  MlDsaComposite key.
  * level [out] The level.
+ * returns a value from enum mldsa_composite_type.
  * returns BAD_FUNC_ARG when key is NULL or level has not been set.
  */
-WOLFSSL_API int wc_mldsa_composite_get_type(mldsa_composite_key* key, int* type);
+WOLFSSL_API int wc_mldsa_composite_key_get_type(const mldsa_composite_key* key);
 
-/* Get the key type of the MlDsaComposite private/public key.
+/* Get the KeySum of the MlDsaComposite private/public key.
  *
- * type         [in]  ML-DSA Composite Type (e.g., key->type)
- * keytype_sum  [out] Key type (e.g., MLDSA44_NISTP256k)
- * returns 0 on success.
- * returns BAD_FUNC_ARG when keytype is NULL or type is not supported.
+ * key   [in]  MlDsaComposite key.
+ * returns enum Key_Sum value of the key.
+ * returns BAD_FUNC_ARG when key is NULL or not initialized.
  */
-WOLFSSL_API int wc_mldsa_composite_get_keytype(const enum mldsa_composite_type type, enum Key_Sum * keytype_sum);
+WOLFSSL_API int wc_mldsa_composite_key_get_sum(const mldsa_composite_key * key);
 
-/* Get the MLDSA Composite Type from the key type sum.
- *
- * keytype_sum  [in]  Key type (e.g., MLDSA44_NISTP256k)
- * type         [out] ML-DSA Composite Type (e.g., key->type)
- * returns 0 on success.
- * returns BAD_FUNC_ARG when type is NULL or keytype is not supported.
- */
-WOLFSSL_API int wc_mldsa_composite_keytype_to_type(const enum Key_Sum keytype_sum, enum mldsa_composite_type * type);
+/*
+* Convert the KeySum to the MlDsaComposite type.
+*
+* keytype_sum  [in]  enum Key_Sum value.
+* returns enum mldsa_composite_type value.
+* returns BAD_FUNC_ARG when keytype_sum is not a valid value.
+*/
+WOLFSSL_API int wc_KeySum_to_MlDsaComposite_type(const enum Key_Sum keytype_sum);
+
+/*
+* Convert the MlDsaComposite type to the KeySum.
+*
+* type  [in]  enum mldsa_composite_type value.
+* returns enum Key_Sum value.
+* returns BAD_FUNC_ARG when type is not a valid value.
+*/
+WOLFSSL_API int wc_MlDsaComposite_type_to_KeySum(const enum mldsa_composite_type type);
 
 /* Clears the MlDsaComposite key data
  *

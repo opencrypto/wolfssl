@@ -8205,12 +8205,12 @@ int wc_CheckPrivateKey(const byte* privKey, word32 privKeySz,
             // Holds the type of the key
 
         // Convert key type to enum
-        if (wc_mldsa_composite_keytype_to_type(ks, &type) < 0) {
+        if ((type = wc_KeySum_to_MlDsaComposite_type(ks)) < 0) {
             WOLFSSL_MSG("Invalid ML-DSA Composite key type");
             return -1;
         }
 
-        ret = wc_mldsa_composite_set_type(key_pair, type);
+        ret = wc_mldsa_composite_key_set_type(key_pair, type);
         if (ret  < 0) {
     #ifdef WOLFSSL_SMALL_STACK
             XFREE(key_pair, NULL, DYNAMIC_TYPE_KEY);
@@ -8749,15 +8749,15 @@ int wc_GetKeyOID(byte* key, word32 keySz, const byte** curveOID, word32* oidSz,
         if (wc_mldsa_composite_init(mldsa_comp) != 0) {
             tmpIdx = 0;
             for (int i = MLDSA_COMPOSITE_TYPE_MIN; i <= MLDSA_COMPOSITE_TYPE_MAX; i++) {
-                if (wc_mldsa_composite_set_type(mldsa_comp, i) == 0) {
+                if (wc_mldsa_composite_key_set_type(mldsa_comp, i) == 0) {
                     tmpIdx = keySz;
                     if (wc_MlDsaComposite_PrivateKeyDecode(key, &tmpIdx, mldsa_comp, keySz, i) == 0) {
                         int type = 0;
-                        if (wc_mldsa_composite_get_type(mldsa_comp, &type) < 0) {
+                        if ((type = wc_mldsa_composite_key_get_type(mldsa_comp)) < 0) {
                             WOLFSSL_MSG("GetKeyOID mldsa_composite_get_type failed");
                             break;
                         }
-                        if (wc_mldsa_composite_get_keytype(type, (enum Key_Sum *)algoID) < 0) {
+                        if ((*algoID = wc_mldsa_composite_key_get_sum(mldsa_comp)) < 0) {
                             WOLFSSL_ERROR_MSG("GetKeyOID mldsa_composite_get_keytype failed");   
                         } else { WOLFSSL_ERROR_MSG("Found MlDsaComposite DER key");
                             break;

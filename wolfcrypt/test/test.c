@@ -46195,7 +46195,7 @@ static wc_test_ret_t mldsa_composite_param_test(int param, WC_RNG* rng)
         return ret;
     }
 
-    ret = wc_mldsa_composite_set_type(key, param);
+    ret = wc_mldsa_composite_key_set_type(key, param);
     if (ret != 0) {
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     }
@@ -46434,7 +46434,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t mldsa_composite_test(void)
         return 101;
     }
 
-    ret = wc_mldsa_composite_set_type(c_key, WC_MLDSA44_RSA2048_SHA256);
+    ret = wc_mldsa_composite_key_set_type(c_key, WC_MLDSA44_RSA2048_SHA256);
     if (ret < 0) {
         return 102;
     }

@@ -63,7 +63,7 @@ err:
     return ret;
 }
 
-int export_key_p8(void * key, int type, const char * out_file, int format) {
+int export_key_p8(void * key, int keySum, const char * out_file, int format) {
     int ret = 0;
     int outSz = 0;
 
@@ -85,12 +85,11 @@ int export_key_p8(void * key, int type, const char * out_file, int format) {
         // size of the PKCS8 key
 
     // Input checks
-    if (!key || type < 0) {
-        printf("Invalid key type (key: %p, type: %d)\n", key, type);
+    if (!key || keySum < 0) {
         return -1;
     }
 
-    switch (type) {
+    switch (keySum) {
 #ifndef NO_RSA
     case RSAk:
     case RSAPSSk:
@@ -113,7 +112,7 @@ int export_key_p8(void * key, int type, const char * out_file, int format) {
         // Export in PKCS8 format
         // ----------------------
 
-        if ((ret = wc_CreatePKCS8Key(NULL, (word32 *)&p8_outSz, derPtr, derSz, type, NULL, 0)) < 0 && ret != LENGTH_ONLY_E) {
+        if ((ret = wc_CreatePKCS8Key(NULL, (word32 *)&p8_outSz, derPtr, derSz, keySum, NULL, 0)) < 0 && ret != LENGTH_ONLY_E) {
             printf("Error creating PKCS8 key (%d)\n", ret);
             return -1;
         }
@@ -123,7 +122,7 @@ int export_key_p8(void * key, int type, const char * out_file, int format) {
             printf("Error exporting key\n");
             return -1;
         }
-        if ((ret = wc_CreatePKCS8Key(p8_data, (word32 *)&p8_outSz, derPtr, derSz, type, NULL, 0)) < 0) {
+        if ((ret = wc_CreatePKCS8Key(p8_data, (word32 *)&p8_outSz, derPtr, derSz, keySum, NULL, 0)) < 0) {
             printf("Error creating PKCS8 key (%d)\n", ret);
             return -1;
         }
@@ -180,7 +179,7 @@ int export_key_p8(void * key, int type, const char * out_file, int format) {
             printf("Error exporting key\n");
             return -1;
         }
-        if ((ret = wc_CreatePKCS8Key(p8_data, (word32 *)&p8_outSz, derPtr, derSz, type, curveOid, curveOidSz)) < 0 && ret != LENGTH_ONLY_E) {
+        if ((ret = wc_CreatePKCS8Key(p8_data, (word32 *)&p8_outSz, derPtr, derSz, keySum, curveOid, curveOidSz)) < 0 && ret != LENGTH_ONLY_E) {
             printf("Error creating PKCS8 key (%d)\n", ret);
             return -1;
         }
@@ -209,7 +208,7 @@ int export_key_p8(void * key, int type, const char * out_file, int format) {
         }
 
         // Export the key to DER format
-        derSz = wc_Ed25519PrivateKeyToDer((ed25519_key *)key, derPtr, derSz);
+        derSz = wc_Ed25519KeyToDer((ed25519_key *)key, derPtr, derSz);
         if (derSz < 0) {
             printf("Error exporting key\n");
             return -1;
@@ -222,17 +221,17 @@ int export_key_p8(void * key, int type, const char * out_file, int format) {
 #endif
 #ifdef HAVE_ED448
     case ED448k:
-        derSz = wc_Ed448PrivateKeyToDer((ed448_key *)key, NULL, sizeof(derPtr));
+        derSz = wc_Ed448KeyToDer((ed448_key *)key, NULL, sizeof(derPtr));
         if (derSz < 0) {
             printf("Error exporting key\n");
             return -1;
         }
-        derPtr = (byte *)XMALLOC(derSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        derPtr = (byte *)XMALLOC(derSz, NULL, DYNAMIC_TYPE_PRIVATE_KEY);
         if (derPtr == NULL) {
             printf("Error exporting key\n");
             return -1;
         }
-        derSz = wc_Ed448PrivateKeyToDer((ed448_key *)key, derPtr, derSz);
+        derSz = wc_Ed448KeyToDer((ed448_key *)key, derPtr, derSz);
         if (derSz < 0) {
             printf("Error exporting key\n");
             return -1;
@@ -248,24 +247,21 @@ int export_key_p8(void * key, int type, const char * out_file, int format) {
     case ML_DSA_LEVEL5k:
     case ML_DSA_LEVEL3k:
     case ML_DSA_LEVEL2k:
-        derSz = wc_Dilithium_PrivateKeyToDer((MlDsaKey *)key, NULL, sizeof(derPtr));
+        derSz = wc_Dilithium_KeyToDer((MlDsaKey *)key, NULL, sizeof(derPtr));
         if (derSz < 0) {
             printf("Error exporting key\n");
             return -1;
         }
-        derPtr = (byte *)XMALLOC(derSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        derPtr = (byte *)XMALLOC(derSz, NULL, DYNAMIC_TYPE_PRIVATE_KEY);
         if (derPtr == NULL) {
             printf("Error exporting key\n");
             return -1;
         }
-        derSz = wc_Dilithium_PrivateKeyToDer((MlDsaKey *)key, derPtr, derSz);
-        // derSz = wc_Dilithium_PrivateKeyToDer((MlDsaKey *)key, derPtr, derSz);
+        derSz = wc_Dilithium_KeyToDer((MlDsaKey *)key, derPtr, derSz);
         if (derSz < 0) {
             printf("Error exporting key\n");
             return -1;
         }
-        // byte dilithium_level = 0;
-        // wc_dilithium_get_level((MlDsaKey *)key, &dilithium_level);
         p8_data = derPtr;
         p8_outSz = derSz;
         break;
@@ -293,22 +289,26 @@ int export_key_p8(void * key, int type, const char * out_file, int format) {
         break;
 #endif
 #ifdef HAVE_MLDSA_COMPOSITE
-    case MLDSA44_RSA2048k:
     case MLDSA44_RSAPSS2048k:
+    case MLDSA44_RSA2048k:
     case MLDSA44_NISTP256k:
     // case MLDSA44_BPOOL256k:
     case MLDSA44_ED25519k:
 
-    case MLDSA65_ED25519k:
-    case MLDSA65_RSA3072k:
     case MLDSA65_RSAPSS3072k:
+    case MLDSA65_RSA3072k:
+    case MLDSA65_RSAPSS4096k:
+    case MLDSA65_RSA4096k:
+    case MLDSA65_ED25519k:
     case MLDSA65_NISTP256k:
     case MLDSA65_BPOOL256k:
 
     case MLDSA87_BPOOL384k:
     case MLDSA87_NISTP384k:
     case MLDSA87_ED448k:
-        derSz = wc_MlDsaComposite_PrivateKeyToDer((mldsa_composite_key *)key, NULL, 0);
+
+        derSz = wc_MlDsaComposite_KeyToDer((mldsa_composite_key *)key, NULL, 0);
+        // derSz = wc_MlDsaComposite_PrivateKeyToDer((mldsa_composite_key *)key, NULL, 0);
         if (derSz < 0) {
             printf("Error exporting key\n");
             return -1;
@@ -318,7 +318,8 @@ int export_key_p8(void * key, int type, const char * out_file, int format) {
             printf("Error exporting key\n");
             return -1;
         }
-        derSz = wc_MlDsaComposite_PrivateKeyToDer((mldsa_composite_key *)key, derPtr, derSz);
+        derSz = wc_MlDsaComposite_KeyToDer((mldsa_composite_key *)key, derPtr, derSz);
+        // derSz = wc_MlDsaComposite_PrivateKeyToDer((mldsa_composite_key *)key, derPtr, derSz);
         if (derSz < 0) {
             printf("Error exporting key\n");
             return -1;
@@ -328,6 +329,7 @@ int export_key_p8(void * key, int type, const char * out_file, int format) {
         break;
 #endif
         default:
+            printf("Unsupported key type (%d)\n", keySum);
             return BAD_FUNC_ARG;
     }
 
@@ -411,7 +413,7 @@ int load_key_p8(void ** key, int type, const char * key_file, int format) {
 
     file = fopen(key_file, "rb");
     if (file == NULL) {
-        printf("[%d] Error opening file\n", __LINE__);
+        printf("[%d] Error opening file (%s)\n", __LINE__, key_file);
         return -1;
     }
 
@@ -588,7 +590,7 @@ int load_key_p8(void ** key, int type, const char * key_file, int format) {
         mldsa_composite_key * mldsaCompKey = NULL;
 
         // Gets the composite type
-        if (wc_mldsa_composite_keytype_to_type(algorSum, (enum mldsa_composite_type *)&comp_type) < 0) {
+        if ((comp_type = wc_KeySum_to_MlDsaComposite_type(algorSum)) < 0) {
             printf("[%d] Cannot convert keytype to type (sum: %d)\n", __LINE__, algorSum);
             return ALGO_ID_E;
         }
@@ -782,7 +784,7 @@ exit:
 
 #ifdef WOLFSSL_KEY_GEN
 
-int gen_keypair(void ** key, int type, int param) {
+int gen_keypair(void ** key, int keySum, int param) {
 
     int ret;
     int outSz = 0;
@@ -819,8 +821,8 @@ int gen_keypair(void ** key, int type, int param) {
     (void)der;
     (void)outSz;
 
-    if (type < 0) {
-        printf("Invalid key type (type: %d)\n", type);
+    if (keySum < 0) {
+        printf("Invalid key type (type: %d)\n", keySum);
         return -1;
     } else if (!key) {
         printf("Missing function parameter (key)\n");
@@ -833,7 +835,7 @@ int gen_keypair(void ** key, int type, int param) {
         return ret;
     }
 
-    switch (type) {
+    switch (keySum) {
 #ifdef HAVE_DSA
     case DSAk:
         keyPtr = &dsaKey;
@@ -887,11 +889,11 @@ int gen_keypair(void ** key, int type, int param) {
         keyPtr = &mldsaKey;
         ret = wc_dilithium_init(&mldsaKey);
         if (ret == 0) {
-            if (type == ML_DSA_LEVEL2k)
+            if (keySum == ML_DSA_LEVEL2k)
                 ret = wc_dilithium_set_level(&mldsaKey, WC_ML_DSA_44);
-            else if (type == ML_DSA_LEVEL3k)
+            else if (keySum == ML_DSA_LEVEL3k)
                 ret = wc_dilithium_set_level(&mldsaKey, WC_ML_DSA_65);
-            else if (type == ML_DSA_LEVEL5k)
+            else if (keySum == ML_DSA_LEVEL5k)
                 ret = wc_dilithium_set_level(&mldsaKey, WC_ML_DSA_87);
             else
                 ret = -1;
@@ -921,8 +923,8 @@ int gen_keypair(void ** key, int type, int param) {
         int key_type = 0;
         
         ret = wc_mldsa_composite_init(&mldsa_compositeKey);
-        if ((ret = wc_mldsa_composite_keytype_to_type(type, (enum mldsa_composite_type *)&key_type)) < 0)
-            return ret;
+        if ((key_type = wc_KeySum_to_MlDsaComposite_type(keySum)) < 0)
+            return key_type;
         if (ret == 0)
             ret = wc_mldsa_composite_make_key(&mldsa_compositeKey, key_type, &rng);
 
@@ -930,7 +932,7 @@ int gen_keypair(void ** key, int type, int param) {
 #endif
 
         default:
-            printf("ERROR: Invalid key type (%d)\n", type);
+            printf("ERROR: Invalid key type (%d)\n", keySum);
             return BAD_FUNC_ARG;
     }
 
@@ -1172,7 +1174,7 @@ int main(int argc, char** argv) {
                 return 1;
             }
             if (export_key_p8(keyPtr, keySum, out_file, out_format) < 0) {
-                printf("Error exporting keypair\n");
+                printf("export_key_p8() < 0 : Error exporting keypair\n");
                 return 1;
             }
 #else
