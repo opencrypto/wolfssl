@@ -17197,6 +17197,26 @@ static int HashForSignature(const byte* buf, word32 bufSz, word32 sigOID,
             /* Hashes done in signing operation. */
             break;
     #endif
+    #ifdef HAVE_MLDSA_COMPOSITE
+        case CTC_MLDSA44_RSAPSS2048_SHA256:
+        case CTC_MLDSA44_RSA2048_SHA256:
+        case CTC_MLDSA44_NISTP256_SHA256:
+        case CTC_MLDSA44_ED25519:
+
+        case CTC_MLDSA65_RSAPSS3072_SHA384:
+        case CTC_MLDSA65_RSA3072_SHA384:
+        case CTC_MLDSA65_RSAPSS4096_SHA384:
+        case CTC_MLDSA65_RSA4096_SHA384:
+        case CTC_MLDSA65_BPOOL256_SHA256:
+        case CTC_MLDSA65_ED25519_SHA384:
+
+        case CTC_MLDSA87_BPOOL384_SHA384:
+        case CTC_MLDSA87_NISTP384_SHA384:
+        case CTC_MLDSA87_ED448:
+            /* No use of hash in MlDsa Composite */
+            break;
+
+    #endif
 
         default:
             ret = HASH_TYPE_E;

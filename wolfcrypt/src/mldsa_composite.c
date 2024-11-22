@@ -2585,7 +2585,7 @@ int wc_mldsa_composite_export_public(mldsa_composite_key* key, byte* out, word32
         // Buffer to hold the public key of the other DSA component
 
     /* Validate parameters */
-    if ((key == NULL) || (out == NULL) || (outLen == NULL)) {
+    if ((key == NULL) || (outLen == NULL)) {
         return BAD_FUNC_ARG;
     }
 
@@ -2601,6 +2601,13 @@ int wc_mldsa_composite_export_public(mldsa_composite_key* key, byte* out, word32
     *outLen = wc_mldsa_composite_pub_size(key);
 
     // Checks if the buffer is too small
+    if (!out) {
+        return 0;
+    }
+    if (inLen < *outLen) {
+        MADWOLF_DEBUG("Output Public Key Buffer too small (needed: %d, provided: %d)", *outLen, inLen);
+        return BUFFER_E;
+    }
     if (inLen < *outLen) {
         MADWOLF_DEBUG("Output Public Key Buffer too small (needed: %d, provided: %d)", *outLen, inLen);
         return BAD_FUNC_ARG;
@@ -3827,10 +3834,7 @@ int wc_MlDsaComposite_PublicKeyDecode(const byte* input, word32* inOutIdx,
 int wc_MlDsaComposite_PublicKeyToDer(mldsa_composite_key* key, byte* output, word32 len, int withAlg)
 {
     int ret = 0;
-    int keytype = 0;
-
-    word32 pubKeyLen = 0;
-        // Length of the public key
+    int keySum = 0;
 
     /* Validate parameters. */
     if (key == NULL) {
@@ -3842,34 +3846,42 @@ int wc_MlDsaComposite_PublicKeyToDer(mldsa_composite_key* key, byte* output, wor
         ret = BAD_FUNC_ARG;
     }
 
-    if (ret == 0) {
-        /* Get OID and length for level. */
-        if (key->type == WC_MLDSA44_ED25519_SHA256) {
-            keytype = MLDSA44_ED25519k;
-            pubKeyLen = MLDSA44_ED25519_KEY_SIZE;
-        }
-        else if (key->type == WC_MLDSA44_NISTP256_SHA256) {
-            keytype = MLDSA44_NISTP256k;
-            pubKeyLen = MLDSA44_NISTP256_KEY_SIZE;
-        }
-        else {
-            /* Level not set. */
-            MADWOLF_DEBUG("MISSING CODE: Unsupported ML-DSA Composite WC Type: %d", key->type);
-            ret = BAD_FUNC_ARG;
-        }
+    keySum = wc_mldsa_composite_key_get_sum(key);
+    if (keySum < 0) {
+        ret = BAD_FUNC_ARG;
     }
-
     if (ret == 0) {
-        byte pubKey[MLDSA_COMPOSITE_MAX_KEY_SIZE];
+        byte *pubKey = NULL;
             // Buffer to hold the public key
+        word32 pubKeyLen = 0;
+            // Length of the public key
 
-        /* Export the public key. */
-        ret = wc_mldsa_composite_export_public(key, pubKey, &pubKeyLen);
-        if (ret == 0) {
-            /* Encode the public key. */
-            ret = SetAsymKeyDerPublic(pubKey, pubKeyLen, output, len, keytype,
-                withAlg);
+        // Gets the size of the public key
+        if ((ret = wc_mldsa_composite_export_public(key, NULL, &pubKeyLen)) < 0) {
+            MADWOLF_DEBUG("Cannot export the ML-DSA Composite public key with code %d", ret);
+            return ret;
         }
+        // MADWOLF_DEBUG("Exported public key with size %d", pubKeyLen);
+
+        // if (output != NULL && len < pubKeyLen) {
+        //     MADWOLF_DEBUG("Public Key Export Buffer (needed: %d, provided: %d, type: %d)", pubKeyLen, len, key->type);
+        //     return BUFFER_E;
+        // }
+
+        // Allocates memory for the public key
+        pubKey = (byte *)XMALLOC(pubKeyLen, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        if (pubKey == NULL) {
+            return MEMORY_E;
+        }
+
+        /* Encode the public key. */
+        ret = SetAsymKeyDerPublic(pubKey, pubKeyLen, output, len, keySum,
+                withAlg);
+        MADWOLF_DEBUG("Encoded public key with size %d", ret);
+
+        // Free the public key buffer
+        XFREE(pubKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        pubKey = NULL; // Safety
     }
 
     return ret;

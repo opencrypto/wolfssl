@@ -507,7 +507,6 @@ WOLFSSL_API int wc_mldsa_composite_key_set_type(mldsa_composite_key* key, int ty
 /* Get the level of the MlDsaComposite private/public key.
  *
  * key   [in]  MlDsaComposite key.
- * level [out] The level.
  * returns a value from enum mldsa_composite_type.
  * returns BAD_FUNC_ARG when key is NULL or level has not been set.
  */

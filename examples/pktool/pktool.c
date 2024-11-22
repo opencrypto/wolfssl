@@ -664,6 +664,9 @@ int gen_csr(const void * key, const void * altkey, const char * out_filename, in
         goto exit;
     }
 
+    // Extracts the type of key
+    type = ((ecc_key *)key)->type;
+
     strncpy(req.subject.country, "US", CTC_NAME_SIZE);
     // strncpy(req.subject.state, "OR", CTC_NAME_SIZE);
     // strncpy(req.subject.locality, "Portland", CTC_NAME_SIZE);
