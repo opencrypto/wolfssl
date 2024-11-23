@@ -614,6 +614,11 @@ int load_key_p8(void ** key, int type, const char * key_file, int format) {
             return ret;
         }
 
+        // // Sets the key type
+        // if ((ret = wc_mldsa_composite_key_set_type(mldsaCompKey, comp_type)) < 0) {
+        //     printf("[%d] Failed to set key type\n", __LINE__);
+        //     return ret;
+        // }
         *key = mldsaCompKey;
         break;
 #endif
@@ -665,7 +670,8 @@ int gen_csr(const void * key, const void * altkey, const char * out_filename, in
     }
 
     // Extracts the type of key
-    type = ((ecc_key *)key)->type;
+    wc_mldsa_composite_key_get_sum((mldsa_composite_key *)key);
+    printf(">>>>>>> Key Type: %d\n", type);
 
     strncpy(req.subject.country, "US", CTC_NAME_SIZE);
     // strncpy(req.subject.state, "OR", CTC_NAME_SIZE);
@@ -675,6 +681,9 @@ int gen_csr(const void * key, const void * altkey, const char * out_filename, in
     strncpy(req.subject.commonName, out_filename, CTC_NAME_SIZE);
     strncpy(req.subject.email, "info@wolfssl.com", CTC_NAME_SIZE);
     req.version = 0;
+
+    // Forcing the type
+    type = MLDSA44_RSAPSS2048_TYPE;
     ret = wc_MakeCertReq_ex(&req, der, sizeof(der), type, (void *)key);
     if (ret <= 0) {
         printf("Make Cert Req failed: %d\n", ret);
@@ -1198,6 +1207,8 @@ int main(int argc, char** argv) {
                 printf("Error loading keypair\n");
                 return 1;
             }
+            // Extracts the type of key
+             printf(">>>>>>> (main) Key Type: %d\n", ((ecc_key *)keyPtr)->type);
             if (altkey_file) {
                 if (load_key_p8(&altKeyPtr, keySum, altkey_file, in_format) < 0) {
                     printf("Error loading alt keypair\n");

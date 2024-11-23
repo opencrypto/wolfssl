@@ -155,7 +155,7 @@ static int wc_mldsa_compositeTBS_msg(byte* tbsMsg, word32 *tbsLen, const byte* m
     }
 
     // Set the domain
-    XMEMCPY(tbsMsg, mldsa_composite_oid_data[key->type], 13);
+    XMEMCPY(tbsMsg, mldsa_composite_oid_data[key->compType], 13);
     *tbsLen = 13;
 
     // Adds the context, if any
@@ -165,7 +165,7 @@ static int wc_mldsa_compositeTBS_msg(byte* tbsMsg, word32 *tbsLen, const byte* m
     }
 
     /* Select the hash function to calculate the composite message */
-    switch (key->type) {
+    switch (key->compType) {
 
         case WC_MLDSA_COMPOSITE_UNDEF: {
             return ALGO_ID_E;
@@ -458,7 +458,7 @@ int wc_mldsa_composite_make_key(mldsa_composite_key* key, enum mldsa_composite_t
     key->pubKeySet = 1;
 
     // Sets the key type
-    key->type = type;
+    key->compType = type;
 
     return ret;
 }
@@ -528,7 +528,7 @@ int wc_mldsa_composite_verify_msg_ex(const byte* sig, word32 sigLen, const byte*
     }
 
     // Verify Individual DSA Components: 
-    switch (key->type) {
+    switch (key->compType) {
 
         case WC_MLDSA_COMPOSITE_UNDEF: {
             return BAD_STATE_E;
@@ -550,7 +550,7 @@ int wc_mldsa_composite_verify_msg_ex(const byte* sig, word32 sigLen, const byte*
                 return BUFFER_E;
             }
             // Sets the type of padding
-            if (key->type == WC_MLDSA44_RSAPSS2048_SHA256) {
+            if (key->compType == WC_MLDSA44_RSAPSS2048_SHA256) {
                 // Sets the RSA PSS Padding
                 key->alt_key.rsa->type = WC_RSA_PSS_PAD;
                 // Verify RSA Component
@@ -623,14 +623,14 @@ int wc_mldsa_composite_verify_msg_ex(const byte* sig, word32 sigLen, const byte*
             }
 
             // Cehcks the RSA signature size
-            if (key->type == WC_MLDSA65_RSAPSS3072_SHA384 || 
-                        key->type == WC_MLDSA65_RSA3072_SHA384) {
+            if (key->compType == WC_MLDSA65_RSAPSS3072_SHA384 || 
+                        key->compType == WC_MLDSA65_RSA3072_SHA384) {
                 // Checks the RSA signature size
                 if (other_BufferLen != RSA3072_SIG_SIZE) {
                     return ASN_PARSE_E;
                 }
-            } else if (key->type == WC_MLDSA65_RSAPSS3072_SHA384 || 
-                        key->type == WC_MLDSA65_RSA3072_SHA384) {
+            } else if (key->compType == WC_MLDSA65_RSAPSS3072_SHA384 || 
+                        key->compType == WC_MLDSA65_RSA3072_SHA384) {
                 // Checks the RSA signature size
                 if (other_BufferLen != RSA4096_SIG_SIZE) {
                     return ASN_PARSE_E;
@@ -638,15 +638,15 @@ int wc_mldsa_composite_verify_msg_ex(const byte* sig, word32 sigLen, const byte*
             }
 
             // Sets the PSS parameters
-            if (key->type == WC_MLDSA65_RSAPSS3072_SHA384 ||
-                        key->type == WC_MLDSA65_RSAPSS4096_SHA384) {
+            if (key->compType == WC_MLDSA65_RSAPSS3072_SHA384 ||
+                        key->compType == WC_MLDSA65_RSAPSS4096_SHA384) {
                 
                 int mgf = 0;
                 int saltLen = 0;
                     // MGF and Salt Length
 
                 // Sets the MGF and Salt Length (PSS Params - Draft3)
-                if (key->type == WC_MLDSA65_RSAPSS4096_SHA384) {
+                if (key->compType == WC_MLDSA65_RSAPSS4096_SHA384) {
                     mgf = WC_MGF1SHA384;
                     saltLen = 48;
                 } else {
@@ -898,7 +898,7 @@ int wc_mldsa_composite_sign_msg_ex(const byte* msg, word32 msgLen, byte* sig,
     }
 
     // Sign The Traditional component
-    switch (key->type) {
+    switch (key->compType) {
 
         case WC_MLDSA_COMPOSITE_UNDEF: {
             return BAD_STATE_E;
@@ -918,7 +918,7 @@ int wc_mldsa_composite_sign_msg_ex(const byte* msg, word32 msgLen, byte* sig,
                 return BAD_STATE_E;
             }
             // Sets the type of padding
-            if (key->type == WC_MLDSA44_RSAPSS2048_SHA256) {
+            if (key->compType == WC_MLDSA44_RSAPSS2048_SHA256) {
                 key->alt_key.rsa->type = WC_RSA_PSS_PAD;
             } else {
                 key->alt_key.rsa->type = WC_RSA_PKCSV15_PAD;
@@ -933,7 +933,7 @@ int wc_mldsa_composite_sign_msg_ex(const byte* msg, word32 msgLen, byte* sig,
             }
 
             // Sign the message digest (PSS vs PKCS#1 v1.5)
-            if (key->type == WC_MLDSA44_RSAPSS2048_SHA256) {
+            if (key->compType == WC_MLDSA44_RSAPSS2048_SHA256) {
                 // Sign the message digest
                 if ((ret = wc_RsaPSS_Sign(hash, WC_SHA256_DIGEST_SIZE, 
                                           sigBuffer, sigSz, WC_HASH_TYPE_SHA256, 
@@ -1008,8 +1008,8 @@ int wc_mldsa_composite_sign_msg_ex(const byte* msg, word32 msgLen, byte* sig,
             sigSz = (word32)wc_RsaEncryptSize(key->alt_key.rsa);
 
             // Sets the type of padding
-            if (key->type == WC_MLDSA65_RSAPSS3072_SHA384 || 
-                        key->type == WC_MLDSA65_RSAPSS4096_SHA384) {
+            if (key->compType == WC_MLDSA65_RSAPSS3072_SHA384 || 
+                        key->compType == WC_MLDSA65_RSAPSS4096_SHA384) {
                 key->alt_key.rsa->type = WC_RSA_PSS_PAD;
             } else {
                 key->alt_key.rsa->type = WC_RSA_PKCSV15_PAD;
@@ -1021,13 +1021,13 @@ int wc_mldsa_composite_sign_msg_ex(const byte* msg, word32 msgLen, byte* sig,
                 return BAD_STATE_E;
             }
 
-            if (key->type == WC_MLDSA65_RSAPSS3072_SHA384 || 
-                        key->type == WC_MLDSA65_RSAPSS4096_SHA384) {
+            if (key->compType == WC_MLDSA65_RSAPSS3072_SHA384 || 
+                        key->compType == WC_MLDSA65_RSAPSS4096_SHA384) {
 
                 int mgf = 0;
                 int saltLen = 0;
 
-                if (key->type == WC_MLDSA65_RSAPSS4096_SHA384) {
+                if (key->compType == WC_MLDSA65_RSAPSS4096_SHA384) {
                     mgf = WC_MGF1SHA384;
                     saltLen = 48;
                 } else {
@@ -1046,10 +1046,10 @@ int wc_mldsa_composite_sign_msg_ex(const byte* msg, word32 msgLen, byte* sig,
                     return BAD_STATE_E;
                 }
                 // Checks the RSA signature size
-                if (key->type == WC_MLDSA65_RSAPSS3072_SHA384 && 
+                if (key->compType == WC_MLDSA65_RSAPSS3072_SHA384 && 
                                 sigSz != RSA3072_SIG_SIZE) {
                     return BAD_STATE_E;
-                } else if (key->type == WC_MLDSA65_RSAPSS4096_SHA384 && 
+                } else if (key->compType == WC_MLDSA65_RSAPSS4096_SHA384 && 
                                 sigSz != RSA4096_SIG_SIZE) {
                     return BAD_STATE_E;
                 }
@@ -1066,9 +1066,9 @@ int wc_mldsa_composite_sign_msg_ex(const byte* msg, word32 msgLen, byte* sig,
                 }
 
                 // Checks the RSA signature size
-                if (key->type == WC_MLDSA65_RSA3072_SHA384 && sigSz != RSA3072_SIG_SIZE) {
+                if (key->compType == WC_MLDSA65_RSA3072_SHA384 && sigSz != RSA3072_SIG_SIZE) {
                     return BAD_STATE_E;
-                } else if (key->type == WC_MLDSA65_RSA4096_SHA384 && sigSz != RSA4096_SIG_SIZE) {
+                } else if (key->compType == WC_MLDSA65_RSA4096_SHA384 && sigSz != RSA4096_SIG_SIZE) {
                     return BAD_STATE_E;
                 }
             }
@@ -1237,7 +1237,7 @@ int wc_mldsa_composite_init_ex(mldsa_composite_key* key, void* heap, int devId)
         key->labelLen = 0;
 #endif
         // No Default Type
-        key->type = 0;
+        key->compType = 0;
 
         // Tracks the pub/priv key set
         key->prvKeySet = 0;
@@ -1258,7 +1258,7 @@ int wc_mldsa_composite_clear(mldsa_composite_key* key) {
         wc_dilithium_free(&key->mldsa_key);
 
         // Clear the alternative key
-        switch (key->type) {
+        switch (key->compType) {
             case WC_MLDSA44_RSAPSS2048_SHA256:
             case WC_MLDSA44_RSA2048_SHA256:
             case WC_MLDSA65_RSAPSS3072_SHA384:
@@ -1375,12 +1375,9 @@ int wc_mldsa_composite_key_set_type(mldsa_composite_key* key, int type)
     int ret = 0;
 
     /* Validate parameters. */
-    if (key == NULL || key->pubKeySet || key->prvKeySet) {
+    if (key == NULL || type <= 0 || key->pubKeySet || key->prvKeySet) {
         /* Cannot set a type for an existing key */
         ret = BAD_FUNC_ARG;
-    }
-    if (type <= 0) {
-        type = WC_MLDSA44_NISTP256_SHA256;
     }
     if (ret == 0) {
         /* Sets the combination type */
@@ -1391,9 +1388,6 @@ int wc_mldsa_composite_key_set_type(mldsa_composite_key* key, int type)
             case WC_MLDSA44_RSA2048_SHA256:
             case WC_MLDSA44_ED25519_SHA256:
             case WC_MLDSA44_NISTP256_SHA256:
-            // case WC_MLDSA44_BPOOL256_SHA256:
-
-            // Level 3
             case WC_MLDSA65_RSAPSS3072_SHA384:
             case WC_MLDSA65_RSA3072_SHA384:
             case WC_MLDSA65_RSAPSS4096_SHA384:
@@ -1401,12 +1395,10 @@ int wc_mldsa_composite_key_set_type(mldsa_composite_key* key, int type)
             case WC_MLDSA65_ED25519_SHA384:
             case WC_MLDSA65_NISTP256_SHA384:
             case WC_MLDSA65_BPOOL256_SHA256:
-
-            // Level 5
             case WC_MLDSA87_NISTP384_SHA384:
             case WC_MLDSA87_BPOOL384_SHA384:
             case WC_MLDSA87_ED448_SHA384: {
-                key->type = type;
+                key->compType = type;
             } break;
 
             default:
@@ -1428,12 +1420,12 @@ int wc_mldsa_composite_key_set_type(mldsa_composite_key* key, int type)
 int wc_mldsa_composite_key_get_type(const mldsa_composite_key* key)
 {
     /* Validate parameters. */
-    if (!key || key->type <= 0) {
+    if (!key || key->compType <= 0) {
         return BAD_FUNC_ARG;
     }
 
     /* Only recognized combinations are returned */
-    switch (key->type) {
+    switch (key->compType) {
 
         case WC_MLDSA44_RSA2048_SHA256:
         case WC_MLDSA44_RSAPSS2048_SHA256:
@@ -1457,7 +1449,7 @@ int wc_mldsa_composite_key_get_type(const mldsa_composite_key* key)
             return BAD_FUNC_ARG;
     }
 
-    return key->type;
+    return key->compType;
 }
 
 
@@ -1471,14 +1463,14 @@ int wc_mldsa_composite_key_get_sum(const mldsa_composite_key * key) {
     
     int ret = 0;
 
-    if (key == NULL || key->type <= 0) {
+    if (key == NULL || key->compType <= 0) {
         ret = BAD_FUNC_ARG;
     }
 
     /* Only recognized combinations are returned */
     if (ret == 0) {
 
-        switch (key->type) {
+        switch (key->compType) {
 
             // Level 1
             case WC_MLDSA44_RSA2048_SHA256:
@@ -1676,7 +1668,7 @@ void wc_mldsa_composite_free(mldsa_composite_key* key)
         wc_dilithium_free(&key->mldsa_key);
 
         /* Free the classic component */
-        switch (key->type) {
+        switch (key->compType) {
 
             case WC_MLDSA_COMPOSITE_UNDEF: {
                 /* Do nothing */
@@ -1712,7 +1704,7 @@ void wc_mldsa_composite_free(mldsa_composite_key* key)
 
             default: {
                 /* Error */
-                WOLFSSL_MSG_VSNPRINTF("Invalid MLDSA Composite type: %d", key->type);
+                WOLFSSL_MSG_VSNPRINTF("Invalid MLDSA Composite type: %d", key->compType);
             }
         }
 
@@ -1738,7 +1730,7 @@ int wc_mldsa_composite_size(mldsa_composite_key* key)
         return BAD_FUNC_ARG;
     }
 
-    switch (key->type) {
+    switch (key->compType) {
 
         // Level 1
         case WC_MLDSA44_RSA2048_SHA256:
@@ -1820,7 +1812,7 @@ int wc_mldsa_composite_priv_size(mldsa_composite_key* key) {
 
     if (key != NULL) {
 
-        switch (key->type) {
+        switch (key->compType) {
             
             case WC_MLDSA44_RSA2048_SHA256:
                 ret = MLDSA44_RSA2048_PRV_KEY_SIZE;
@@ -1923,7 +1915,7 @@ int wc_mldsa_composite_pub_size(mldsa_composite_key* key)
         return BAD_FUNC_ARG;
     }
 
-    switch (key->type) {
+    switch (key->compType) {
 
         // Level 1
         case WC_MLDSA44_RSAPSS2048_SHA256:
@@ -2019,11 +2011,11 @@ int wc_mldsa_composite_sig_size(mldsa_composite_key* key)
 {
     int ret = 0;
 
-    if (key == NULL || key->type <= 0) {
+    if (key == NULL || key->compType <= 0) {
         return BAD_FUNC_ARG;
     }
 
-    switch (key->type) {
+    switch (key->compType) {
 
         // Level 1
         case WC_MLDSA44_RSA2048_SHA256:
@@ -2124,7 +2116,7 @@ int wc_mldsa_composite_check_key(mldsa_composite_key* key)
     // Check the ML-DSA key
     ret = wc_dilithium_check_key(&key->mldsa_key);
 
-    switch(key->type) {
+    switch(key->compType) {
 
 #if !defined(WC_NO_RSA)
         case WC_MLDSA44_RSA2048_SHA256:
@@ -2286,7 +2278,7 @@ int wc_mldsa_composite_import_public(const byte* inBuffer, word32 inLen,
     }
 
     // If no passed type, let's check the key type
-    if (type == 0) type = key->type;
+    if (type == 0) type = key->compType;
 
     // Import the ML-DSA public key
     switch(type) {
@@ -2544,7 +2536,7 @@ int wc_mldsa_composite_import_public(const byte* inBuffer, word32 inLen,
     ret = 0;
 
     // Set the type of key
-    key->type = type;
+    key->compType = type;
 
     // Set the public key set flag
     key->pubKeySet = 1;
@@ -2620,7 +2612,7 @@ int wc_mldsa_composite_export_public(mldsa_composite_key* key, byte* out, word32
     }
 
     /* Exports the other key */
-    switch (key->type) {
+    switch (key->compType) {
 
         case WC_MLDSA44_RSA2048_SHA256:
         case WC_MLDSA44_RSAPSS2048_SHA256: {
@@ -2797,7 +2789,7 @@ int wc_mldsa_composite_import_private(const byte* priv, word32 privSz,
         // Buffer to hold the public key of the other DSA component
 
     // Input checks
-    if (!priv || privSz <= 0 || !key || (key->type <= 0 && type <= 0)) {
+    if (!priv || privSz <= 0 || !key || (key->compType <= 0 && type <= 0)) {
         return BAD_FUNC_ARG;
     }
 
@@ -2847,7 +2839,7 @@ int wc_mldsa_composite_import_private(const byte* priv, word32 privSz,
     }
 
     // If no passed type, let's check the key type
-    if (type <= 0) type = key->type;
+    if (type <= 0) type = key->compType;
 
     idx = mldsa_BufferLen;
 
@@ -3048,26 +3040,6 @@ int wc_mldsa_composite_import_private(const byte* priv, word32 privSz,
                     break;
                 }
             }
-            // if (type == WC_MLDSA65_NISTP256_SHA384 || type == WC_MLDSA44_NISTP256_SHA256) {
-            //     curveSz = wc_ecc_get_curve_size_from_id(ECC_SECP256R1);
-            //     wc_ecc_set_curve(key->alt_key.ecc, curveSz, ECC_SECP256R1);
-            // } else if (type == WC_MLDSA65_BPOOL256_SHA256 /* || type == WC_MLDSA44_BPOOL256_SHA256 */) {
-            //     curveSz = wc_ecc_get_curve_size_from_id(ECC_BRAINPOOLP256R1);
-            //     wc_ecc_set_curve(key->alt_key.ecc, curveSz, ECC_BRAINPOOLP256R1);
-            // } else if (type == WC_MLDSA87_NISTP384_SHA384) {
-            //     curveSz = wc_ecc_get_curve_size_from_id(ECC_SECP384R1);
-            //     wc_ecc_set_curve(key->alt_key.ecc, curveSz, ECC_SECP384R1);
-            // } else if (type == WC_MLDSA87_BPOOL384_SHA384) {
-            //     curveSz = wc_ecc_get_curve_size_from_id(ECC_BRAINPOOLP384R1);
-            //     wc_ecc_set_curve(key->alt_key.ecc, curveSz, ECC_BRAINPOOLP384R1);
-            // }
-            
-            // if ((ret = wc_ecc_import_private_key(other_Buffer, other_BufferLen, other_Buffer + curveSz, other_BufferLen - curveSz, key->alt_key.ecc)) < 0) {
-            //     if ((ret = wc_ecc_import_private_key(other_Buffer, other_BufferLen, NULL, 0, key->alt_key.ecc)) < 0) {
-            //         MADWOLF_DEBUG("ML-DSA COMPOSITE: ECDSA import PrivKey failed with %d", ret);
-            //         break;
-            //     }
-            // }
 
 #elif defined(HAVE_MLDSA_COMPOSITE_DRAFT_2)
             if ((ret = wc_EccPrivateKeyDecode(other_Buffer, &idx, key->alt_key.ecc, other_BufferLen)) < 0) {
@@ -3199,7 +3171,7 @@ int wc_mldsa_composite_import_private(const byte* priv, word32 privSz,
 
     if (ret == 0) {
         // Set the type of key
-        key->type = type;
+        key->compType = type;
 
         // Set the private/public key set flag
         key->prvKeySet = 1;
@@ -3292,7 +3264,7 @@ int wc_mldsa_composite_export_private(mldsa_composite_key* key, byte* out, word3
 #endif
 
     /* Exports the other key */
-    switch (key->type) {
+    switch (key->compType) {
         case WC_MLDSA44_ED25519_SHA256: 
         case WC_MLDSA65_ED25519_SHA384: {
 
@@ -3351,15 +3323,15 @@ int wc_mldsa_composite_export_private(mldsa_composite_key* key, byte* out, word3
             int curveSz = 0;
 
             // Sets the curve ID
-            if (key->type == WC_MLDSA44_NISTP256_SHA256)
+            if (key->compType == WC_MLDSA44_NISTP256_SHA256)
                 curveId = ECC_SECP256R1;
-            else if (key->type == WC_MLDSA65_BPOOL256_SHA256)
+            else if (key->compType == WC_MLDSA65_BPOOL256_SHA256)
                 curveId = ECC_BRAINPOOLP256R1;
-            else if (key->type == WC_MLDSA65_NISTP256_SHA384)
+            else if (key->compType == WC_MLDSA65_NISTP256_SHA384)
                 curveId = ECC_SECP256R1;
-            else if (key->type == WC_MLDSA87_NISTP384_SHA384)
+            else if (key->compType == WC_MLDSA87_NISTP384_SHA384)
                 curveId = ECC_SECP384R1;
-            else if (key->type == WC_MLDSA87_BPOOL384_SHA384)
+            else if (key->compType == WC_MLDSA87_BPOOL384_SHA384)
                 curveId = ECC_BRAINPOOLP384R1;
 
             // Gets the curve size and checks for errors
@@ -3530,7 +3502,7 @@ int wc_mldsa_composite_export_private(mldsa_composite_key* key, byte* out, word3
 
         case WC_MLDSA_COMPOSITE_UNDEF:
         default:
-            MADWOLF_DEBUG("Unsupported ML-DSA Composite Type: %d", key->type);
+            MADWOLF_DEBUG("Unsupported ML-DSA Composite Type: %d", key->compType);
             return ALGO_ID_E;
     }
 
@@ -3583,7 +3555,7 @@ int wc_mldsa_composite_import_key(const byte* priv, word32 privSz,
 
     /* If the type is not set, use the key type */
     if (type < 0) {
-        type = key->type;
+        type = key->compType;
     }
 
     /* Imports the private key first */
@@ -3655,7 +3627,6 @@ int wc_MlDsaComposite_PrivateKeyDecode(const byte* input, word32* inOutIdx,
         ret = DecodeAsymKey_Assign(input, inOutIdx, inSz, &privKey, &privKeyLen,
             &pubKey, &pubKeyLen, &keySum);
     }
-
     if (ret == 0) {
         /* Check whether public key data was found. */
 #if defined(WOLFSSL_DILITHIUM_PUBLIC_KEY)
@@ -3671,6 +3642,8 @@ int wc_MlDsaComposite_PrivateKeyDecode(const byte* input, word32* inOutIdx,
             ret = wc_mldsa_composite_import_key(privKey, privKeyLen, pubKey,
                 pubKeyLen, key, type);
         }
+        /* sets the key type */
+        key->compType = type;
 #endif
     }
 
@@ -3699,7 +3672,7 @@ int wc_MlDsaComposite_PublicKeyDecode(const byte* input, word32* inOutIdx,
 
     if (ret == 0) {
         // Get the key type
-        if (type <= 0) type = key->type;
+        if (type <= 0) type = key->compType;
 
         /* Try to import the key directly. */
         ret = wc_mldsa_composite_import_public(input, inSz, key, type);
@@ -3821,7 +3794,7 @@ int wc_MlDsaComposite_PublicKeyDecode(const byte* input, word32* inOutIdx,
     #endif
             if (ret == 0) {
                 /* Import public key data. */
-                ret = wc_mldsa_composite_import_public(pubKey, pubKeyLen, key, key->type);
+                ret = wc_mldsa_composite_import_public(pubKey, pubKeyLen, key, key->compType);
             }
         }
     }
@@ -3911,7 +3884,7 @@ int wc_MlDsaComposite_PrivateKeyToDer(mldsa_composite_key* key, byte* output, wo
         int privkey_sz = 0;
 
         // Gets the key type (SUM)
-        if ((keySum = wc_MlDsaComposite_type_to_KeySum(key->type)) < 0) {
+        if ((keySum = wc_MlDsaComposite_type_to_KeySum(key->compType)) < 0) {
             return BAD_FUNC_ARG;
         }
 
@@ -3929,7 +3902,7 @@ int wc_MlDsaComposite_PrivateKeyToDer(mldsa_composite_key* key, byte* output, wo
         // If output is provided, export the private key
         if (output) {
             if ((word32)privkey_sz > len) {
-                MADWOLF_DEBUG("Private Key Export Buffer (needed: %d, provided: %d, type: %d)", privkey_sz, len, key->type);
+                MADWOLF_DEBUG("Private Key Export Buffer (needed: %d, provided: %d, type: %d)", privkey_sz, len, key->compType);
                 return BAD_FUNC_ARG;
             }
             // Export the private key (if any output is provided)
@@ -4041,7 +4014,7 @@ int wc_MlDsaComposite_KeyToDer(mldsa_composite_key* key, byte* output, word32 le
         int privkey_sz = 0;
 
         // Gets the key type (SUM)
-        if ((keySum = wc_MlDsaComposite_type_to_KeySum(key->type)) < 0) {
+        if ((keySum = wc_MlDsaComposite_type_to_KeySum(key->compType)) < 0) {
             return BAD_FUNC_ARG;
         }
 
@@ -4059,7 +4032,7 @@ int wc_MlDsaComposite_KeyToDer(mldsa_composite_key* key, byte* output, word32 le
         // If output is provided, export the private key
         if (output) {
             if ((word32)privkey_sz > len) {
-                MADWOLF_DEBUG("Private Key Export Buffer (needed: %d, provided: %d, type: %d)", privkey_sz, len, key->type);
+                MADWOLF_DEBUG("Private Key Export Buffer (needed: %d, provided: %d, type: %d)", privkey_sz, len, key->compType);
                 return BAD_FUNC_ARG;
             }
             // Export the private key (if any output is provided)

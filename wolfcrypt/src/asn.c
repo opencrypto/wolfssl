@@ -30856,8 +30856,8 @@ static int WriteCertBody(DerCert* der, byte* buf)
 static int MakeSignature(CertSignCtx* certSignCtx, const byte* buf, word32 sz,
     byte* sig, word32 sigSz, RsaKey* rsaKey, ecc_key* eccKey,
     ed25519_key* ed25519Key, ed448_key* ed448Key, falcon_key* falconKey,
-    dilithium_key* dilithiumKey, sphincs_key* sphincsKey, WC_RNG* rng,
-    word32 sigAlgoType, void* heap)
+    dilithium_key* dilithiumKey, sphincs_key* sphincsKey, mldsa_composite_key * mldsaCompKey,
+    WC_RNG* rng, word32 sigAlgoType, void* heap)
 {
     int digestSz = 0, typeH = 0, ret = 0;
 
@@ -30874,6 +30874,7 @@ static int MakeSignature(CertSignCtx* certSignCtx, const byte* buf, word32 sz,
     (void)falconKey;
     (void)dilithiumKey;
     (void)sphincsKey;
+    (void)mldsaCompKey;
     (void)rng;
     (void)heap;
 
@@ -30967,7 +30968,7 @@ static int MakeSignature(CertSignCtx* certSignCtx, const byte* buf, word32 sz,
     #endif /* HAVE_FALCON */
     #if defined(HAVE_DILITHIUM)
         if (!rsaKey && !eccKey && !ed25519Key && !ed448Key && !falconKey &&
-            dilithiumKey) {
+                                    dilithiumKey && !mldsaCompKey) {
             word32 outSz = sigSz;
             #ifdef WOLFSSL_DILITHIUM_FIPS204_DRAFT
             if ((dilithiumKey->params->level == WC_ML_DSA_44_DRAFT) ||
@@ -30997,7 +30998,17 @@ static int MakeSignature(CertSignCtx* certSignCtx, const byte* buf, word32 sz,
                 ret = outSz;
         }
     #endif /* HAVE_SPHINCS */
-
+    #if defined(HAVE_MLDSA_COMPOSITE)
+        if (!rsaKey && !eccKey && !ed25519Key && !ed448Key && !falconKey &&
+                                        !dilithiumKey && mldsaCompKey) {
+            word32 outSz = sigSz;
+            ret = wc_mldsa_composite_sign_msg(buf, sz, sig,
+                                              &outSz, mldsaCompKey,
+                                              rng);
+            if (ret == 0)
+                ret = outSz;
+        }
+    #endif /* HAVE_MLDSA_COMPOSITE */
         if (ret == -1)
             ret = ALGO_ID_E;
 
@@ -31395,51 +31406,51 @@ static int MakeAnyCert(Cert* cert, byte* derBuffer, word32 derSz,
 #endif /* HAVE_SPHINCS */
 #ifdef HAVE_MLDSA_COMPOSITE
         else if ((mldsaCompKey != NULL) &&
-                    (mldsaCompKey->type == WC_MLDSA44_RSAPSS2048_SHA256)) {
+                    (mldsaCompKey->compType == WC_MLDSA44_RSAPSS2048_SHA256)) {
             cert->keyType = MLDSA44_RSAPSS2048_KEY;
         }
         else if ((mldsaCompKey != NULL) &&
-                    (mldsaCompKey->type == WC_MLDSA44_RSA2048_SHA256)) {
+                    (mldsaCompKey->compType == WC_MLDSA44_RSA2048_SHA256)) {
             cert->keyType = MLDSA44_RSA2048_KEY;
         }
         else if ((mldsaCompKey != NULL) &&
-                    (mldsaCompKey->type == WC_MLDSA44_NISTP256_SHA256)) {
+                    (mldsaCompKey->compType == WC_MLDSA44_NISTP256_SHA256)) {
             cert->keyType = MLDSA44_NISTP256_KEY;
         }
         else if ((mldsaCompKey != NULL) &&
-                    (mldsaCompKey->type == WC_MLDSA44_ED25519_SHA256)) {
+                    (mldsaCompKey->compType == WC_MLDSA44_ED25519_SHA256)) {
             cert->keyType = MLDSA44_ED25519_KEY;
         }
         else if ((mldsaCompKey != NULL) &&
-                    (mldsaCompKey->type == WC_MLDSA65_RSAPSS3072_SHA384)) {
+                    (mldsaCompKey->compType == WC_MLDSA65_RSAPSS3072_SHA384)) {
             cert->keyType = MLDSA65_RSAPSS3072_KEY;
         }
         else if ((mldsaCompKey != NULL) &&
-                    (mldsaCompKey->type == WC_MLDSA65_RSA3072_SHA384)) {
+                    (mldsaCompKey->compType == WC_MLDSA65_RSA3072_SHA384)) {
             cert->keyType = MLDSA65_RSA3072_KEY;
         }
         else if ((mldsaCompKey != NULL) &&
-                    (mldsaCompKey->type == WC_MLDSA65_RSAPSS4096_SHA384)) {
+                    (mldsaCompKey->compType == WC_MLDSA65_RSAPSS4096_SHA384)) {
             cert->keyType = MLDSA65_RSAPSS4096_KEY;
         }
         else if ((mldsaCompKey != NULL) &&
-                    (mldsaCompKey->type == WC_MLDSA65_RSA4096_SHA384)) {
+                    (mldsaCompKey->compType == WC_MLDSA65_RSA4096_SHA384)) {
             cert->keyType = MLDSA65_RSA4096_KEY;
         }
         else if ((mldsaCompKey != NULL) &&
-                    (mldsaCompKey->type == WC_MLDSA65_ED25519_SHA384)) {
+                    (mldsaCompKey->compType == WC_MLDSA65_ED25519_SHA384)) {
             cert->keyType = MLDSA65_ED25519_KEY;
         }
         else if ((mldsaCompKey != NULL) &&
-                    (mldsaCompKey->type == WC_MLDSA65_BPOOL256_SHA256)) {
+                    (mldsaCompKey->compType == WC_MLDSA65_BPOOL256_SHA256)) {
             cert->keyType = MLDSA65_BPOOL256_KEY;
         }
         else if ((mldsaCompKey != NULL) &&
-                    (mldsaCompKey->type == WC_MLDSA87_NISTP384_SHA384)) {
+                    (mldsaCompKey->compType == WC_MLDSA87_NISTP384_SHA384)) {
             cert->keyType = MLDSA87_NISTP384_KEY;
         }
         else if ((mldsaCompKey != NULL) &&
-                    (mldsaCompKey->type == WC_MLDSA87_ED448_SHA384)) {
+                    (mldsaCompKey->compType == WC_MLDSA87_ED448_SHA384)) {
             cert->keyType = MLDSA87_ED448_KEY;
         }
 #endif
@@ -32559,51 +32570,51 @@ static int MakeCertReq(Cert* cert, byte* derBuffer, word32 derSz,
 #endif /* HAVE_DILITHIUM */
 #ifdef HAVE_MLDSA_COMPOSITE
         else if ((mldsaCompKey != NULL) &&
-                    (mldsaCompKey->type == WC_MLDSA44_RSAPSS2048_SHA256)) {
+                    (mldsaCompKey->compType == WC_MLDSA44_RSAPSS2048_SHA256)) {
             cert->keyType = MLDSA44_RSAPSS2048_KEY;
         }
         else if ((mldsaCompKey != NULL) &&
-                    (mldsaCompKey->type == WC_MLDSA44_RSA2048_SHA256)) {
+                    (mldsaCompKey->compType == WC_MLDSA44_RSA2048_SHA256)) {
             cert->keyType = MLDSA44_RSA2048_KEY;
         }
         else if ((mldsaCompKey != NULL) &&
-                    (mldsaCompKey->type == WC_MLDSA44_NISTP256_SHA256)) {
+                    (mldsaCompKey->compType == WC_MLDSA44_NISTP256_SHA256)) {
             cert->keyType = MLDSA44_NISTP256_KEY;
         }
         else if ((mldsaCompKey != NULL) &&
-                    (mldsaCompKey->type == WC_MLDSA44_ED25519_SHA256)) {
+                    (mldsaCompKey->compType == WC_MLDSA44_ED25519_SHA256)) {
             cert->keyType = MLDSA44_ED25519_KEY;
         }
         else if ((mldsaCompKey != NULL) &&
-                    (mldsaCompKey->type == WC_MLDSA65_RSAPSS3072_SHA384)) {
+                    (mldsaCompKey->compType == WC_MLDSA65_RSAPSS3072_SHA384)) {
             cert->keyType = MLDSA65_RSAPSS3072_KEY;
         }
         else if ((mldsaCompKey != NULL) &&
-                    (mldsaCompKey->type == WC_MLDSA65_RSA3072_SHA384)) {
+                    (mldsaCompKey->compType == WC_MLDSA65_RSA3072_SHA384)) {
             cert->keyType = MLDSA65_RSA3072_KEY;
         }
         else if ((mldsaCompKey != NULL) &&
-                    (mldsaCompKey->type == WC_MLDSA65_RSAPSS4096_SHA384)) {
+                    (mldsaCompKey->compType == WC_MLDSA65_RSAPSS4096_SHA384)) {
             cert->keyType = MLDSA65_RSAPSS4096_KEY;
         }
         else if ((mldsaCompKey != NULL) &&
-                    (mldsaCompKey->type == WC_MLDSA65_RSA4096_SHA384)) {
+                    (mldsaCompKey->compType == WC_MLDSA65_RSA4096_SHA384)) {
             cert->keyType = MLDSA65_RSA4096_KEY;
         }
         else if ((mldsaCompKey != NULL) &&
-                    (mldsaCompKey->type == WC_MLDSA65_ED25519_SHA384)) {
+                    (mldsaCompKey->compType == WC_MLDSA65_ED25519_SHA384)) {
             cert->keyType = MLDSA65_ED25519_KEY;
         }
         else if ((mldsaCompKey != NULL) &&
-                    (mldsaCompKey->type == WC_MLDSA65_BPOOL256_SHA256)) {
+                    (mldsaCompKey->compType == WC_MLDSA65_BPOOL256_SHA256)) {
             cert->keyType = MLDSA65_BPOOL256_KEY;
         }
         else if ((mldsaCompKey != NULL) &&
-                    (mldsaCompKey->type == WC_MLDSA87_NISTP384_SHA384)) {
+                    (mldsaCompKey->compType == WC_MLDSA87_NISTP384_SHA384)) {
             cert->keyType = MLDSA87_NISTP384_KEY;
         }
         else if ((mldsaCompKey != NULL) &&
-                    (mldsaCompKey->type == WC_MLDSA87_ED448_SHA384)) {
+                    (mldsaCompKey->compType == WC_MLDSA87_ED448_SHA384)) {
             cert->keyType = MLDSA87_ED448_KEY;
         }
 #endif
@@ -32930,7 +32941,7 @@ static int SignCert(int requestSz, int sType, byte* buf, word32 buffSz,
     // TODO: Add support for more key types (mldsa_composite)
     sigSz = MakeSignature(certSignCtx, buf, (word32)requestSz, certSignCtx->sig,
         MAX_ENCODED_SIG_SZ, rsaKey, eccKey, ed25519Key, ed448Key,
-        falconKey, dilithiumKey, sphincsKey, /* mldsaCompKey, */ rng, (word32)sType, heap);
+        falconKey, dilithiumKey, sphincsKey, mldsaCompKey, rng, (word32)sType, heap);
 #ifdef WOLFSSL_ASYNC_CRYPT
     if (sigSz == WC_NO_ERR_TRACE(WC_PENDING_E)) {
         /* Not free'ing certSignCtx->sig here because it could still be in use
@@ -32964,6 +32975,7 @@ int wc_MakeSigWithBitStr(byte *sig, int sigSz, int sType, byte* buf,
     falcon_key*        falconKey = NULL;
     dilithium_key*     dilithiumKey = NULL;
     sphincs_key*       sphincsKey = NULL;
+    mldsa_composite_key * mldsaCompKey = NULL;
 
     int ret = 0;
     int headerSz;
@@ -33005,6 +33017,26 @@ int wc_MakeSigWithBitStr(byte *sig, int sigSz, int sType, byte* buf,
         case ML_DSA_LEVEL5_TYPE:
             dilithiumKey = (dilithium_key*)key;
             break;
+
+#ifdef HAVE_MLDSA_COMPOSITE
+        case MLDSA44_RSAPSS2048_TYPE:
+        case MLDSA44_RSA2048_TYPE:
+        case MLDSA44_NISTP256_TYPE:
+        case MLDSA44_ED25519_TYPE:
+        case MLDSA65_RSAPSS3072_TYPE:
+        case MLDSA65_RSA3072_TYPE:
+        case MLDSA65_RSAPSS4096_TYPE:
+        case MLDSA65_RSA4096_TYPE:
+        case MLDSA65_NISTP384_TYPE:
+        case MLDSA65_ED25519_TYPE:
+        case MLDSA65_BPOOL256_TYPE:
+        case MLDSA87_NISTP384_TYPE:
+        case MLDSA87_BPOOL384_TYPE:
+        case MLDSA87_ED448_TYPE:
+            mldsaCompKey = (mldsa_composite_key*)key;
+            break;
+#endif
+
         case SPHINCS_FAST_LEVEL1_TYPE:
         case SPHINCS_FAST_LEVEL3_TYPE:
         case SPHINCS_FAST_LEVEL5_TYPE:
@@ -33048,7 +33080,7 @@ int wc_MakeSigWithBitStr(byte *sig, int sigSz, int sType, byte* buf,
 
     ret = MakeSignature(certSignCtx, buf, (word32)bufSz, certSignCtx->sig,
         MAX_ENCODED_SIG_SZ, rsaKey, eccKey, ed25519Key, ed448Key,
-        falconKey, dilithiumKey, sphincsKey, rng, (word32)sType, heap);
+        falconKey, dilithiumKey, sphincsKey, mldsaCompKey, rng, (word32)sType, heap);
 #ifdef WOLFSSL_ASYNC_CRYPT
     if (ret == WC_NO_ERR_TRACE(WC_PENDING_E)) {
         /* Not free'ing certSignCtx->sig here because it could still be in use

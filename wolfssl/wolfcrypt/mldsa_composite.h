@@ -304,9 +304,6 @@ struct mldsa_composite_params {
 // See ans_public.h for type definitions
 struct mldsa_composite_key {
 
-    // void * p;
-    //     /* Pointer to Raw Encoding */
-    
     int devId;
         /* should use wc_CryptoCb_DefaultDevID() */
 
@@ -331,16 +328,16 @@ struct mldsa_composite_key {
     void* heap;
         /* heap hint */
 
-    enum mldsa_composite_type type;
+    enum mldsa_composite_type compType;
         /* Type of Composite Key */
 
-    struct mldsa_composite_params mldsa_key_params;
+    struct mldsa_composite_params mldsa_kp;
         /* PQ Key Parameters */
 
     MlDsaKey mldsa_key;
         /* ML-DSA Key */
 
-    struct mldsa_composite_params alkey_params;
+    struct mldsa_composite_params alkey_kp;
         /* Alternative Key Parameters */
 
     union {
