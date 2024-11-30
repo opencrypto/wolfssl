@@ -47,10 +47,14 @@ int wc_PKCS8_info(byte * p8_data, word32 p8_dataSz, word32 * oid) {
     // Copies the data
     XMEMCPY(buff, p8_data, p8_dataSz);
 
+#if defined(HAVE_PKCS8) || defined(HAVE_PKCS12)
+
     // Removes the PKCS8 header
     ret = ToTraditional_ex(buff, p8_dataSz, &algorSum);
     *oid = algorSum;
-
+#else
+    ret = NOT_COMPILED_IN;
+#endif // HAVE_PKCS8 || HAVE_PKCS12
     if (ret < 0) {
         printf("[%d] Error loading key (err: %d, alg: %d)\n", __LINE__, ret, algorSum);
     }
@@ -89,10 +93,18 @@ int export_key_p8(void * key, int keySum, const char * out_file, int format) {
         return -1;
     }
 
+    (void)pem_data;
+    (void)pem_dataSz;
+    (void)format;
+
     switch (keySum) {
 #ifndef NO_RSA
     case RSAk:
     case RSAPSSk:
+
+    #if defined(WOLFSSL_KEY_GEN) || defined(OPENSSL_EXTRA) || \
+        defined(WOLFSSL_KCAPI_RSA) || defined(WOLFSSL_SE050)
+
         derSz = wc_RsaKeyToDer((RsaKey *)key, NULL, sizeof(derPtr));
         if (derSz < 0) {
             printf("Error exporting key (%d)\n", derSz);
@@ -131,7 +143,9 @@ int export_key_p8(void * key, int keySum, const char * out_file, int format) {
             printf("Error exporting key\n");
             return -1;
         }
-
+#else
+        return -1;
+#endif // WOLFSSL_KEY_GEN || OPENSSL_EXTRA || WOLFSSL_KCAPI_RSA || WOLFSSL_SE050
         break;
 #endif
 #ifdef HAVE_ECC
@@ -340,6 +354,8 @@ int export_key_p8(void * key, int keySum, const char * out_file, int format) {
     // Export to PEM format
     // --------------------
 
+#ifdef WOLFSSL_DER_TO_PEM
+
     if (format == 1) {
         ret = wc_DerToPem(p8_data, p8_outSz, NULL, 0, PKCS8_PRIVATEKEY_TYPE);
         if (ret <= 0) {
@@ -365,6 +381,8 @@ int export_key_p8(void * key, int keySum, const char * out_file, int format) {
            return -1;
         }
     }
+
+#endif
 
     // -------------
     // Write to file
