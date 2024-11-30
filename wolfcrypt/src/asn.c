@@ -182,7 +182,6 @@ ASN Options:
 #if defined(HAVE_SPHINCS)
     #include <wolfssl/wolfcrypt/sphincs.h>
 #endif
-
 #if defined(HAVE_MLDSA_COMPOSITE)
     #include <wolfssl/wolfcrypt/mldsa_composite.h>
 #endif
@@ -4270,34 +4269,32 @@ static word32 SetBitString16Bit(word16 val, byte* output)
         {96, 134, 72, 1, 101, 3, 4, 3, 19};
 #endif /* HAVE_DILITHIUM */
 #ifdef HAVE_MLDSA_COMPOSITE
-#ifdef HAVE_MLDSA_COMPOSITE_DRAFT_2
-    static const byte sigMlDsa44_Rsa2048_Sha256Oid[] =
+    static const byte D2_sigMlDsa44_Rsa2048_Sha256Oid[] =
         {  0x60, 0x86, 0x48, 0x01, 0x86, 0xFA, 0x6B, 0x50, 0x08, 0x01, 0x01 };
-    static const byte sigMlDsa44_RsaPss2048_Sha256Oid[] =
+    static const byte D2_sigMlDsa44_RsaPss2048_Sha256Oid[] =
         {  0x60, 0x86, 0x48, 0x01, 0x86, 0xFA, 0x6B, 0x50, 0x08, 0x01, 0x01 };
-    static const byte sigMlDsa44_Ed25519_Sha512Oid[] =
+    static const byte D2_sigMlDsa44_Ed25519_Sha512Oid[] =
         {  0x60, 0x86, 0x48, 0x01, 0x86, 0xFA, 0x6B, 0x50, 0x08, 0x01, 0x01 };
-    static const byte sigMlDsa44_NistP256_Sha256Oid[] =
+    static const byte D2_sigMlDsa44_NistP256_Sha256Oid[] =
         {  0x60, 0x86, 0x48, 0x01, 0x86, 0xFA, 0x6B, 0x50, 0x08, 0x01, 0x04 };
-    static const byte sigMlDsa44_Bpool256_Sha256Oid[] =
-        {  0x60, 0x86, 0x48, 0x01, 0x86, 0xFA, 0x6B, 0x50, 0x08, 0x01, 0x05 };
-    static const byte sigMlDsa65_Rsa3072_Sha512Oid[] =
+    // static const byte D2_sigMlDsa44_Bpool256_Sha256Oid[] =
+    //     {  0x60, 0x86, 0x48, 0x01, 0x86, 0xFA, 0x6B, 0x50, 0x08, 0x01, 0x05 };
+    static const byte D2_sigMlDsa65_Rsa3072_Sha512Oid[] =
         {  0x60, 0x86, 0x48, 0x01, 0x86, 0xFA, 0x6B, 0x50, 0x08, 0x01, 0x06 };
-    static const byte sigMlDsa65_RsaPss3072_Sha512Oid[] =
+    static const byte D2_sigMlDsa65_RsaPss3072_Sha512Oid[] =
         {  0x60, 0x86, 0x48, 0x01, 0x86, 0xFA, 0x6B, 0x50, 0x08, 0x01, 0x07 };
-    static const byte sigMlDsa65_NistP256_Sha512Oid[] =
+    static const byte D2_sigMlDsa65_NistP256_Sha512Oid[] =
         {  0x60, 0x86, 0x48, 0x01, 0x86, 0xFA, 0x6B, 0x50, 0x08, 0x01, 0x08 };
-    static const byte sigMlDsa65_Bpool256_Sha512Oid[] =
+    static const byte D2_sigMlDsa65_Bpool256_Sha512Oid[] =
         {  0x60, 0x86, 0x48, 0x01, 0x86, 0xFA, 0x6B, 0x50, 0x08, 0x01, 0x09 };
-    static const byte sigMlDsa65_Ed25519_Sha512Oid[] =
+    static const byte D2_sigMlDsa65_Ed25519_Sha512Oid[] =
         {  0x60, 0x86, 0x48, 0x01, 0x86, 0xFA, 0x6B, 0x50, 0x08, 0x01, 0x0A };
-    static const byte sigMlDsa87_NistP384_Sha512Oid[] =
+    static const byte D2_sigMlDsa87_NistP384_Sha512Oid[] =
         {  0x60, 0x86, 0x48, 0x01, 0x86, 0xFA, 0x6B, 0x50, 0x08, 0x01, 0x0B };
-    static const byte sigMlDsa87_Bpool384_Sha512Oid[] =
+    static const byte D2_sigMlDsa87_Bpool384_Sha512Oid[] =
         {  0x60, 0x86, 0x48, 0x01, 0x86, 0xFA, 0x6B, 0x50, 0x08, 0x01, 0x0C };
-    static const byte sigMlDsa87_Ed448_Sha512Oid[] =
+    static const byte D2_sigMlDsa87_Ed448_Sha512Oid[] =
         {  0x60, 0x86, 0x48, 0x01, 0x86, 0xFA, 0x6B, 0x50, 0x08, 0x01, 0x0D };
-#elif defined(HAVE_MLDSA_COMPOSITE_DRAFT_3)
     // TODO: Update OIDs to the Draft3 values
     static const byte sigMlDsa44_RsaPss2048_Sha256Oid[] =
         {  0x60, 0x86, 0x48, 0x01, 0x86, 0xFA, 0x6B, 0x50, 0x08, 0x01, 0x15 };
@@ -4329,9 +4326,9 @@ static word32 SetBitString16Bit(word16 val, byte* output)
         {  0x60, 0x86, 0x48, 0x01, 0x86, 0xFA, 0x6B, 0x50, 0x08, 0x01, 0x20 };
     static const byte sigMlDsa87_Ed448_Sha384Oid[] =
         {  0x60, 0x86, 0x48, 0x01, 0x86, 0xFA, 0x6B, 0x50, 0x08, 0x01, 0x21 };
-#else
-#error "MLDSA Draft 3 not supported"
-#endif /* HAVE_MLDSA_DRAFT_2 / HAVE_MLDSA_DRAFT3 */
+// #else
+// #error "MLDSA Draft 3 not supported"
+// #endif /* HAVE_MLDSA_DRAFT_2 / HAVE_MLDSA_DRAFT3 */
 
 #endif /* HAVE_MLDSA_COMPOSITE */
 #ifdef HAVE_SPHINCS
@@ -4423,39 +4420,38 @@ static word32 SetBitString16Bit(word16 val, byte* output)
         {96, 134, 72, 1, 101, 3, 4, 3, 19};
 #endif /* HAVE_DILITHIUM */
 #ifdef HAVE_MLDSA_COMPOSITE
-#ifdef HAVE_MLDSA_COMPOSITE_DRAFT_2
     // Level 1
-    static const byte keyMlDsa44_RsaPss2048_Sha256Oid[] =
+    static const byte D2_keyMlDsa44_RsaPss2048_Sha256Oid[] =
         { 0x60, 0x86, 0x48, 0x01, 0x86, 0xFA, 0x6B, 0x50, 0x08, 0x01, 0x01 };
-    static const byte keyMlDsa44_Rsa2048_Sha256Oid[] =
+    static const byte D2_keyMlDsa44_Rsa2048_Sha256Oid[] =
         { 0x60, 0x86, 0x48, 0x01, 0x86, 0xFA, 0x6B, 0x50, 0x08, 0x01, 0x02 };
-    static const byte keyMlDsa44_Ed25519_Sha512Oid[] =
+    static const byte D2_keyMlDsa44_Ed25519_Sha256Oid[] =
         { 0x60, 0x86, 0x48, 0x01, 0x86, 0xFA, 0x6B, 0x50, 0x08, 0x01, 0x03 };
-    static const byte keyMlDsa44_NistP256_Sha256Oid[] =
+    static const byte D2_keyMlDsa44_NistP256_Sha256Oid[] =
         { 0x60, 0x86, 0x48, 0x01, 0x86, 0xFA, 0x6B, 0x50, 0x08, 0x01, 0x04 };
-    static const byte keyMlDsa44_Bpool256_Sha256Oid[] =
-        { 0x60, 0x86, 0x48, 0x01, 0x86, 0xFA, 0x6B, 0x50, 0x08, 0x01, 0x05 };
+    // static const byte D2_keyMlDsa44_Bpool256_Sha256Oid[] =
+    //     { 0x60, 0x86, 0x48, 0x01, 0x86, 0xFA, 0x6B, 0x50, 0x08, 0x01, 0x05 };
     
     // Level 3
-    static const byte keyMlDsa65_Rsa3072_Sha512Oid[] =
+    static const byte D2_keyMlDsa65_Rsa3072_Sha512Oid[] =
         { 0x60, 0x86, 0x48, 0x01, 0x86, 0xFA, 0x6B, 0x50, 0x08, 0x01, 0x06 };
-    static const byte keyMlDsa65_RsaPss3072_Sha512Oid[] =
+    static const byte D2_keyMlDsa65_RsaPss3072_Sha512Oid[] =
         { 0x60, 0x86, 0x48, 0x01, 0x86, 0xFA, 0x6B, 0x50, 0x08, 0x01, 0x07 };
-    static const byte keyMlDsa65_NistP256_Sha512Oid[] =
+    static const byte D2_keyMlDsa65_NistP256_Sha512Oid[] =
         { 0x60, 0x86, 0x48, 0x01, 0x86, 0xFA, 0x6B, 0x50, 0x08, 0x01, 0x08 };
-    static const byte keyMlDsa65_Bpool256_Sha512Oid[] =
+    static const byte D2_keyMlDsa65_Bpool256_Sha512Oid[] =
         { 0x60, 0x86, 0x48, 0x01, 0x86, 0xFA, 0x6B, 0x50, 0x08, 0x01, 0x09 };
-    static const byte keyMlDsa65_Ed25519_Sha512Oid[] =
+    static const byte D2_keyMlDsa65_Ed25519_Sha512Oid[] =
         { 0x60, 0x86, 0x48, 0x01, 0x86, 0xFA, 0x6B, 0x50, 0x08, 0x01, 0x0A };
 
     // Level 5
-    static const byte keyMlDsa87_NistP384_Sha512Oid[] =
+    static const byte D2_keyMlDsa87_NistP384_Sha512Oid[] =
         { 0x60, 0x86, 0x48, 0x01, 0x86, 0xFA, 0x6B, 0x50, 0x08, 0x01, 0x0B };
-    static const byte keyMlDsa87_Bpool384_Sha512Oid[] =
+    static const byte D2_keyMlDsa87_Bpool384_Sha512Oid[] =
         { 0x60, 0x86, 0x48, 0x01, 0x86, 0xFA, 0x6B, 0x50, 0x08, 0x01, 0x0C };
-    static const byte keyMlDsa87_Ed448_Sha512Oid[] =
+    static const byte D2_keyMlDsa87_Ed448_Sha512Oid[] =
         { 0x60, 0x86, 0x48, 0x01, 0x86, 0xFA, 0x6B, 0x50, 0x08, 0x01, 0x0D };
-#elif defined(HAVE_MLDSA_COMPOSITE_DRAFT_3)
+
     // Level 1
     static const byte keyMlDsa44_RsaPss2048_Sha256Oid[] =
         { 0x60, 0x86, 0x48, 0x01, 0x86, 0xFA, 0x6B, 0x50, 0x08, 0x01, 0x15 };
@@ -4491,9 +4487,6 @@ static word32 SetBitString16Bit(word16 val, byte* output)
         { 0x60, 0x86, 0x48, 0x01, 0x86, 0xFA, 0x6B, 0x50, 0x08, 0x01, 0x20 };
     static const byte keyMlDsa87_Ed448_Sha384Oid[] =
         { 0x60, 0x86, 0x48, 0x01, 0x86, 0xFA, 0x6B, 0x50, 0x08, 0x01, 0x21 };
-#else
-#error "MLDSA Draft version not supported"
-#endif /* HAVE_MLDSA_DRAFT_2 / HAVE_MLDSA_DRAFT3 */
 #endif /* HAVE_MLDSA_COMPOSITE */
 
 #ifdef HAVE_SPHINCS
@@ -5128,6 +5121,59 @@ const byte* OidFromId(word32 id, word32 type, word32* oidSz)
                     oid = sigMlDsa87_Ed448_Sha384Oid;
                     *oidSz = sizeof(sigMlDsa87_Ed448_Sha384Oid);
                     break;
+                // ------------- Draft 2 OIDS ------------- //
+                case D2_CTC_MLDSA44_RSAPSS2048_SHA256:
+                    oid = D2_sigMlDsa44_RsaPss2048_Sha256Oid;
+                    *oidSz = sizeof(D2_sigMlDsa44_RsaPss2048_Sha256Oid);
+                    break;
+                case D2_CTC_MLDSA44_RSA2048_SHA256:
+                    oid = D2_sigMlDsa44_Rsa2048_Sha256Oid;
+                    *oidSz = sizeof(D2_sigMlDsa44_Rsa2048_Sha256Oid);
+                    break;
+                case D2_CTC_MLDSA44_ED25519:
+                    oid = D2_sigMlDsa44_Ed25519_Sha512Oid;
+                    *oidSz = sizeof(D2_sigMlDsa44_Ed25519_Sha512Oid);
+                    break;
+                case D2_CTC_MLDSA44_NISTP256_SHA256:
+                    oid = D2_sigMlDsa44_NistP256_Sha256Oid;
+                    *oidSz = sizeof(D2_sigMlDsa44_NistP256_Sha256Oid);
+                    break;
+                // case D2_CTC_MLDSA44_BPOOL256_SHA256:
+                //     oid = D2_sigMlDsa44_Bpool256_Sha256Oid;
+                //     *oidSz = sizeof(D2_sigMlDsa44_Bpool256_Sha256Oid);
+                //     break;
+                case D2_CTC_MLDSA65_RSAPSS3072_SHA384:
+                    oid = D2_sigMlDsa65_RsaPss3072_Sha512Oid;
+                    *oidSz = sizeof(D2_sigMlDsa65_RsaPss3072_Sha512Oid);
+                    break;
+                case D2_CTC_MLDSA65_RSA3072_SHA384:
+                    oid = D2_sigMlDsa65_Rsa3072_Sha512Oid;
+                    *oidSz = sizeof(D2_sigMlDsa65_Rsa3072_Sha512Oid);
+                    break;
+                case D2_CTC_MLDSA65_NISTP256_SHA384:
+                    oid = D2_sigMlDsa65_NistP256_Sha512Oid;
+                    *oidSz = sizeof(D2_sigMlDsa65_NistP256_Sha512Oid);
+                    break;
+                case D2_CTC_MLDSA65_BPOOL256_SHA256:
+                    oid = D2_sigMlDsa65_Bpool256_Sha512Oid;
+                    *oidSz = sizeof(D2_sigMlDsa65_Bpool256_Sha512Oid);
+                    break;
+                case D2_CTC_MLDSA65_ED25519_SHA384:
+                    oid = D2_sigMlDsa65_Ed25519_Sha512Oid;
+                    *oidSz = sizeof(D2_sigMlDsa65_Ed25519_Sha512Oid);
+                    break;
+                case D2_CTC_MLDSA87_NISTP384_SHA384:
+                    oid = D2_sigMlDsa87_NistP384_Sha512Oid;
+                    *oidSz = sizeof(D2_sigMlDsa87_NistP384_Sha512Oid);
+                    break;
+                case D2_CTC_MLDSA87_BPOOL384_SHA384:
+                    oid = D2_sigMlDsa87_Bpool384_Sha512Oid;
+                    *oidSz = sizeof(D2_sigMlDsa87_Bpool384_Sha512Oid);
+                    break;
+                case D2_CTC_MLDSA87_ED448:
+                    oid = D2_sigMlDsa87_Ed448_Sha512Oid;
+                    *oidSz = sizeof(D2_sigMlDsa87_Ed448_Sha512Oid);
+                    break;
                 #endif /* HAVE_MLDSA_COMPOSITE */
                 #ifdef HAVE_SPHINCS
                 case CTC_SPHINCS_FAST_LEVEL1:
@@ -5255,13 +5301,13 @@ const byte* OidFromId(word32 id, word32 type, word32* oidSz)
                     break;
             #endif /* HAVE_DILITHIUM */
             #ifdef HAVE_MLDSA_COMPOSITE
-                case MLDSA44_RSA2048k:
-                    oid = keyMlDsa44_Rsa2048_Sha256Oid;
-                    *oidSz = sizeof(keyMlDsa44_Rsa2048_Sha256Oid);
-                    break;
                 case MLDSA44_RSAPSS2048k:
                     oid = keyMlDsa44_RsaPss2048_Sha256Oid;
                     *oidSz = sizeof(keyMlDsa44_RsaPss2048_Sha256Oid);
+                    break;
+                case MLDSA44_RSA2048k:
+                    oid = keyMlDsa44_Rsa2048_Sha256Oid;
+                    *oidSz = sizeof(keyMlDsa44_Rsa2048_Sha256Oid);
                     break;
                 case MLDSA44_ED25519k:
                     oid = keyMlDsa44_Ed25519_Sha256Oid;
@@ -5315,6 +5361,60 @@ const byte* OidFromId(word32 id, word32 type, word32* oidSz)
                     oid = keyMlDsa87_Ed448_Sha384Oid;
                     *oidSz = sizeof(keyMlDsa87_Ed448_Sha384Oid);
                     break;
+                // ------------ Draft 2 OIDs ------------ //
+                case D2_MLDSA44_RSAPSS2048k:
+                    oid = D2_keyMlDsa44_RsaPss2048_Sha256Oid;
+                    *oidSz = sizeof(D2_keyMlDsa44_RsaPss2048_Sha256Oid);
+                    break;
+                case D2_MLDSA44_RSA2048k:
+                    oid = D2_keyMlDsa44_Rsa2048_Sha256Oid;
+                    *oidSz = sizeof(D2_keyMlDsa44_Rsa2048_Sha256Oid);
+                    break;
+                case D2_MLDSA44_ED25519k:
+                    oid = D2_keyMlDsa44_Ed25519_Sha256Oid;
+                    *oidSz = sizeof(D2_keyMlDsa44_Ed25519_Sha256Oid);
+                    break;
+                case D2_MLDSA44_NISTP256k:
+                    oid = D2_keyMlDsa44_NistP256_Sha256Oid;
+                    *oidSz = sizeof(D2_keyMlDsa44_NistP256_Sha256Oid);
+                    break;
+                // case D2_MLDSA44_BPOOL256k:
+                //     oid = keyMlDsa44_Bpool256_Sha256Oid;
+                //     *oidSz = sizeof(keyMlDsa44_Bpool256_Sha256Oid);
+                //     break;
+                case D2_MLDSA65_RSA3072k:
+                    oid = D2_keyMlDsa65_Rsa3072_Sha512Oid;
+                    *oidSz = sizeof(D2_keyMlDsa65_Rsa3072_Sha512Oid);
+                    break;
+                case D2_MLDSA65_RSAPSS3072k:
+                    oid = D2_keyMlDsa65_RsaPss3072_Sha512Oid;
+                    *oidSz = sizeof(D2_keyMlDsa65_RsaPss3072_Sha512Oid);
+                    break;
+                case D2_MLDSA65_NISTP256k:
+                    oid = D2_keyMlDsa65_NistP256_Sha512Oid;
+                    *oidSz = sizeof(D2_keyMlDsa65_NistP256_Sha512Oid);
+                    break;
+                case D2_MLDSA65_BPOOL256k:
+                    oid = D2_keyMlDsa65_Bpool256_Sha512Oid;
+                    *oidSz = sizeof(D2_keyMlDsa65_Bpool256_Sha512Oid);
+                    break;
+                case D2_MLDSA65_ED25519k:
+                    oid = D2_keyMlDsa65_Ed25519_Sha512Oid;
+                    *oidSz = sizeof(D2_keyMlDsa65_Ed25519_Sha512Oid);
+                    break;
+                case D2_MLDSA87_NISTP384k:
+                    oid = D2_keyMlDsa87_NistP384_Sha512Oid;
+                    *oidSz = sizeof(D2_keyMlDsa87_NistP384_Sha512Oid);
+                    break;
+                case D2_MLDSA87_BPOOL384k:
+                    oid = D2_keyMlDsa87_Bpool384_Sha512Oid;
+                    *oidSz = sizeof(D2_keyMlDsa87_Bpool384_Sha512Oid);
+                    break;
+                case D2_MLDSA87_ED448k:
+                    oid = D2_keyMlDsa87_Ed448_Sha512Oid;
+                    *oidSz = sizeof(D2_keyMlDsa87_Ed448_Sha512Oid);
+                    break;
+
             #endif
                 #ifdef HAVE_SPHINCS
                 case SPHINCS_FAST_LEVEL1k:
@@ -8205,12 +8305,12 @@ int wc_CheckPrivateKey(const byte* privKey, word32 privKeySz,
             // Holds the type of the key
 
         // Convert key type to enum
-        if ((type = wc_KeySum_to_MlDsaComposite_type(ks)) < 0) {
+        if ((type = wc_KeySum_to_composite_level(ks)) < 0) {
             WOLFSSL_MSG("Invalid ML-DSA Composite key type");
             return -1;
         }
 
-        ret = wc_mldsa_composite_key_set_type(key_pair, type);
+        ret = wc_mldsa_composite_key_set_level(key_pair, type);
         if (ret  < 0) {
     #ifdef WOLFSSL_SMALL_STACK
             XFREE(key_pair, NULL, DYNAMIC_TYPE_KEY);
@@ -8749,15 +8849,15 @@ int wc_GetKeyOID(byte* key, word32 keySz, const byte** curveOID, word32* oidSz,
         if (wc_mldsa_composite_init(mldsa_comp) != 0) {
             tmpIdx = 0;
             for (int i = MLDSA_COMPOSITE_TYPE_MIN; i <= MLDSA_COMPOSITE_TYPE_MAX; i++) {
-                if (wc_mldsa_composite_key_set_type(mldsa_comp, i) == 0) {
+                if (wc_mldsa_composite_key_set_level(mldsa_comp, i) == 0) {
                     tmpIdx = keySz;
                     if (wc_MlDsaComposite_PrivateKeyDecode(key, &tmpIdx, mldsa_comp, keySz, i) == 0) {
                         int type = 0;
-                        if ((type = wc_mldsa_composite_key_get_type(mldsa_comp)) < 0) {
+                        if ((type = wc_mldsa_composite_key_get_level(mldsa_comp)) < 0) {
                             WOLFSSL_MSG("GetKeyOID mldsa_composite_get_type failed");
                             break;
                         }
-                        if ((*algoID = wc_mldsa_composite_key_get_sum(mldsa_comp)) < 0) {
+                        if ((*algoID = wc_mldsa_composite_key_get_keySum(mldsa_comp)) < 0) {
                             WOLFSSL_ERROR_MSG("GetKeyOID mldsa_composite_get_keytype failed");   
                         } else { WOLFSSL_ERROR_MSG("Found MlDsaComposite DER key");
                             break;
@@ -25252,6 +25352,10 @@ wcchar END_PUB_KEY          = "-----END PUBLIC KEY-----";
     wcchar BEGIN_ML_DSA_LEVEL5_PRIV = "-----BEGIN ML_DSA_LEVEL5 PRIVATE KEY-----";
     wcchar END_ML_DSA_LEVEL5_PRIV   = "-----END ML_DSA_LEVEL5 PRIVATE KEY-----";
 #endif /* HAVE_DILITHIUM */
+#if defined(HAVE_MLDSA_COMPOSITE)
+    wcchar BEGIN_MLDSA_COMPOSITE_PRIV = "-----BEGIN MLDSA COMPOSITE HYBRID PRIVATE KEY-----";
+    wcchar END_MLDSA_COMPOSITE_PRIV = "-----END MLDSA COMPOSITE HYBRID PRIVATE KEY-----";
+#endif /* HAVE_MLDSA_COMPOSITE */
 #if defined(HAVE_SPHINCS)
     wcchar BEGIN_SPHINCS_FAST_LEVEL1_PRIV = "-----BEGIN SPHINCS_FAST_LEVEL1 PRIVATE KEY-----";
     wcchar END_SPHINCS_FAST_LEVEL1_PRIV   = "-----END SPHINCS_FAST_LEVEL1 PRIVATE KEY-----";
@@ -25466,6 +25570,13 @@ int wc_PemGetHeaderFooter(int type, const char** header, const char** footer)
             ret = 0;
             break;
 #endif /* HAVE_SPHINCS */
+#ifdef HAVE_MLDSA_COMPOSITE
+        case MLDSA44_RSAPSS2048_TYPE:
+            if (header) *header = BEGIN_MLDSA_COMPOSITE_PRIV;
+            if (footer) *footer = END_MLDSA_COMPOSITE_PRIV;
+            ret = 0;
+            break;
+#endif /* HAVE_MLDSA_COMPOSITE */
         case PUBLICKEY_TYPE:
         case ECC_PUBLICKEY_TYPE:
             if (header) *header = BEGIN_PUB_KEY;
@@ -29613,12 +29724,26 @@ static int EncodePublicKey(int keyType, byte* output, int outLen,
         case MLDSA87_NISTP384_KEY:
         case MLDSA87_BPOOL384_KEY:
         case MLDSA87_ED448_KEY:
-            ret = wc_MlDsaComposite_PublicKeyToDer(mldsaCompKey, output,
-                                              (word32)outLen, 1);
+        // ------- Draft 2 ----------- //
+        case D2_MLDSA44_RSAPSS2048_KEY:
+        case D2_MLDSA44_RSA2048_KEY:
+        case D2_MLDSA44_NISTP256_KEY:
+        case D2_MLDSA44_ED25519_KEY:
+        //case D2_MLDSA44_BPOOL256_KEY:
+        case D2_MLDSA65_RSAPSS3072_KEY:
+        case D2_MLDSA65_RSA3072_KEY:
+        case D2_MLDSA65_NISTP256_KEY:
+        case D2_MLDSA65_ED25519_KEY:
+        case D2_MLDSA65_BPOOL256_KEY:
+        case D2_MLDSA87_NISTP384_KEY:
+        case D2_MLDSA87_BPOOL384_KEY:
+        case D2_MLDSA87_ED448_KEY:
+            ret = wc_MlDsaComposite_PublicKeyToDer(mldsaCompKey, output, (word32)outLen, 1);
             if (ret <= 0) {
                 ret = PUBLIC_KEY_E;
             }
             break;
+            
     #endif /* HAVE_MLDSA_COMPOSITE */
         default:
             ret = PUBLIC_KEY_E;
@@ -31002,8 +31127,9 @@ static int MakeSignature(CertSignCtx* certSignCtx, const byte* buf, word32 sz,
         if (!rsaKey && !eccKey && !ed25519Key && !ed448Key && !falconKey &&
                                         !dilithiumKey && mldsaCompKey) {
             word32 outSz = sigSz;
-            ret = wc_mldsa_composite_sign_msg(buf, sz, sig,
-                                              &outSz, mldsaCompKey,
+            ret = wc_mldsa_composite_sign_msg(buf, sz, 
+                                              sig, &outSz,
+                                              mldsaCompKey,
                                               rng);
             if (ret == 0)
                 ret = outSz;
@@ -31442,7 +31568,8 @@ static int MakeAnyCert(Cert* cert, byte* derBuffer, word32 derSz,
             cert->keyType = MLDSA65_ED25519_KEY;
         }
         else if ((mldsaCompKey != NULL) &&
-                    (mldsaCompKey->compType == WC_MLDSA65_BPOOL256_SHA256)) {
+                    (mldsaCompKey->compType == WC_MLDSA65_BPOOL256_SHA384
+                     || mldsaCompKey->compType == D2_WC_MLDSA65_BPOOL256_SHA512)) {
             cert->keyType = MLDSA65_BPOOL256_KEY;
         }
         else if ((mldsaCompKey != NULL) &&
@@ -31453,6 +31580,52 @@ static int MakeAnyCert(Cert* cert, byte* derBuffer, word32 derSz,
                     (mldsaCompKey->compType == WC_MLDSA87_ED448_SHA384)) {
             cert->keyType = MLDSA87_ED448_KEY;
         }
+        // ------------  Draft 2 --------------- //
+        else if ((mldsaCompKey != NULL) &&
+                    (mldsaCompKey->compType == D2_WC_MLDSA44_RSAPSS2048_SHA256)) {
+            cert->keyType = D2_MLDSA44_RSAPSS2048_KEY;
+        }
+        else if ((mldsaCompKey != NULL) &&
+                    (mldsaCompKey->compType == D2_WC_MLDSA44_RSA2048_SHA256)) {
+            cert->keyType = D2_MLDSA44_RSA2048_KEY;
+        }
+        else if ((mldsaCompKey != NULL) &&
+                    (mldsaCompKey->compType == D2_WC_MLDSA44_NISTP256_SHA256)) {
+            cert->keyType = D2_MLDSA44_NISTP256_KEY;
+        }
+        else if ((mldsaCompKey != NULL) &&
+                    (mldsaCompKey->compType == D2_WC_MLDSA44_ED25519_SHA256)) {
+            cert->keyType = D2_MLDSA44_ED25519_KEY;
+        }
+        else if ((mldsaCompKey != NULL) &&
+                    (mldsaCompKey->compType == D2_WC_MLDSA65_RSAPSS3072_SHA512)) {
+            cert->keyType = D2_MLDSA65_RSAPSS3072_KEY;
+        }
+        else if ((mldsaCompKey != NULL) &&
+                    (mldsaCompKey->compType == D2_WC_MLDSA65_RSA3072_SHA512)) {
+            cert->keyType = D2_MLDSA65_RSA3072_KEY;
+        }
+        else if ((mldsaCompKey != NULL) &&
+                    (mldsaCompKey->compType == D2_WC_MLDSA65_ED25519_SHA512)) {
+            cert->keyType = D2_MLDSA65_ED25519_KEY;
+        }
+        else if ((mldsaCompKey != NULL) &&
+                    (mldsaCompKey->compType == D2_WC_MLDSA65_BPOOL256_SHA512)) {
+            cert->keyType = D2_MLDSA65_BPOOL256_KEY;
+        }
+        else if ((mldsaCompKey != NULL) &&
+                    (mldsaCompKey->compType == D2_WC_MLDSA87_NISTP384_SHA512)) {
+            cert->keyType = D2_MLDSA87_NISTP384_KEY;
+        }
+        else if ((mldsaCompKey != NULL) &&
+                    (mldsaCompKey->compType == D2_WC_MLDSA87_BPOOL384_SHA512)) {
+            cert->keyType = D2_MLDSA87_BPOOL384_KEY;
+        }
+        else if ((mldsaCompKey != NULL) &&
+                    (mldsaCompKey->compType == D2_WC_MLDSA87_ED448_SHA512)) {
+            cert->keyType = D2_MLDSA87_ED448_KEY;
+        }
+
 #endif
         else {
             ret = BAD_FUNC_ARG;
@@ -31767,12 +31940,25 @@ int wc_MakeCert_ex(Cert* cert, byte* derBuffer, word32 derSz, int keyType,
              keyType == MLDSA65_RSA3072_TYPE ||
              keyType == MLDSA65_RSAPSS4096_TYPE ||
              keyType == MLDSA65_RSA4096_TYPE ||
-             keyType == MLDSA65_NISTP384_TYPE ||
+             keyType == MLDSA65_NISTP256_TYPE ||
              keyType == MLDSA65_ED25519_TYPE ||
              keyType == MLDSA65_BPOOL256_TYPE ||
              keyType == MLDSA87_NISTP384_TYPE ||
              keyType == MLDSA87_BPOOL384_TYPE || 
-             keyType == MLDSA87_ED448_TYPE)
+             keyType == MLDSA87_ED448_TYPE ||
+             // -------- Draft 2 ---------- //
+                keyType == D2_MLDSA44_RSAPSS2048_SHA256_TYPE ||
+                keyType == D2_MLDSA44_RSA2048_SHA256_TYPE ||
+                keyType == D2_MLDSA44_NISTP256_SHA256_TYPE ||
+                keyType == D2_MLDSA44_ED25519_SHA256_TYPE ||
+                keyType == D2_MLDSA65_RSAPSS3072_SHA512_TYPE ||
+                keyType == D2_MLDSA65_RSA3072_SHA512_TYPE ||
+                keyType == D2_MLDSA65_NISTP256_SHA512_TYPE ||
+                keyType == D2_MLDSA65_ED25519_SHA512_TYPE ||
+                keyType == D2_MLDSA65_BPOOL256_SHA512_TYPE ||
+                keyType == D2_MLDSA87_NISTP384_SHA512_TYPE ||
+                keyType == D2_MLDSA87_BPOOL384_SHA512_TYPE ||
+                keyType == D2_MLDSA87_ED448_SHA512_TYPE)
         mldsaCompKey = (mldsa_composite_key*)key;
 #endif
 
@@ -32606,8 +32792,12 @@ static int MakeCertReq(Cert* cert, byte* derBuffer, word32 derSz,
             cert->keyType = MLDSA65_ED25519_KEY;
         }
         else if ((mldsaCompKey != NULL) &&
-                    (mldsaCompKey->compType == WC_MLDSA65_BPOOL256_SHA256)) {
+                    (mldsaCompKey->compType == WC_MLDSA65_BPOOL256_SHA384)) {
             cert->keyType = MLDSA65_BPOOL256_KEY;
+        }
+        else if ((mldsaCompKey != NULL) &&
+                    (mldsaCompKey->compType == WC_MLDSA65_NISTP256_SHA384)) {
+            cert->keyType = MLDSA65_NISTP384_KEY;
         }
         else if ((mldsaCompKey != NULL) &&
                     (mldsaCompKey->compType == WC_MLDSA87_NISTP384_SHA384)) {
@@ -32616,6 +32806,51 @@ static int MakeCertReq(Cert* cert, byte* derBuffer, word32 derSz,
         else if ((mldsaCompKey != NULL) &&
                     (mldsaCompKey->compType == WC_MLDSA87_ED448_SHA384)) {
             cert->keyType = MLDSA87_ED448_KEY;
+        }
+        // --------------- Draft 2 ------------------- //
+        else if ((mldsaCompKey != NULL) &&
+                    (mldsaCompKey->compType == D2_WC_MLDSA44_RSAPSS2048_SHA256)) {
+            cert->keyType = D2_MLDSA44_RSAPSS2048_KEY;
+        }
+        else if ((mldsaCompKey != NULL) &&
+                    (mldsaCompKey->compType == D2_WC_MLDSA44_RSAPSS2048_SHA256)) {
+            cert->keyType = D2_MLDSA44_RSA2048_KEY;
+        }
+        else if ((mldsaCompKey != NULL) &&
+                    (mldsaCompKey->compType == D2_WC_MLDSA44_NISTP256_SHA256)) {
+            cert->keyType = D2_MLDSA44_NISTP256_KEY;
+        }
+        else if ((mldsaCompKey != NULL) &&
+                    (mldsaCompKey->compType == D2_WC_MLDSA44_ED25519_SHA256)) {
+            cert->keyType = D2_MLDSA44_ED25519_KEY;
+        }
+        else if ((mldsaCompKey != NULL) &&
+                    (mldsaCompKey->compType == D2_WC_MLDSA65_RSAPSS3072_SHA512)) {
+            cert->keyType = D2_MLDSA65_RSAPSS3072_KEY;
+        }
+        else if ((mldsaCompKey != NULL) &&
+                    (mldsaCompKey->compType == D2_WC_MLDSA65_RSA3072_SHA512)) {
+            cert->keyType = D2_MLDSA65_RSA3072_KEY;
+        }
+        else if ((mldsaCompKey != NULL) &&
+                    (mldsaCompKey->compType == D2_WC_MLDSA65_ED25519_SHA512)) {
+            cert->keyType = D2_MLDSA65_ED25519_KEY;
+        }
+        else if ((mldsaCompKey != NULL) &&
+                    (mldsaCompKey->compType == D2_WC_MLDSA65_BPOOL256_SHA512)) {
+            cert->keyType = D2_MLDSA65_BPOOL256_KEY;
+        }
+        else if ((mldsaCompKey != NULL) &&
+                    (mldsaCompKey->compType == D2_WC_MLDSA87_BPOOL384_SHA512)) {
+            cert->keyType = D2_MLDSA87_BPOOL384_KEY;
+        }
+        else if ((mldsaCompKey != NULL) &&
+                    (mldsaCompKey->compType == D2_WC_MLDSA87_NISTP384_SHA512)) {
+            cert->keyType = D2_MLDSA87_NISTP384_KEY;
+        }
+        else if ((mldsaCompKey != NULL) &&
+                    (mldsaCompKey->compType == D2_WC_MLDSA87_ED448_SHA512)) {
+            cert->keyType = D2_MLDSA87_ED448_KEY;
         }
 #endif
 #ifdef HAVE_SPHINCS
@@ -32864,12 +33099,25 @@ int wc_MakeCertReq_ex(Cert* cert, byte* derBuffer, word32 derSz, int keyType,
              keyType == MLDSA65_RSA3072_TYPE ||
              keyType == MLDSA65_RSAPSS4096_TYPE ||
              keyType == MLDSA65_RSA4096_TYPE ||
-             keyType == MLDSA65_NISTP384_TYPE ||
+             keyType == MLDSA65_NISTP256_TYPE ||
              keyType == MLDSA65_ED25519_TYPE ||
              keyType == MLDSA65_BPOOL256_TYPE ||
              keyType == MLDSA87_NISTP384_TYPE ||
              keyType == MLDSA87_BPOOL384_TYPE || 
-             keyType == MLDSA87_ED448_TYPE)
+             keyType == MLDSA87_ED448_TYPE ||
+             // ------ Draft 2 --------- //
+                keyType == D2_MLDSA44_RSAPSS2048_SHA256_TYPE ||
+                keyType == D2_MLDSA44_RSA2048_SHA256_TYPE ||
+                keyType == D2_MLDSA44_NISTP256_SHA256_TYPE ||
+                keyType == D2_MLDSA44_ED25519_SHA256_TYPE ||
+                keyType == D2_MLDSA65_RSAPSS3072_SHA512_TYPE ||
+                keyType == D2_MLDSA65_RSA3072_SHA512_TYPE ||
+                keyType == D2_MLDSA65_NISTP256_SHA512_TYPE ||
+                keyType == D2_MLDSA65_ED25519_SHA512_TYPE ||
+                keyType == D2_MLDSA65_BPOOL256_SHA512_TYPE ||
+                keyType == D2_MLDSA87_NISTP384_SHA512_TYPE ||
+                keyType == D2_MLDSA87_BPOOL384_SHA512_TYPE ||
+                keyType == D2_MLDSA87_ED448_SHA512_TYPE)
         mldsaCompKey = (mldsa_composite_key*)key;
 #endif
 
@@ -33027,12 +33275,25 @@ int wc_MakeSigWithBitStr(byte *sig, int sigSz, int sType, byte* buf,
         case MLDSA65_RSA3072_TYPE:
         case MLDSA65_RSAPSS4096_TYPE:
         case MLDSA65_RSA4096_TYPE:
-        case MLDSA65_NISTP384_TYPE:
+        case MLDSA65_NISTP256_TYPE:
         case MLDSA65_ED25519_TYPE:
         case MLDSA65_BPOOL256_TYPE:
         case MLDSA87_NISTP384_TYPE:
         case MLDSA87_BPOOL384_TYPE:
         case MLDSA87_ED448_TYPE:
+        // -------- Draft 2 ----------- //
+        case D2_MLDSA44_RSAPSS2048_SHA256_TYPE:
+        case D2_MLDSA44_RSA2048_SHA256_TYPE:
+        case D2_MLDSA44_NISTP256_SHA256_TYPE:
+        case D2_MLDSA44_ED25519_SHA256_TYPE:
+        case D2_MLDSA65_RSAPSS3072_SHA512_TYPE:
+        case D2_MLDSA65_RSA3072_SHA512_TYPE:
+        case D2_MLDSA65_NISTP256_SHA512_TYPE:
+        case D2_MLDSA65_ED25519_SHA512_TYPE:
+        case D2_MLDSA65_BPOOL256_SHA512_TYPE:
+        case D2_MLDSA87_NISTP384_SHA512_TYPE:
+        case D2_MLDSA87_BPOOL384_SHA512_TYPE:
+        case D2_MLDSA87_ED448_SHA512_TYPE:
             mldsaCompKey = (mldsa_composite_key*)key;
             break;
 #endif
@@ -33171,12 +33432,26 @@ int wc_SignCert_ex(int requestSz, int sType, byte* buf, word32 buffSz,
              keyType == MLDSA65_RSA3072_TYPE ||
              keyType == MLDSA65_RSAPSS4096_TYPE ||
              keyType == MLDSA65_RSA4096_TYPE ||
-             keyType == MLDSA65_NISTP384_TYPE ||
+             keyType == MLDSA65_NISTP256_TYPE ||
              keyType == MLDSA65_ED25519_TYPE ||
              keyType == MLDSA65_BPOOL256_TYPE ||
              keyType == MLDSA87_NISTP384_TYPE ||
              keyType == MLDSA87_BPOOL384_TYPE || 
-             keyType == MLDSA87_ED448_TYPE)
+             keyType == MLDSA87_ED448_TYPE ||
+                // ------------ Draft 2 --------------- //
+                keyType == D2_MLDSA44_RSAPSS2048_SHA256_TYPE ||
+                keyType == D2_MLDSA44_RSA2048_SHA256_TYPE ||
+                keyType == D2_MLDSA44_NISTP256_SHA256_TYPE ||
+                keyType == D2_MLDSA44_ED25519_SHA256_TYPE ||
+
+                keyType == D2_MLDSA65_RSAPSS3072_SHA512_TYPE ||
+                keyType == D2_MLDSA65_RSA3072_SHA512_TYPE ||
+                keyType == D2_MLDSA65_NISTP256_SHA512_TYPE ||
+                keyType == D2_MLDSA65_ED25519_SHA512_TYPE ||
+                keyType == D2_MLDSA65_BPOOL256_SHA512_TYPE ||
+                keyType == D2_MLDSA87_BPOOL384_SHA512_TYPE ||
+                keyType == D2_MLDSA87_NISTP384_SHA512_TYPE ||
+                keyType == D2_MLDSA87_ED448_SHA512_TYPE)
         mldsaCompKey = (mldsa_composite_key*)key;
 #endif
 
@@ -33227,14 +33502,17 @@ static int SetKeyIdFromPublicKey(Cert *cert, RsaKey *rsakey, ecc_key *eckey,
                                  ed25519_key* ed25519Key, ed448_key* ed448Key,
                                  falcon_key* falconKey,
                                  dilithium_key* dilithiumKey,
-                                 sphincs_key *sphincsKey, int kid_type)
+                                 sphincs_key *sphincsKey,
+                                 mldsa_composite_key *mldsaCompKey,
+                                 int kid_type)
 {
     byte *buf;
     int   bufferSz, ret;
 
     if (cert == NULL ||
         (rsakey == NULL && eckey == NULL && ed25519Key == NULL &&
-         ed448Key == NULL && falconKey == NULL && dilithiumKey == NULL &&
+         ed448Key == NULL && falconKey == NULL && 
+         dilithiumKey == NULL && mldsaCompKey == NULL &&
          sphincsKey == NULL) ||
         (kid_type != SKID_TYPE && kid_type != AKID_TYPE))
         return BAD_FUNC_ARG;
@@ -33277,6 +33555,12 @@ static int SetKeyIdFromPublicKey(Cert *cert, RsaKey *rsakey, ecc_key *eckey,
 #if defined(HAVE_DILITHIUM) && !defined(WOLFSSL_DILITHIUM_NO_ASN1)
     if (dilithiumKey != NULL) {
         bufferSz = wc_Dilithium_PublicKeyToDer(dilithiumKey, buf,
+                                               MAX_PUBLIC_KEY_SZ, 0);
+    }
+#endif
+#if defined(HAVE_MLDSA_COMPOSITE) && !defined(WOLFSSL_DILITHIUM_NO_ASN1)
+    if (mldsaCompKey != NULL) {
+        bufferSz = wc_MlDsaComposite_PublicKeyToDer(mldsaCompKey, buf,
                                                MAX_PUBLIC_KEY_SZ, 0);
     }
 #endif
@@ -33327,6 +33611,7 @@ int wc_SetSubjectKeyIdFromPublicKey_ex(Cert *cert, int keyType, void* key)
     falcon_key*        falconKey = NULL;
     dilithium_key*     dilithiumKey = NULL;
     sphincs_key*       sphincsKey = NULL;
+    mldsa_composite_key * mldsaCompKey = NULL;
 
     if (keyType == RSA_TYPE)
         rsaKey = (RsaKey*)key;
@@ -33354,6 +33639,35 @@ int wc_SetSubjectKeyIdFromPublicKey_ex(Cert *cert, int keyType, void* key)
         dilithiumKey = (dilithium_key*)key;
     else if (keyType == ML_DSA_LEVEL5_TYPE)
         dilithiumKey = (dilithium_key*)key;
+    else if (keyType == MLDSA44_RSAPSS2048_TYPE ||
+             keyType == MLDSA44_RSA2048_TYPE ||
+             keyType == MLDSA44_NISTP256_TYPE || 
+             keyType == MLDSA44_ED25519_TYPE ||
+             keyType == MLDSA65_RSAPSS3072_TYPE ||
+             keyType == MLDSA65_RSA3072_TYPE ||
+             keyType == MLDSA65_RSAPSS4096_TYPE ||
+             keyType == MLDSA65_RSA4096_TYPE ||
+             keyType == MLDSA65_NISTP256_TYPE ||
+             keyType == MLDSA65_ED25519_TYPE ||
+             keyType == MLDSA65_BPOOL256_TYPE ||
+             keyType == MLDSA87_NISTP384_TYPE ||
+             keyType == MLDSA87_BPOOL384_TYPE || 
+             keyType == MLDSA87_ED448_TYPE ||
+                // ----------- Draft 2 ------------- //
+                keyType == D2_MLDSA44_RSAPSS2048_SHA256_TYPE ||
+                keyType == D2_MLDSA44_RSA2048_SHA256_TYPE ||
+                keyType == D2_MLDSA44_NISTP256_SHA256_TYPE ||
+                keyType == D2_MLDSA44_ED25519_SHA256_TYPE ||
+                keyType == D2_MLDSA65_RSAPSS3072_SHA512_TYPE ||
+                keyType == D2_MLDSA65_RSA3072_SHA512_TYPE ||
+                keyType == D2_MLDSA65_NISTP256_SHA512_TYPE ||
+                keyType == D2_MLDSA65_ED25519_SHA512_TYPE ||
+                keyType == D2_MLDSA65_BPOOL256_SHA512_TYPE ||
+                keyType == D2_MLDSA87_BPOOL384_SHA512_TYPE ||
+                keyType == D2_MLDSA87_NISTP384_SHA512_TYPE ||
+                keyType == D2_MLDSA87_ED448_SHA512_TYPE
+             )
+        mldsaCompKey = (mldsa_composite_key*)key;
     else if (keyType == SPHINCS_FAST_LEVEL1_TYPE)
         sphincsKey = (sphincs_key*)key;
     else if (keyType == SPHINCS_FAST_LEVEL3_TYPE)
@@ -33368,7 +33682,7 @@ int wc_SetSubjectKeyIdFromPublicKey_ex(Cert *cert, int keyType, void* key)
         sphincsKey = (sphincs_key*)key;
 
     return SetKeyIdFromPublicKey(cert, rsaKey, eccKey, ed25519Key, ed448Key,
-                                 falconKey, dilithiumKey, sphincsKey,
+                                 falconKey, dilithiumKey, sphincsKey, mldsaCompKey,
                                  SKID_TYPE);
 }
 
@@ -33376,7 +33690,7 @@ int wc_SetSubjectKeyIdFromPublicKey_ex(Cert *cert, int keyType, void* key)
 int wc_SetSubjectKeyIdFromPublicKey(Cert *cert, RsaKey *rsakey, ecc_key *eckey)
 {
     return SetKeyIdFromPublicKey(cert, rsakey, eckey, NULL, NULL, NULL, NULL,
-                                 NULL, SKID_TYPE);
+                                 NULL, NULL, SKID_TYPE);
 }
 
 int wc_SetAuthKeyIdFromPublicKey_ex(Cert *cert, int keyType, void* key)
@@ -33388,6 +33702,7 @@ int wc_SetAuthKeyIdFromPublicKey_ex(Cert *cert, int keyType, void* key)
     falcon_key*        falconKey = NULL;
     dilithium_key*     dilithiumKey = NULL;
     sphincs_key*       sphincsKey = NULL;
+    mldsa_composite_key * mldsaCompKey = NULL;
 
     if (keyType == RSA_TYPE)
         rsaKey = (RsaKey*)key;
@@ -33415,6 +33730,36 @@ int wc_SetAuthKeyIdFromPublicKey_ex(Cert *cert, int keyType, void* key)
         dilithiumKey = (dilithium_key*)key;
     else if (keyType == ML_DSA_LEVEL5_TYPE)
         dilithiumKey = (dilithium_key*)key;
+    // ----------- MLDSA Composite ------------- //
+    else if (keyType == MLDSA44_RSAPSS2048_TYPE ||
+             keyType == MLDSA44_RSA2048_TYPE ||
+             keyType == MLDSA44_NISTP256_TYPE || 
+             keyType == MLDSA44_ED25519_TYPE ||
+             keyType == MLDSA65_RSAPSS3072_TYPE ||
+             keyType == MLDSA65_RSA3072_TYPE ||
+             keyType == MLDSA65_RSAPSS4096_TYPE ||
+             keyType == MLDSA65_RSA4096_TYPE ||
+             keyType == MLDSA65_NISTP256_TYPE ||
+             keyType == MLDSA65_ED25519_TYPE ||
+             keyType == MLDSA65_BPOOL256_TYPE ||
+             keyType == MLDSA87_NISTP384_TYPE ||
+             keyType == MLDSA87_BPOOL384_TYPE || 
+             keyType == MLDSA87_ED448_TYPE ||
+             // ----------- Draft 2 ------------- //
+             keyType == D2_MLDSA44_RSAPSS2048_SHA256_TYPE ||
+             keyType == D2_MLDSA44_RSA2048_SHA256_TYPE ||
+             keyType == D2_MLDSA44_NISTP256_SHA256_TYPE || 
+             keyType == D2_MLDSA44_ED25519_SHA256_TYPE ||
+             keyType == D2_MLDSA65_RSAPSS3072_SHA512_TYPE ||
+             keyType == D2_MLDSA65_RSA3072_SHA512_TYPE ||
+             keyType == D2_MLDSA65_NISTP256_SHA512_TYPE ||
+             keyType == D2_MLDSA65_ED25519_SHA512_TYPE ||
+             keyType == D2_MLDSA65_BPOOL256_SHA512_TYPE ||
+             keyType == D2_MLDSA87_NISTP384_SHA512_TYPE ||
+             keyType == D2_MLDSA87_BPOOL384_SHA512_TYPE || 
+             keyType == D2_MLDSA87_ED448_SHA512_TYPE)
+        mldsaCompKey = (mldsa_composite_key *)key;
+    // --------------- SPHINCS ----------------- //
     else if (keyType == SPHINCS_FAST_LEVEL1_TYPE)
         sphincsKey = (sphincs_key*)key;
     else if (keyType == SPHINCS_FAST_LEVEL3_TYPE)
@@ -33429,7 +33774,7 @@ int wc_SetAuthKeyIdFromPublicKey_ex(Cert *cert, int keyType, void* key)
         sphincsKey = (sphincs_key*)key;
 
     return SetKeyIdFromPublicKey(cert, rsaKey, eccKey, ed25519Key, ed448Key,
-                                 falconKey, dilithiumKey, sphincsKey,
+                                 falconKey, dilithiumKey, sphincsKey, mldsaCompKey,
                                  AKID_TYPE);
 }
 
@@ -33437,7 +33782,7 @@ int wc_SetAuthKeyIdFromPublicKey_ex(Cert *cert, int keyType, void* key)
 int wc_SetAuthKeyIdFromPublicKey(Cert *cert, RsaKey *rsakey, ecc_key *eckey)
 {
     return SetKeyIdFromPublicKey(cert, rsakey, eckey, NULL, NULL, NULL, NULL,
-                                 NULL, AKID_TYPE);
+                                 NULL, NULL, AKID_TYPE);
 }
 
 
@@ -33487,14 +33832,14 @@ int wc_SetSubjectKeyId(Cert *cert, const char* file)
     idx = 0;
     ret = wc_RsaPublicKeyDecode(der, &idx, rsakey, (word32)derSz);
     if (ret != 0)
-#endif
+#endif /* NO_RSA */
     {
 #ifndef NO_RSA
         WOLFSSL_MSG("wc_RsaPublicKeyDecode failed");
         wc_FreeRsaKey(rsakey);
         XFREE(rsakey, cert->heap, DYNAMIC_TYPE_RSA);
         rsakey = NULL;
-#endif
+#endif /* NO_RSA */
 #ifdef HAVE_ECC
         /* Check to load ecc public key */
         eckey = (ecc_key*) XMALLOC(sizeof(ecc_key), cert->heap,
@@ -33594,7 +33939,7 @@ int wc_SetAuthKeyIdFromCert(Cert *cert, const byte *der, int derSz)
             ret = SetAuthKeyIdFromDcert(cert, (DecodedCert*)cert->decodedCert);
 #ifndef WOLFSSL_CERT_GEN_CACHE
             wc_SetCert_Free(cert);
-#endif
+#endif /* WOLFSSL_CERT_GEN_CACHE */
         }
     }
 
@@ -33721,7 +34066,8 @@ int wc_SetCustomExtension(Cert *cert, int critical, const char *oid,
     cert->customCertExtCount++;
     return 0;
 }
-#endif
+#endif /* WOLFSSL_ASN_TEMPLATE && WOLFSSL_CERT_GEN && WOLFSSL_CUSTOM_OID &&
+          HAVE_OID_ENCODING && WOLFSSL_CERT_EXT */
 
 #endif /* WOLFSSL_CERT_EXT */
 
@@ -33756,7 +34102,7 @@ static int SetAltNamesFromCert(Cert* cert, const byte* der, int derSz,
     DecodedCert* decoded;
 #else
     DecodedCert decoded[1];
-#endif
+#endif /* WOLFSSL_SMALL_STACK */
 
     if (derSz < 0)
         return derSz;
@@ -33766,7 +34112,7 @@ static int SetAltNamesFromCert(Cert* cert, const byte* der, int derSz,
                                                        DYNAMIC_TYPE_TMP_BUFFER);
     if (decoded == NULL)
         return MEMORY_E;
-#endif
+#endif /* WOLFSSL_SMALL_STACK */
 
     InitDecodedCert_ex(decoded, der, (word32)derSz, NULL, devId);
     ret = ParseCertRelative(decoded, CA_TYPE, NO_VERIFY, 0, NULL);
@@ -33781,12 +34127,12 @@ static int SetAltNamesFromCert(Cert* cert, const byte* der, int derSz,
     FreeDecodedCert(decoded);
 #ifdef WOLFSSL_SMALL_STACK
     XFREE(decoded, cert->heap, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+#endif /* WOLFSSL_SMALL_STACK */
 
     return ret < 0 ? ret : 0;
 }
 
-#endif
+#endif /* NO_FILESYSTEM */
 
 static int SetDatesFromDcert(Cert* cert, DecodedCert* decoded)
 {
@@ -34181,7 +34527,7 @@ int wc_SetIssuerRaw(Cert* cert, const byte* der, int derSz)
     }
     return ret;
 }
-#endif
+#endif /* WOLFSSL_CERT_EXT */
 
 #ifdef WOLFSSL_ALT_NAMES
 
@@ -36217,7 +36563,8 @@ enum {
     || (defined(HAVE_CURVE25519) && defined(HAVE_CURVE25519_KEY_IMPORT)) \
     || (defined(HAVE_ED448) && defined(HAVE_ED448_KEY_IMPORT)) \
     || (defined(HAVE_CURVE448) && defined(HAVE_CURVE448_KEY_IMPORT)) \
-    || defined(HAVE_FALCON) || defined(HAVE_DILITHIUM) || defined(HAVE_SPHINCS))
+    || defined(HAVE_FALCON) || defined(HAVE_DILITHIUM) || defined(HAVE_SPHINCS) \
+    || defined(HAVE_MLDSA_COMPOSITE))
 
 
 int DecodeAsymKey_Assign(const byte* input, word32* inOutIdx, word32 inSz,

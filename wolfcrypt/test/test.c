@@ -46195,18 +46195,26 @@ static wc_test_ret_t mldsa_composite_param_test(int param, WC_RNG* rng)
         return ret;
     }
 
-    ret = wc_mldsa_composite_key_set_type(key, param);
+printf("[%s:%d] DEBUG\n", __FILE__, __LINE__);
+
+    ret = wc_mldsa_composite_key_set_level(key, param);
     if (ret != 0) {
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     }
+
+printf("[%s:%d] DEBUG\n", __FILE__, __LINE__);
 
     ret = wc_mldsa_composite_make_key(key, param, rng);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
+printf("[%s:%d] DEBUG\n", __FILE__, __LINE__);
+
     ret = wc_mldsa_composite_export_public(key, pubKey_Buffer, &pubKey_BufferLen);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+printf("[%s:%d] DEBUG\n", __FILE__, __LINE__);
 
     ret = wc_mldsa_composite_init(&imported_key);
     if (ret != 0) {
@@ -46214,22 +46222,22 @@ static wc_test_ret_t mldsa_composite_param_test(int param, WC_RNG* rng)
         return ret;
     }
 
-printf("[%s:%d] %s(): Importing Public Key (type: %d)\n", __FILE__, __LINE__, __FUNCTION__, param);
+printf("[%s:%d] DEBUG\n", __FILE__, __LINE__);
 
     pubKey_BufferLen = MLDSA_COMPOSITE_MAX_PUB_KEY_SIZE;
     ret = wc_mldsa_composite_import_public(pubKey_Buffer, pubKey_BufferLen, &imported_key, param);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
-printf("[%s:%d] %s(): Exporting Private Key (type: %d)\n", __FILE__, __LINE__, __FUNCTION__, param);
+printf("[%s:%d] DEBUG\n", __FILE__, __LINE__);
 
     privKey_BufferLen = MLDSA_COMPOSITE_MAX_PRV_KEY_SIZE;
     ret = wc_mldsa_composite_export_private(key, privKey_Buffer, &privKey_BufferLen);
-
-printf("[%s:%d] %s(): wc_mldsa_composite_export_private(): ret = %d\n", __FILE__, __LINE__, __FUNCTION__, ret);
-
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+printf("[%s:%d] %s(): Exported Private (and Public) Key: ret = %d, type = %d, keySum = %d\n", __FILE__, __LINE__, __FUNCTION__, ret, param, wc_mldsa_composite_key_get_keySum(key));
+
 
     // do {
     //     char privKeyFileName[200];
@@ -46243,12 +46251,17 @@ printf("[%s:%d] %s(): wc_mldsa_composite_export_private(): ret = %d\n", __FILE__
     //     fclose(f);
     // } while (0);
 
+    wc_mldsa_composite_clear(&imported_key);
     XMEMSET(&imported_key, 0, sizeof(imported_key));
-    wc_mldsa_composite_free(&imported_key);
 
-printf("[%s:%d] %s(): Importing Private Key\n", __FILE__, __LINE__, __FUNCTION__);
+    ret = wc_mldsa_composite_init(&imported_key);
+
+printf("[%s:%d] %s(): MLDSA Composite Key RE-Initialized (MLDSA Comp Type: %d)\n", __FILE__, __LINE__, __FUNCTION__, param);
 
     ret = wc_mldsa_composite_import_private(privKey_Buffer, privKey_BufferLen, &imported_key, param);
+
+printf("[%s:%d] %s(): Imported Private (and Public) Key: ret = %d, type = %d, keySum = %d\n", __FILE__, __LINE__, __FUNCTION__, ret, param, wc_mldsa_composite_key_get_keySum(key));
+
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
@@ -46332,8 +46345,7 @@ printf("[%s:%d] %s(): Importing Private Key\n", __FILE__, __LINE__, __FUNCTION__
 
     printf("ML-DSA Composite - Verify\n");
 
-    ret = wc_mldsa_composite_verify_msg(sig, sigLen, msg, (word32)sizeof(msg), &res,
-        key);
+    ret = wc_mldsa_composite_verify_msg(sig, sigLen, msg, (word32)sizeof(msg), &res, key);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     if (res != 1)
@@ -46371,12 +46383,16 @@ printf("[%s:%d] %s(): Importing Private Key\n", __FILE__, __LINE__, __FUNCTION__
     //     ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
 out:
-    wc_mldsa_composite_free(key);
+
+    // wc_mldsa_composite_free(key);
+    wc_mldsa_composite_clear(key);
+
     XFREE(sig, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(key, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
 
     (void)param;
     (void)rng;
+
     return ret;
 }
 #endif
@@ -46415,7 +46431,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t mldsa_composite_test(void)
         WC_MLDSA65_RSAPSS4096_SHA384,
         WC_MLDSA65_RSA4096_SHA384,
         WC_MLDSA65_NISTP256_SHA384,
-        WC_MLDSA65_BPOOL256_SHA256,
+        WC_MLDSA65_BPOOL256_SHA384,
         WC_MLDSA65_ED25519_SHA384,
         
         // Level 5
@@ -46434,7 +46450,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t mldsa_composite_test(void)
         return 101;
     }
 
-    ret = wc_mldsa_composite_key_set_type(c_key, WC_MLDSA44_RSA2048_SHA256);
+    ret = wc_mldsa_composite_key_set_level(c_key, WC_MLDSA44_RSA2048_SHA256);
     if (ret < 0) {
         return 102;
     }
@@ -46467,6 +46483,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t mldsa_composite_test(void)
     }
 
     for (int idx = 0; idx < 14; idx++) {
+        printf("[%s:%d] Starting New Param Test (%d: %d)\n", __FILE__, __LINE__, idx, mldsa_composite_algos[idx]);
         ret = mldsa_composite_param_test(mldsa_composite_algos[idx], &rng);
         if (ret != 0)
             ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);

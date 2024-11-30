@@ -590,7 +590,7 @@ int load_key_p8(void ** key, int type, const char * key_file, int format) {
         mldsa_composite_key * mldsaCompKey = NULL;
 
         // Gets the composite type
-        if ((comp_type = wc_KeySum_to_MlDsaComposite_type(algorSum)) < 0) {
+        if ((comp_type = wc_KeySum_to_composite_level(algorSum)) < 0) {
             printf("[%d] Cannot convert keytype to type (sum: %d)\n", __LINE__, algorSum);
             return ALGO_ID_E;
         }
@@ -645,8 +645,8 @@ int gen_csr(const void * key, const void * altkey, const char * out_filename, in
 {
     int ret = NOT_COMPILED_IN;
 #ifdef WOLFSSL_CERT_REQ
-    int type = MLDSA44_NISTP256_TYPE; // MLDSA87_ED448_TYPE
-    void* keyPtr = NULL;
+    int certType = MLDSA44_NISTP256_TYPE; // MLDSA87_ED448_TYPE
+    // void* keyPtr = NULL;
     WC_RNG rng;
     Cert req;
     byte der[10240];
@@ -662,6 +662,8 @@ int gen_csr(const void * key, const void * altkey, const char * out_filename, in
 #ifdef WOLFSSL_DER_TO_PEM
     XMEMSET(pem, 0, 10240);
 #endif
+
+    enum Key_Sum keySum;
     
     ret = wc_InitCert(&req);
     if (ret != 0) {
@@ -670,8 +672,10 @@ int gen_csr(const void * key, const void * altkey, const char * out_filename, in
     }
 
     // Extracts the type of key
-    wc_mldsa_composite_key_get_sum((mldsa_composite_key *)key);
-    printf(">>>>>>> Key Type: %d\n", type);
+    keySum = wc_mldsa_composite_key_get_keySum((mldsa_composite_key *)key);
+    certType = wc_mldsa_composite_get_certType((mldsa_composite_key *)key);
+
+    printf(">>>>>>> Key Type: %d, Key Sum: %d\n", certType, keySum);
 
     strncpy(req.subject.country, "US", CTC_NAME_SIZE);
     // strncpy(req.subject.state, "OR", CTC_NAME_SIZE);
@@ -683,8 +687,8 @@ int gen_csr(const void * key, const void * altkey, const char * out_filename, in
     req.version = 0;
 
     // Forcing the type
-    type = MLDSA44_RSAPSS2048_TYPE;
-    ret = wc_MakeCertReq_ex(&req, der, sizeof(der), type, (void *)key);
+    certType = MLDSA44_RSAPSS2048_TYPE;
+    ret = wc_MakeCertReq_ex(&req, der, sizeof(der), certType, (void *)key);
     if (ret <= 0) {
         printf("Make Cert Req failed: %d\n", ret);
         goto exit;
@@ -692,69 +696,75 @@ int gen_csr(const void * key, const void * altkey, const char * out_filename, in
     derSz = ret;
 
 #ifdef HAVE_ECC
-    if (type == ECC_TYPE)
+    if (certType == ECC_TYPE)
         req.sigType = CTC_SHA256wECDSA;
 #endif
 #ifndef NO_RSA
-    if (type == RSA_TYPE)
+    if (certType == RSA_TYPE)
         req.sigType = CTC_SHA256wRSA;
 #endif
 #ifdef HAVE_ED25519
-    if (type == ED25519_TYPE)
+    if (certType == ED25519_TYPE)
         req.sigType = CTC_ED25519;
 #endif
 #ifdef HAVE_ED448
-    if (type == ED448_TYPE)
+    if (certType == ED448_TYPE)
         req.sigType = CTC_ED448;
 #endif
 #ifdef HAVE_DILITHIUM
-    if (type == ML_DSA_LEVEL2_TYPE)
+    if (certType == ML_DSA_LEVEL2_TYPE)
         req.sigType = CTC_DILITHIUM_LEVEL2;
-    if (type == ML_DSA_LEVEL3_TYPE)
+    if (certType == ML_DSA_LEVEL3_TYPE)
         req.sigType = CTC_DILITHIUM_LEVEL3;
-    if (type == ML_DSA_LEVEL5_TYPE)
+    if (certType == ML_DSA_LEVEL5_TYPE)
         req.sigType = CTC_DILITHIUM_LEVEL5;
 #endif
 #ifdef HAVE_FALCON
-    if (type == FALCON_LEVEL1_TYPE)
+    if (certType == FALCON_LEVEL1_TYPE)
         req.sigType = CTC_FALCON_LEVEL1;
-    if (type == FALCON_LEVEL5_TYPE)
+    if (certType == FALCON_LEVEL5_TYPE)
         req.sigType = CTC_FALCON_LEVEL5;
 #endif
 #ifdef HAVE_MLDSA_COMPOSITE
-    if (type == MLDSA44_NISTP256_TYPE)
+    if (certType == MLDSA44_NISTP256_TYPE)
         req.sigType = CTC_MLDSA44_NISTP256_SHA256;
-    if (type == MLDSA44_RSA2048_TYPE)
+    if (certType == MLDSA44_RSA2048_TYPE)
         req.sigType = CTC_MLDSA44_RSA2048_SHA256;
-    if (type == MLDSA44_RSAPSS2048_TYPE)
+    if (certType == MLDSA44_RSAPSS2048_TYPE)
         req.sigType = CTC_MLDSA44_RSAPSS2048_SHA256;
     // if (type == MLDSA44_BPOOL256_TYPE)
     //     req.sigType = CTC_MLDSA44_BPOOL256_SHA256;
-    if (type == MLDSA44_ED25519_TYPE)
+    if (certType == MLDSA44_ED25519_TYPE)
         req.sigType = CTC_MLDSA44_ED25519;
-    if (type == MLDSA65_NISTP384_TYPE)
+    if (certType == MLDSA65_NISTP256_TYPE)
         req.sigType = CTC_MLDSA65_NISTP256_SHA384;
-    if (type == MLDSA65_RSA3072_TYPE)
+    if (certType == MLDSA65_RSA3072_TYPE)
         req.sigType = CTC_MLDSA65_RSA3072_SHA384;
-    if (type == MLDSA65_RSAPSS3072_TYPE)    
+    if (certType == MLDSA65_RSAPSS3072_TYPE)    
         req.sigType = CTC_MLDSA65_RSAPSS3072_SHA384;
-    if (type == MLDSA65_RSA4096_TYPE)
+    if (certType == MLDSA65_RSA4096_TYPE)
         req.sigType = CTC_MLDSA65_RSA4096_SHA384;
-    if (type == MLDSA65_RSAPSS4096_TYPE)    
+    if (certType == MLDSA65_RSAPSS4096_TYPE)    
         req.sigType = CTC_MLDSA65_RSAPSS4096_SHA384;
-    if (type == MLDSA65_BPOOL256_TYPE)
+    if (certType == MLDSA65_BPOOL256_TYPE)
         req.sigType = CTC_MLDSA65_BPOOL256_SHA256;
-    if (type == MLDSA65_ED25519_TYPE)
+    if (certType == MLDSA65_ED25519_TYPE)
         req.sigType = CTC_MLDSA65_ED25519_SHA384;
-    if (type == MLDSA87_NISTP384_TYPE)
+    if (certType == MLDSA87_NISTP384_TYPE)
         req.sigType = CTC_MLDSA87_NISTP384_SHA384;
-    if (type == MLDSA87_BPOOL384_TYPE)
+    if (certType == MLDSA87_BPOOL384_TYPE)
         req.sigType = CTC_MLDSA87_BPOOL384_SHA384;
-    if (type == MLDSA87_ED448_TYPE)
+    if (certType == MLDSA87_ED448_TYPE)
         req.sigType = CTC_MLDSA87_ED448;
 #endif
-    ret = wc_SignCert_ex(req.bodySz, req.sigType, der, sizeof(der), type,
-        keyPtr, &rng);
+    ret = wc_InitRng(&rng);
+    if (ret != 0) {
+        printf("RNG initialization failed: %d\n", ret);
+        goto exit;
+    }
+    ret = wc_SignCert_ex(req.bodySz, req.sigType, 
+                         der, sizeof(der), certType,
+                         (void *)key, &rng);
     if (ret <= 0) {
         printf("Sign Cert failed: %d\n", ret);
         goto exit;
@@ -768,14 +778,16 @@ int gen_csr(const void * key, const void * altkey, const char * out_filename, in
         goto exit;
     }
     pemSz = ret;
-    printf("%s (%d)\n", pem, pemSz);
 
-    // snprintf(outFile, sizeof(outFile), "%s-csr.pem", ou);
-    // printf("Saved CSR PEM to \"%s\"\n", outFile);
-    file = fopen(out_filename, "wb");
-    if (file) {
-        ret = (int)fwrite(pem, 1, pemSz, file);
-        fclose(file);
+    if (out_filename) {
+        file = fopen(out_filename, "wb");
+        if (file) {
+            ret = (int)fwrite(pem, 1, pemSz, file);
+            fclose(file);
+        }
+    } else {
+        int fd = fileno(stdout);
+        ret = write(fd, pem, pemSz);
     }
 #endif
 
@@ -935,7 +947,7 @@ int gen_keypair(void ** key, int keySum, int param) {
         int key_type = 0;
         
         ret = wc_mldsa_composite_init(&mldsa_compositeKey);
-        if ((key_type = wc_KeySum_to_MlDsaComposite_type(keySum)) < 0)
+        if ((key_type = wc_KeySum_to_composite_level(keySum)) < 0)
             return key_type;
         if (ret == 0)
             ret = wc_mldsa_composite_make_key(&mldsa_compositeKey, key_type, &rng);

@@ -240,20 +240,34 @@ enum mldsa_composite_type {
     WC_MLDSA65_RSAPSS4096_SHA384,
     WC_MLDSA65_RSA4096_SHA384,
     WC_MLDSA65_NISTP256_SHA384,
-    WC_MLDSA65_BPOOL256_SHA256,
+    WC_MLDSA65_BPOOL256_SHA384,
     WC_MLDSA65_ED25519_SHA384,
     // Level 5
     WC_MLDSA87_NISTP384_SHA384,
     WC_MLDSA87_BPOOL384_SHA384,
     WC_MLDSA87_ED448_SHA384,
+    // ---------- Draft 2 ----------
+    D2_WC_MLDSA44_RSAPSS2048_SHA256,
+    D2_WC_MLDSA44_RSA2048_SHA256,
+    D2_WC_MLDSA44_NISTP256_SHA256,
+    // D2_WC_MLDSA44_BPOOL256_SHA256,
+    D2_WC_MLDSA44_ED25519_SHA256,
+    D2_WC_MLDSA65_RSAPSS3072_SHA512,
+    D2_WC_MLDSA65_RSA3072_SHA512,
+    D2_WC_MLDSA65_NISTP256_SHA512,
+    D2_WC_MLDSA65_BPOOL256_SHA512,
+    D2_WC_MLDSA65_ED25519_SHA512,
+    D2_WC_MLDSA87_NISTP384_SHA512,
+    D2_WC_MLDSA87_BPOOL384_SHA512,
+    D2_WC_MLDSA87_ED448_SHA512,
 };
 
 // Size of the MLDSA Composite Types
 #define MLDSA_COMPOSITE_TYPE_MIN                         1
-#define MLDSA_COMPOSITE_TYPE_MAX                         13
+#define MLDSA_COMPOSITE_TYPE_MAX                         26
 
 // Size of the MLDSA Composite Types (with the Unknown Type)
-#define MLDSA_COMPOSITE_TYPE_SZ                          14
+#define MLDSA_COMPOSITE_TYPE_SZ                          27
 
 // Size of the OID Data
 #define MLDSA_COMPOSITE_OID_DATA_SZ                      13
@@ -499,7 +513,7 @@ int wc_mldsa_composite_init_label(mldsa_composite_key* key, const char* label, v
  * level [in]   One of WC_MLDSA_COMPOSITE_TYPE_* values.
  * returns BAD_FUNC_ARG when key is NULL or level is a bad values.
  */
-WOLFSSL_API int wc_mldsa_composite_key_set_type(mldsa_composite_key* key, int type);
+WOLFSSL_API int wc_mldsa_composite_key_set_level(mldsa_composite_key* key, int wc_mldsa_composite_type);
 
 /* Get the level of the MlDsaComposite private/public key.
  *
@@ -507,7 +521,7 @@ WOLFSSL_API int wc_mldsa_composite_key_set_type(mldsa_composite_key* key, int ty
  * returns a value from enum mldsa_composite_type.
  * returns BAD_FUNC_ARG when key is NULL or level has not been set.
  */
-WOLFSSL_API int wc_mldsa_composite_key_get_type(const mldsa_composite_key* key);
+WOLFSSL_API int wc_mldsa_composite_key_get_level(const mldsa_composite_key* key);
 
 /* Get the KeySum of the MlDsaComposite private/public key.
  *
@@ -515,7 +529,7 @@ WOLFSSL_API int wc_mldsa_composite_key_get_type(const mldsa_composite_key* key);
  * returns enum Key_Sum value of the key.
  * returns BAD_FUNC_ARG when key is NULL or not initialized.
  */
-WOLFSSL_API int wc_mldsa_composite_key_get_sum(const mldsa_composite_key * key);
+WOLFSSL_API int wc_mldsa_composite_key_get_keySum(const mldsa_composite_key * key);
 
 /*
 * Convert the KeySum to the MlDsaComposite type.
@@ -524,7 +538,7 @@ WOLFSSL_API int wc_mldsa_composite_key_get_sum(const mldsa_composite_key * key);
 * returns enum mldsa_composite_type value.
 * returns BAD_FUNC_ARG when keytype_sum is not a valid value.
 */
-WOLFSSL_API int wc_KeySum_to_MlDsaComposite_type(const enum Key_Sum keytype_sum);
+WOLFSSL_API int wc_KeySum_to_composite_level(const enum Key_Sum keytype_sum);
 
 /*
 * Convert the MlDsaComposite type to the KeySum.
@@ -533,7 +547,23 @@ WOLFSSL_API int wc_KeySum_to_MlDsaComposite_type(const enum Key_Sum keytype_sum)
 * returns enum Key_Sum value.
 * returns BAD_FUNC_ARG when type is not a valid value.
 */
-WOLFSSL_API int wc_MlDsaComposite_type_to_KeySum(const enum mldsa_composite_type type);
+WOLFSSL_API int wc_composite_level_to_keySum(const enum mldsa_composite_type type);
+
+/* Get the type of the composite key.
+ *
+ * key   [in]  MlDsaComposite key.
+ * returns a value from enum CertType for the key.
+ * returns BAD_FUNC_ARG when key is NULL or level has not been set.
+ */
+WOLFSSL_API int wc_mldsa_composite_get_certType(const mldsa_composite_key* key);
+
+/* Get the type of the composite key.
+ *
+ * key   [in]  MlDsaComposite key.
+ * returns a value from enum CertType for the key.
+ * returns BAD_FUNC_ARG when key is NULL or level has not been set.
+ */
+WOLFSSL_API int wc_mldsa_composite_key_level_to_certType(int mldsa_composite_level);
 
 /* Clears the MlDsaComposite key data
  *

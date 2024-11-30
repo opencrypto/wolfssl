@@ -128,6 +128,9 @@
 #ifdef HAVE_DILITHIUM
     #include <wolfssl/wolfcrypt/dilithium.h>
 #endif
+#ifdef HAVE_MLDSA_COMPOSITE
+    #include <wolfssl/wolfcrypt/mldsa_composite.h>
+#endif
 #ifdef HAVE_HKDF
     #include <wolfssl/wolfcrypt/kdf.h>
 #endif
@@ -1956,6 +1959,11 @@ enum Misc {
     #define MIN_DILITHIUMKEY_SZ    2528
 #endif
 #endif
+#ifdef HAVE_MLDSA_COMPOSITE
+#ifndef MIN_MLDSA_COMPOSITE_SZ
+    #define MIN_MLDSA_COMPOSITEKEY_SZ    2648
+#endif
+#endif
 
 /* set minimum RSA key size allowed */
 #ifndef WOLFSSL_MIN_RSA_BITS
@@ -2683,6 +2691,9 @@ struct WOLFSSL_CERT_MANAGER {
 #endif
 #ifdef HAVE_DILITHIUM
     short           minDilithiumKeySz;  /* minimum allowed Dilithium key size */
+#endif
+#ifdef HAVE_MLDSA_COMPOSITE
+    short           minMlDsaCompositeKeySz;  /* minimum allowed MlDsaComposite key size */
 #endif
 #ifdef WC_ASN_UNKNOWN_EXT_CB
     wc_UnknownExtCallback unknownExtCallback;
@@ -3905,6 +3916,9 @@ struct WOLFSSL_CTX {
 #ifdef HAVE_DILITHIUM
     short       minDilithiumKeySz;/* minimum Dilithium key size */
 #endif
+#ifdef HAVE_MLDSA_COMPOSITE
+    short       minMlDsaCompositeKeySz;/* minimum MlDsaComposite key size */
+#endif
     unsigned long     mask;             /* store SSL_OP_ flags */
 #if defined(OPENSSL_EXTRA) || defined(HAVE_CURL)
     word32            disabledCurves;   /* curves disabled by user */
@@ -5100,6 +5114,9 @@ struct Options {
 #if defined(HAVE_DILITHIUM)
     short           minDilithiumKeySz;/* minimum Dilithium key size */
 #endif
+#if defined(HAVE_MLDSA_COMPOSITE)
+    short           minMlDsaCompositeKeySz;/* minimum MlDsaComposite key size */
+#endif
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
     byte            verifyDepth;      /* maximum verification depth */
 #endif
@@ -5287,7 +5304,7 @@ struct WOLFSSL_X509 {
     int              pubKeyOID;
     DNS_entry*       altNamesNext;                   /* hint for retrieval */
 #if defined(HAVE_ECC) || defined(HAVE_ED25519) || defined(HAVE_ED448) || \
-    defined(HAVE_FALCON) || defined(HAVE_DILITHIUM)
+    defined(HAVE_FALCON) || defined(HAVE_DILITHIUM) || defined(HAVE_MLDSA_COMPOSITE)
     word32       pkCurveOID;
 #endif
 #ifndef NO_CERTS
@@ -5932,6 +5949,10 @@ struct WOLFSSL {
 #ifdef HAVE_DILITHIUM
     dilithium_key*  peerDilithiumKey;
     byte            peerDilithiumKeyPresent;
+#endif
+#ifdef HAVE_MLDSA_COMPOSITE
+    mldsa_composite_key*  peerMlDsaCompositeKey;
+    byte                  peerMlDsaCompositeKeyPresent;
 #endif
 #ifdef HAVE_LIBZ
     z_stream        c_stream;           /* compression   stream */

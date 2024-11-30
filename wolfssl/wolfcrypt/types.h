@@ -1234,9 +1234,11 @@ typedef struct w64wrapper {
         #undef _WC_PK_TYPE_MAX
         #define _WC_PK_TYPE_MAX WC_PK_TYPE_MLDSA_COMPOSITE_SIG_CHECK_PRIV_KEY
     #endif
-        WC_PK_TYPE_RSA_PKCS = 25,
-        WC_PK_TYPE_RSA_PSS = 26,
-        WC_PK_TYPE_RSA_OAEP = 27,
+        WC_PK_TYPE_RSA_PKCS = 29,
+        WC_PK_TYPE_RSA_PSS = 30,
+        WC_PK_TYPE_RSA_OAEP = 31,
+        #undef _WC_PK_TYPE_MAX
+        #define _WC_PK_TYPE_MAX WC_PK_TYPE_RSA_OAEP
         WC_PK_TYPE_MAX = _WC_PK_TYPE_MAX
     };
 
