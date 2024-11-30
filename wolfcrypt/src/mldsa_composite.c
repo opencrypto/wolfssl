@@ -167,6 +167,7 @@ static int wc_mldsa_compositeTBS_msg(byte* tbsMsg, word32 *tbsLen, const byte* m
     switch (key->compType) {
 
         case WC_MLDSA_COMPOSITE_UNDEF: {
+            MADWOLF_DEBUG("Invalid Composite Type (%d)", key->compType);
             return ALGO_ID_E;
         } break;
 
@@ -265,6 +266,7 @@ static int wc_mldsa_compositeTBS_msg(byte* tbsMsg, word32 *tbsLen, const byte* m
 #endif
     
         default:
+            MADWOLF_DEBUG("Invalid Composite Type (%d)", key->compType);
             return ALGO_ID_E;
     }
 
@@ -1012,6 +1014,7 @@ int wc_mldsa_composite_sign_msg_ex(const byte* msg, word32 msgLen, byte* sig,
 
     // Error Handling: Check for NULL pointers and invalid input lengths.
     if (!msg || !sig || !key || !sigLen || !rng || (!context && contextLen > 0)) {
+        MADWOLF_DEBUG0("Invalid input parameters");
         return BAD_FUNC_ARG; 
     }
 
@@ -1025,6 +1028,7 @@ int wc_mldsa_composite_sign_msg_ex(const byte* msg, word32 msgLen, byte* sig,
     /* Gets the tbs composite data */
     ret = wc_mldsa_compositeTBS_msg(tbsMsg, &tbsMsgLen, msg, msgLen, key, context, contextLen);
     if (ret < 0) {
+        MADWOLF_DEBUG("wc_mldsa_compositeTBS_msg() failed with error %d", ret);
         return ret;
     }
 
@@ -1037,6 +1041,7 @@ int wc_mldsa_composite_sign_msg_ex(const byte* msg, word32 msgLen, byte* sig,
                                          &mldsaSig_bufferLen,
                                          key->mldsa_key,
                                          rng)) < 0) {
+        MADWOLF_DEBUG("wc_dilithium_sign_ctx_msg() failed with error %d", ret);
         return ret;
     }
 
@@ -1112,6 +1117,7 @@ int wc_mldsa_composite_sign_msg_ex(const byte* msg, word32 msgLen, byte* sig,
             if ((ret = wc_ed25519_sign_msg_ex(tbsMsg, tbsMsgLen, otherSig_buffer, 
                                               &otherSig_bufferLen, key->alt_key.ed25519,
                                               (byte)Ed25519, context, contextLen)) < 0) {
+                MADWOLF_DEBUG("wc_ed25519_sign_msg_ex() failed with error %d", ret);
                 return ret;
             }
             if (otherSig_bufferLen != ED25519_SIG_SIZE) {
@@ -1131,6 +1137,7 @@ int wc_mldsa_composite_sign_msg_ex(const byte* msg, word32 msgLen, byte* sig,
             if ((ret = wc_ecc_sign_hash(msg_digest, sizeof(msg_digest), 
                                         otherSig_buffer, &otherSig_bufferLen, 
                                         rng, key->alt_key.ecc)) < 0) {
+                MADWOLF_DEBUG("wc_ecc_sign_hash() failed with error %d", ret);
                 return ret;
             }
         } break;
@@ -1373,6 +1380,7 @@ int wc_mldsa_composite_sign_msg_ex(const byte* msg, word32 msgLen, byte* sig,
         } break;
 
         default:
+            MADWOLF_DEBUG("Invalid Composite Type: %d", key->compType);
             return ALGO_ID_E;
     }
 
@@ -1602,8 +1610,6 @@ int wc_mldsa_composite_key_set_level(mldsa_composite_key* key, int wc_mldsa_comp
     if (ret == 0) {
         /* Sets the combination type */
         switch (wc_mldsa_composite_type) {
-
-            // Level 1
             case WC_MLDSA44_RSAPSS2048_SHA256:
             case WC_MLDSA44_RSA2048_SHA256:
             case WC_MLDSA44_ED25519_SHA256:
@@ -2151,7 +2157,10 @@ void wc_mldsa_composite_free(mldsa_composite_key* key)
 #ifdef WOLFSSL_WC_MLDSA_COMPOSITE
 
         /* Free the ML-DSA key*/
-        wc_dilithium_free(key->mldsa_key);
+        if (key->mldsa_key) {
+            wc_dilithium_free(key->mldsa_key);
+            key->mldsa_key = NULL;
+        }
 
         /* Free the classic component */
         switch (key->compType) {
@@ -2649,12 +2658,15 @@ int wc_mldsa_composite_check_key(mldsa_composite_key* key)
     int ret = 0;
     
     // Error Handling: Check for NULL pointers and invalid input lengths.
-    if (key == NULL || key->mldsa_key->level < 2) {
+    if (key == NULL || key->mldsa_key == NULL) {
         return BAD_FUNC_ARG;
     }
 
     // Check the ML-DSA key
     ret = wc_dilithium_check_key(key->mldsa_key);
+    if (ret != 0) {
+        return ret;
+    }
 
     switch(key->compType) {
 
@@ -2683,29 +2695,40 @@ int wc_mldsa_composite_check_key(mldsa_composite_key* key)
         case WC_MLDSA44_ED25519_SHA256: {
             if (key->mldsa_key->level != WC_ML_DSA_44)
                 return BAD_STATE_E;
+            if (key->alt_key.ed25519 == NULL)
+                return BAD_FUNC_ARG;
             ret = wc_ed25519_check_key(key->alt_key.ed25519);
+            MADWOLF_DEBUG("Checking ED25519 key: %d", ret);
         } break;
 
         case D2_WC_MLDSA65_ED25519_SHA512:
         case WC_MLDSA65_ED25519_SHA384: {
             if (key->mldsa_key->level != WC_ML_DSA_65)
                 return BAD_STATE_E;
+            if (key->alt_key.ed25519 == NULL)
+                return BAD_FUNC_ARG;
             ret = wc_ed25519_check_key(key->alt_key.ed25519);
+            MADWOLF_DEBUG("Checking ED25519 key: %d", ret);
         } break;
 #endif
 
 #if !defined(WC_NO_ECC)
         case D2_WC_MLDSA44_NISTP256_SHA256:
         case WC_MLDSA44_NISTP256_SHA256: {
+            if (key->alt_key.ecc == NULL)
+                return BAD_FUNC_ARG;
             if (key->mldsa_key->level != WC_ML_DSA_44 ||
                     ECC_SECP256R1 != wc_ecc_get_curve_id(key->alt_key.ecc->idx)) {
                 return BAD_STATE_E;
             }
             ret = wc_ecc_check_key(key->alt_key.ecc);
+            MADWOLF_DEBUG("Checking ECDSA key: %d", ret);
         } break;
 
         case D2_WC_MLDSA65_NISTP256_SHA512:
         case WC_MLDSA65_NISTP256_SHA384: {
+            if (key->alt_key.ecc == NULL)
+                return BAD_FUNC_ARG;
             if (key->mldsa_key->level != WC_ML_DSA_65 ||
                         ECC_SECP256R1 != wc_ecc_get_curve_id(key->alt_key.ecc->idx)) {
                 return BAD_STATE_E;
@@ -2715,6 +2738,8 @@ int wc_mldsa_composite_check_key(mldsa_composite_key* key)
 
         case D2_WC_MLDSA65_BPOOL256_SHA512:
         case WC_MLDSA65_BPOOL256_SHA384: {
+            if (key->alt_key.ecc == NULL)
+                return BAD_FUNC_ARG;
             if (key->mldsa_key->level != WC_ML_DSA_65 ||
                     ECC_BRAINPOOLP256R1 != wc_ecc_get_curve_id(key->alt_key.ecc->idx)) {
                 return BAD_STATE_E;
@@ -2724,6 +2749,8 @@ int wc_mldsa_composite_check_key(mldsa_composite_key* key)
 
         case D2_WC_MLDSA87_NISTP384_SHA512:
         case WC_MLDSA87_NISTP384_SHA384: {
+            if (key->alt_key.ecc == NULL)
+                return BAD_FUNC_ARG;
             if (key->mldsa_key->level != WC_ML_DSA_87 ||
                     ECC_SECP384R1 != wc_ecc_get_curve_id(key->alt_key.ecc->idx)) {
                 return BAD_STATE_E;
@@ -2733,6 +2760,8 @@ int wc_mldsa_composite_check_key(mldsa_composite_key* key)
 
         case D2_WC_MLDSA87_BPOOL384_SHA512:
         case WC_MLDSA87_BPOOL384_SHA384: {
+            if (key->alt_key.ecc == NULL)
+                return BAD_FUNC_ARG;
             if (key->mldsa_key->level != WC_ML_DSA_87 ||
                     ECC_BRAINPOOLP384R1 != wc_ecc_get_curve_id(key->alt_key.ecc->idx)) {
                 return BAD_STATE_E;
@@ -2744,6 +2773,8 @@ int wc_mldsa_composite_check_key(mldsa_composite_key* key)
 #if !defined(WC_NO_ED448)
         case D2_WC_MLDSA87_ED448_SHA512:
         case WC_MLDSA87_ED448_SHA384: {
+            if (key->alt_key.ed448 == NULL)
+                return BAD_FUNC_ARG;
             if (key->mldsa_key->level != WC_ML_DSA_87)
                 return BAD_STATE_E;
             ret = wc_ed448_check_key(key->alt_key.ed448);
@@ -3991,9 +4022,9 @@ int wc_mldsa_composite_export_private(mldsa_composite_key* key, byte* out, word3
 
 #elif defined(HAVE_MLDSA_COMPOSITE_DRAFT_2)
 
-            ret = wc_ed25519_priv_size(key->alt_key.ed25519);
+            ret = wc_Ed25519KeyToDer(key->alt_key.ed25519, NULL, other_BufferLen);
             if (ret <= 0) goto err;
-            mldsa_BufferLen = ret;
+            other_BufferLen = ret;
 
             if (mldsa_BufferLen + other_BufferLen + 12 > inLen) {
                 ret = BUFFER_E;
@@ -4004,7 +4035,7 @@ int wc_mldsa_composite_export_private(mldsa_composite_key* key, byte* out, word3
                 err = MEMORY_E;
                 goto err;
             }
-            if ((ret = wc_Ed25519PrivateKeyToDer(key->alt_key.ed25519, other_Buffer, other_BufferLen)) < 0) {
+            if ((ret = wc_Ed25519KeyToDer(key->alt_key.ed25519, other_Buffer, other_BufferLen)) < 0) {
                 goto err;
             }
             other_BufferLen = ret;
@@ -4094,20 +4125,14 @@ int wc_mldsa_composite_export_private(mldsa_composite_key* key, byte* out, word3
         case WC_MLDSA87_ED448_SHA384: {
 #ifdef HAVE_MLDSA_COMPOSITE_DRAFT_3
 
-            // if ((ret = wc_ed448_priv_size(key->alt_key.ed448)) < 0)
+            // if ((ret = wc_Ed448KeyToDer(key->alt_key.ed448, NULL, other_BufferLen)) < 0) {
+            //     MADWOLF_DEBUG("failed to get estimate size of DER for ED448 with code %d", ret);
             //     goto err;
-            
-            // // Gets the size of the ED448 component
-            // other_BufferLen = ret;
-
-            if ((ret = wc_Ed448KeyToDer(key->alt_key.ed448, NULL, other_BufferLen)) < 0) {
-                MADWOLF_DEBUG("failed to get estimate size of DER for ED448 with code %d", ret);
-                goto err;
-            }
+            // }
 
             // Allocates memory for the ED448 component
-            other_BufferLen = ret;
-            other_Buffer = (byte *)XMALLOC(other_BufferLen, NULL, DYNAMIC_TYPE_PRIVATE_KEY);
+            other_BufferLen = ED448_PRV_KEY_SIZE;
+            other_Buffer = (byte *)XMALLOC(other_BufferLen, NULL, DYNAMIC_TYPE_ED448);
             if (other_Buffer == NULL) {
                 ret = MEMORY_E;
                 goto err;
@@ -4123,7 +4148,7 @@ int wc_mldsa_composite_export_private(mldsa_composite_key* key, byte* out, word3
 
 #elif defined(HAVE_MLDSA_COMPOSITE_DRAFT_2)
             
-            ret = wc_ed448_priv_size(key->alt_key.ed448);
+            ret = wc_Ed448KeyToDer(key->alt_key.ed448, NULL, other_BufferLen);
             if (ret <= 0) goto err;
             other_BufferLen = ret;
 
@@ -4137,7 +4162,7 @@ int wc_mldsa_composite_export_private(mldsa_composite_key* key, byte* out, word3
                 goto err;
             }
 
-            if ((ret = wc_Ed448PrivateKeyToDer(key->alt_key.ed448, other_Buffer, other_BufferLen)) < 0) {
+            if ((ret = wc_Ed448KeyToDer(key->alt_key.ed448, other_Buffer, other_BufferLen)) < 0) {
                 goto err;
             }
             other_BufferLen = ret;
