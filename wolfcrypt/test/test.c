@@ -46483,7 +46483,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t mldsa_composite_test(void)
     }
 
     for (int idx = 0; idx < 14; idx++) {
-        printf("[%s:%d] Starting New Param Test (%d: %d)\n", __FILE__, __LINE__, idx, mldsa_composite_algos[idx]);
+        printf("[%s:%d] Starting New Param Test (param: %d)\n", __FILE__, __LINE__, mldsa_composite_algos[idx]);
         ret = mldsa_composite_param_test(mldsa_composite_algos[idx], &rng);
         if (ret != 0)
             ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
