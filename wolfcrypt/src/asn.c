@@ -27531,6 +27531,49 @@ const char * wc_KeySum_name(const int keySum) {
         case MLDSA87_ED448k:
             return "MLDSA87-ED448";
             break;
+
+        //---------- Draft 2 ------------- //
+        case D2_MLDSA44_RSAPSS2048k:
+            return "MLDSA44-RSAPSS2048-SHA256-Draft2";
+            break;
+        case D2_MLDSA44_RSA2048k:
+            return "MLDSA44-RSA2048-SHA256-Draft2";
+            break;
+        case D2_MLDSA44_ED25519k:
+            return "MLDSA44-ED25519-SHA256-Draft2";
+            break;
+        case D2_MLDSA44_NISTP256k:
+            return "MLDSA44-NISTP256-SHA256-Draft2";
+            break;
+        case D2_MLDSA44_BPOOL256k:
+            return "MLDSA44-BPOOL256-SHA256-Draft2";
+            break;
+
+        case D2_MLDSA65_RSAPSS3072k:
+            return "MLDSA65-RSAPSS3072-SHA256-Draft2";
+            break;
+        case D2_MLDSA65_RSA3072k:
+            return "MLDSA65-RSA3072-SHA256-Draft2";
+            break;
+        case D2_MLDSA65_ED25519k:
+            return "MLDSA65-ED25519-SHA256-Draft2";
+            break;
+        case D2_MLDSA65_NISTP256k:
+            return "MLDSA65-NISTP256-SHA256-Draft2";
+            break;
+        case D2_MLDSA65_BPOOL256k:
+            return "MLDSA65-BPOOL256-SHA256-Draft2";
+            break;
+
+        case D2_MLDSA87_NISTP384k:
+            return "MLDSA87-NISTP384-SHA256-Draft2";
+            break;
+        case D2_MLDSA87_BPOOL384k:
+            return "MLDSA87-BPOOL384-SHA256-Draft2";
+            break;
+        case D2_MLDSA87_ED448k:
+            return "MLDSA87-ED448-SHA256-Draft2";
+            break;
         
         default:
             return NULL;

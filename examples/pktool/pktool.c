@@ -606,6 +606,21 @@ int load_key_p8(void ** key, int type, const char * key_file, int format) {
     case MLDSA87_BPOOL384k:
     case MLDSA87_NISTP384k:
     case MLDSA87_ED448k:
+    // ----- Draft 2 ----- //
+    case D2_MLDSA44_RSAPSS2048k:
+    case D2_MLDSA44_RSA2048k:
+    case D2_MLDSA44_NISTP256k:
+    case D2_MLDSA44_ED25519k:
+
+    case D2_MLDSA65_RSAPSS3072k:
+    case D2_MLDSA65_RSA3072k:
+    case D2_MLDSA65_NISTP256k:
+    case D2_MLDSA65_ED25519k:
+    case D2_MLDSA65_BPOOL256k:
+
+    case D2_MLDSA87_BPOOL384k:
+    case D2_MLDSA87_NISTP384k:
+    case D2_MLDSA87_ED448k:
         int comp_type = 0;
         mldsa_composite_key * mldsaCompKey = NULL;
 
@@ -634,16 +649,11 @@ int load_key_p8(void ** key, int type, const char * key_file, int format) {
             return ret;
         }
 
-        // // Sets the key type
-        // if ((ret = wc_mldsa_composite_key_set_type(mldsaCompKey, comp_type)) < 0) {
-        //     printf("[%d] Failed to set key type\n", __LINE__);
-        //     return ret;
-        // }
         *key = mldsaCompKey;
         break;
 #endif
         default:
-            printf("Invalid key type: %d\n", algorSum);
+            printf("[%s:%d] Invalid key type: %d\n", __FILE__, __LINE__, algorSum);
             return BAD_FUNC_ARG;
     }
 
@@ -697,7 +707,7 @@ int gen_csr(const void * keyPair, const void * altkey, const char * out_filename
 
     const char * algName = wc_KeySum_name(keySum);
     if (algName == NULL) {
-        printf("Invalid key type: %d\n", keySum);
+        printf("Cannot Retreieve Alg Name for key type: %d\n", keySum);
         goto exit;
     }
 

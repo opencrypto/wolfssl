@@ -1867,6 +1867,34 @@ int wc_KeySum_to_composite_level(const enum Key_Sum keytype_sum) {
             ret = WC_MLDSA87_BPOOL384_SHA384;
         } else if (keytype_sum == MLDSA87_ED448k) {
             ret = WC_MLDSA87_ED448_SHA384;
+        // ------------- Draft 2 ---------------- //
+        } else if (keytype_sum == D2_MLDSA44_RSAPSS2048k) {
+            ret = D2_WC_MLDSA44_RSAPSS2048_SHA256;
+        } else if (keytype_sum == D2_MLDSA44_RSA2048k) {
+            ret = D2_WC_MLDSA44_RSA2048_SHA256;
+        } else if (keytype_sum == D2_MLDSA44_ED25519k) {
+            ret = D2_WC_MLDSA44_ED25519_SHA256;
+        } else if (keytype_sum == D2_MLDSA44_NISTP256k) {
+            ret = D2_WC_MLDSA44_NISTP256_SHA256;
+        // } else if (keytype_sum == D2_MLDSA44_BPOOL256k) {
+        //     ret = D2_WC_MLDSA44_BPOOL256_SHA256;
+        // Level 3
+        } else if (keytype_sum == D2_MLDSA65_RSAPSS3072k) {
+            ret = D2_WC_MLDSA65_RSAPSS3072_SHA512;
+        } else if (keytype_sum == D2_MLDSA65_RSA3072k) {
+            ret = D2_WC_MLDSA65_RSA3072_SHA512;
+        } else if (keytype_sum == D2_MLDSA65_ED25519k) {
+            ret = D2_WC_MLDSA65_ED25519_SHA512;
+        } else if (keytype_sum == D2_MLDSA65_NISTP256k) {
+            ret = D2_WC_MLDSA65_NISTP256_SHA512;
+        } else if (keytype_sum == D2_MLDSA65_BPOOL256k) {
+            ret = D2_WC_MLDSA65_BPOOL256_SHA512;
+        } else if (keytype_sum == D2_MLDSA87_NISTP384k) {
+            ret = D2_WC_MLDSA87_NISTP384_SHA512;
+        } else if (keytype_sum == D2_MLDSA87_BPOOL384k) {
+            ret = D2_WC_MLDSA87_BPOOL384_SHA512;
+        } else if (keytype_sum == D2_MLDSA87_ED448k) {
+            ret = D2_WC_MLDSA87_ED448_SHA512;
         // Error
         } else {
             return BAD_FUNC_ARG;
