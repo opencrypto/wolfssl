@@ -595,10 +595,12 @@ int load_key_p8(void ** key, int type, const char * key_file, int format) {
     // case MLDSA44_BPOOL256k:
     case MLDSA44_ED25519k:
 
-    case MLDSA65_ED25519k:
-    case MLDSA65_RSA3072k:
     case MLDSA65_RSAPSS3072k:
+    case MLDSA65_RSA3072k:
+    case MLDSA65_RSAPSS4096k:
+    case MLDSA65_RSA4096k:
     case MLDSA65_NISTP256k:
+    case MLDSA65_ED25519k:
     case MLDSA65_BPOOL256k:
 
     case MLDSA87_BPOOL384k:
@@ -659,7 +661,7 @@ int load_key_p8(void ** key, int type, const char * key_file, int format) {
     return 0;
 }
 
-int gen_csr(const void * key, const void * altkey, const char * out_filename, int out_format)
+int gen_csr(const void * keyPair, const void * altkey, const char * out_filename, int out_format)
 {
     int ret = NOT_COMPILED_IN;
 #ifdef WOLFSSL_CERT_REQ
@@ -667,18 +669,18 @@ int gen_csr(const void * key, const void * altkey, const char * out_filename, in
     // void* keyPtr = NULL;
     WC_RNG rng;
     Cert req;
-    byte der[10240];
-    int  derSz = 10240;
+    byte der[12240];
+    int  derSz = 12240;
 #ifdef WOLFSSL_DER_TO_PEM
-    byte pem[10240];
-    int  pemSz = 10240;
+    // byte pem[12240];
+    // int  pemSz = 12240;
     FILE* file = NULL;
     // char outFile[255];
 #endif
 
-    XMEMSET(der, 0, 10240);
+    XMEMSET(der, 0, 12240);
 #ifdef WOLFSSL_DER_TO_PEM
-    XMEMSET(pem, 0, 10240);
+    // XMEMSET(pem, 0, 12240);
 #endif
 
     enum Key_Sum keySum;
@@ -690,23 +692,27 @@ int gen_csr(const void * key, const void * altkey, const char * out_filename, in
     }
 
     // Extracts the type of key
-    keySum = wc_mldsa_composite_key_get_keySum((mldsa_composite_key *)key);
-    certType = wc_mldsa_composite_get_certType((mldsa_composite_key *)key);
+    keySum = wc_mldsa_composite_key_get_keySum((mldsa_composite_key *)keyPair);
+    certType = wc_mldsa_composite_get_certType((mldsa_composite_key *)keyPair);
 
-    printf(">>>>>>> Key Type: %d, Key Sum: %d\n", certType, keySum);
+    const char * algName = wc_KeySum_name(keySum);
+    if (algName == NULL) {
+        printf("Invalid key type: %d\n", keySum);
+        goto exit;
+    }
 
     strncpy(req.subject.country, "US", CTC_NAME_SIZE);
     // strncpy(req.subject.state, "OR", CTC_NAME_SIZE);
     // strncpy(req.subject.locality, "Portland", CTC_NAME_SIZE);
     strncpy(req.subject.org, "wolfSSL", CTC_NAME_SIZE);
     strncpy(req.subject.unit, "Test", CTC_NAME_SIZE);
-    strncpy(req.subject.commonName, out_filename, CTC_NAME_SIZE);
+    strncpy(req.subject.commonName, algName, CTC_NAME_SIZE);
     strncpy(req.subject.email, "info@wolfssl.com", CTC_NAME_SIZE);
     req.version = 0;
 
     // Forcing the type
-    certType = MLDSA44_RSAPSS2048_TYPE;
-    ret = wc_MakeCertReq_ex(&req, der, sizeof(der), certType, (void *)key);
+    // certType = MLDSA44_RSAPSS2048_TYPE;
+    ret = wc_MakeCertReq_ex(&req, der, sizeof(der), certType, (void *)keyPair);
     if (ret <= 0) {
         printf("Make Cert Req failed: %d\n", ret);
         goto exit;
@@ -774,6 +780,29 @@ int gen_csr(const void * key, const void * altkey, const char * out_filename, in
         req.sigType = CTC_MLDSA87_BPOOL384_SHA384;
     if (certType == MLDSA87_ED448_TYPE)
         req.sigType = CTC_MLDSA87_ED448;
+    // -------- Draft 2 -------------//
+    if (certType == D2_MLDSA44_RSAPSS2048_SHA256_TYPE)
+        req.sigType = D2_CTC_MLDSA44_RSAPSS2048_SHA256;
+    if (certType == D2_MLDSA44_RSA2048_SHA256_TYPE)
+        req.sigType = D2_CTC_MLDSA44_RSA2048_SHA256;
+    if (certType == D2_MLDSA44_NISTP256_SHA256_TYPE)
+        req.sigType = D2_CTC_MLDSA44_NISTP256_SHA256;
+    if (certType == D2_MLDSA44_ED25519_SHA256_TYPE)
+        req.sigType = D2_CTC_MLDSA44_ED25519;
+    if (certType == D2_MLDSA65_RSAPSS3072_SHA512_TYPE)
+        req.sigType = D2_CTC_MLDSA65_RSAPSS3072_SHA512;
+    if (certType == D2_MLDSA65_RSA3072_SHA512_TYPE)
+        req.sigType = D2_CTC_MLDSA65_RSA3072_SHA512;
+    if (certType == D2_MLDSA65_NISTP256_SHA512_TYPE)
+        req.sigType = D2_CTC_MLDSA65_NISTP256_SHA512;
+    if (certType == D2_MLDSA65_ED25519_SHA512_TYPE)
+        req.sigType = D2_CTC_MLDSA65_ED25519_SHA512;
+    if (certType == D2_MLDSA87_BPOOL384_SHA512_TYPE)
+        req.sigType = D2_CTC_MLDSA87_BPOOL384_SHA512;
+    if (certType == D2_MLDSA87_NISTP384_SHA512_TYPE)
+        req.sigType = D2_CTC_MLDSA87_NISTP384_SHA512;
+    if (certType == D2_MLDSA87_ED448_SHA512_TYPE)
+        req.sigType = D2_CTC_MLDSA87_ED448_SHA512;
 #endif
     ret = wc_InitRng(&rng);
     if (ret != 0) {
@@ -782,7 +811,7 @@ int gen_csr(const void * key, const void * altkey, const char * out_filename, in
     }
     ret = wc_SignCert_ex(req.bodySz, req.sigType, 
                          der, sizeof(der), certType,
-                         (void *)key, &rng);
+                         (void *)keyPair, &rng);
     if (ret <= 0) {
         printf("Sign Cert failed: %d\n", ret);
         goto exit;
@@ -790,22 +819,36 @@ int gen_csr(const void * key, const void * altkey, const char * out_filename, in
     derSz = ret;
 
 #ifdef WOLFSSL_DER_TO_PEM
-    ret = wc_DerToPem(der, derSz, pem, 10240, CERTREQ_TYPE);
+    byte * pem_data = NULL;
+    int pem_dataSz = 0;
+
+    ret = wc_DerToPem(der, derSz, NULL, pem_dataSz, CERTREQ_TYPE);
+    if (ret <= 0) {
+        printf("Cannot get the size of the PEM...: %d\n", ret);
+        goto exit;
+    }
+    pem_dataSz = ret;
+    pem_data = (byte *)XMALLOC(pem_dataSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (pem_data == NULL) {
+        printf("Memory Error exporting key\n");
+        goto exit;
+    }
+    ret = wc_DerToPem(der, derSz, pem_data, pem_dataSz, CERTREQ_TYPE);
     if (ret <= 0) {
         printf("CSR DER to PEM failed: %d\n", ret);
         goto exit;
     }
-    pemSz = ret;
+    // pemSz = ret;
 
     if (out_filename) {
         file = fopen(out_filename, "wb");
         if (file) {
-            ret = (int)fwrite(pem, 1, pemSz, file);
+            ret = (int)fwrite(pem_data, 1, pem_dataSz, file);
             fclose(file);
         }
     } else {
         int fd = fileno(stdout);
-        ret = write(fd, pem, pemSz);
+        ret = write(fd, pem_data, pem_dataSz);
     }
 #endif
 
@@ -819,7 +862,11 @@ exit:
     (void)altkey;
     (void)out_format;
     (void)out_filename;
-    (void)key;
+    (void)keyPair;
+    (void)der;
+    (void)derSz;
+    (void)certType;
+    (void)ret;
 
     return ret;
 }
@@ -1237,8 +1284,8 @@ int main(int argc, char** argv) {
                 printf("Error loading keypair\n");
                 return 1;
             }
-            // Extracts the type of key
-             printf(">>>>>>> (main) Key Type: %d\n", ((ecc_key *)keyPtr)->type);
+            // // Extracts the type of key
+            //  printf(">>>>>>> (main) Key Type: %d\n", ((ecc_key *)keyPtr)->type);
             if (altkey_file) {
                 if (load_key_p8(&altKeyPtr, keySum, altkey_file, in_format) < 0) {
                     printf("Error loading alt keypair\n");

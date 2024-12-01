@@ -5142,35 +5142,35 @@ const byte* OidFromId(word32 id, word32 type, word32* oidSz)
                 //     oid = D2_sigMlDsa44_Bpool256_Sha256Oid;
                 //     *oidSz = sizeof(D2_sigMlDsa44_Bpool256_Sha256Oid);
                 //     break;
-                case D2_CTC_MLDSA65_RSAPSS3072_SHA384:
+                case D2_CTC_MLDSA65_RSAPSS3072_SHA512:
                     oid = D2_sigMlDsa65_RsaPss3072_Sha512Oid;
                     *oidSz = sizeof(D2_sigMlDsa65_RsaPss3072_Sha512Oid);
                     break;
-                case D2_CTC_MLDSA65_RSA3072_SHA384:
+                case D2_CTC_MLDSA65_RSA3072_SHA512:
                     oid = D2_sigMlDsa65_Rsa3072_Sha512Oid;
                     *oidSz = sizeof(D2_sigMlDsa65_Rsa3072_Sha512Oid);
                     break;
-                case D2_CTC_MLDSA65_NISTP256_SHA384:
+                case D2_CTC_MLDSA65_NISTP256_SHA512:
                     oid = D2_sigMlDsa65_NistP256_Sha512Oid;
                     *oidSz = sizeof(D2_sigMlDsa65_NistP256_Sha512Oid);
                     break;
-                case D2_CTC_MLDSA65_BPOOL256_SHA256:
+                case D2_CTC_MLDSA65_BPOOL256_SHA512:
                     oid = D2_sigMlDsa65_Bpool256_Sha512Oid;
                     *oidSz = sizeof(D2_sigMlDsa65_Bpool256_Sha512Oid);
                     break;
-                case D2_CTC_MLDSA65_ED25519_SHA384:
+                case D2_CTC_MLDSA65_ED25519_SHA512:
                     oid = D2_sigMlDsa65_Ed25519_Sha512Oid;
                     *oidSz = sizeof(D2_sigMlDsa65_Ed25519_Sha512Oid);
                     break;
-                case D2_CTC_MLDSA87_NISTP384_SHA384:
+                case D2_CTC_MLDSA87_NISTP384_SHA512:
                     oid = D2_sigMlDsa87_NistP384_Sha512Oid;
                     *oidSz = sizeof(D2_sigMlDsa87_NistP384_Sha512Oid);
                     break;
-                case D2_CTC_MLDSA87_BPOOL384_SHA384:
+                case D2_CTC_MLDSA87_BPOOL384_SHA512:
                     oid = D2_sigMlDsa87_Bpool384_Sha512Oid;
                     *oidSz = sizeof(D2_sigMlDsa87_Bpool384_Sha512Oid);
                     break;
-                case D2_CTC_MLDSA87_ED448:
+                case D2_CTC_MLDSA87_ED448_SHA512:
                     oid = D2_sigMlDsa87_Ed448_Sha512Oid;
                     *oidSz = sizeof(D2_sigMlDsa87_Ed448_Sha512Oid);
                     break;
@@ -17309,6 +17309,7 @@ static int HashForSignature(const byte* buf, word32 bufSz, word32 sigOID,
         case CTC_MLDSA65_RSA4096_SHA384:
         case CTC_MLDSA65_BPOOL256_SHA256:
         case CTC_MLDSA65_ED25519_SHA384:
+        case CTC_MLDSA65_NISTP256_SHA384:
 
         case CTC_MLDSA87_BPOOL384_SHA384:
         case CTC_MLDSA87_NISTP384_SHA384:
@@ -25572,6 +25573,30 @@ int wc_PemGetHeaderFooter(int type, const char** header, const char** footer)
 #endif /* HAVE_SPHINCS */
 #ifdef HAVE_MLDSA_COMPOSITE
         case MLDSA44_RSAPSS2048_TYPE:
+        case MLDSA44_RSA2048_TYPE:
+        case MLDSA44_NISTP256_TYPE:
+        case MLDSA65_RSAPSS3072_TYPE:
+        case MLDSA65_RSA3072_TYPE:
+        case MLDSA65_RSAPSS4096_TYPE:
+        case MLDSA65_RSA4096_TYPE:
+        case MLDSA65_NISTP256_TYPE:
+        case MLDSA65_BPOOL256_TYPE:
+        case MLDSA65_ED25519_TYPE:
+        case MLDSA87_BPOOL384_TYPE:
+        case MLDSA87_NISTP384_TYPE:
+        case MLDSA87_ED448_TYPE:
+        // ------- Draft 2 ------- //
+        case D2_MLDSA44_RSAPSS2048_SHA256_TYPE:
+        case D2_MLDSA44_RSA2048_SHA256_TYPE:
+        case D2_MLDSA44_NISTP256_SHA256_TYPE:
+        case D2_MLDSA65_RSAPSS3072_SHA512_TYPE:
+        case D2_MLDSA65_RSA3072_SHA512_TYPE:
+        case D2_MLDSA65_NISTP256_SHA512_TYPE:
+        case D2_MLDSA65_BPOOL256_SHA512_TYPE:
+        case D2_MLDSA65_ED25519_SHA512_TYPE:
+        case D2_MLDSA87_BPOOL384_SHA512_TYPE:
+        case D2_MLDSA87_NISTP384_SHA512_TYPE:
+        case D2_MLDSA87_ED448_SHA512_TYPE:
             if (header) *header = BEGIN_MLDSA_COMPOSITE_PRIV;
             if (footer) *footer = END_MLDSA_COMPOSITE_PRIV;
             ret = 0;
@@ -27480,6 +27505,12 @@ const char * wc_KeySum_name(const int keySum) {
             break;
         case MLDSA65_RSA3072k:
             return "MLDSA65-RSA3072";
+            break;
+        case MLDSA65_RSAPSS4096k:
+            return "MLDSA65-RSAPSS4096";
+            break;
+        case MLDSA65_RSA4096k:
+            return "MLDSA65-RSA4096";
             break;
         case MLDSA65_ED25519k:
             return "MLDSA65-ED25519";
@@ -31016,6 +31047,7 @@ static int MakeSignature(CertSignCtx* certSignCtx, const byte* buf, word32 sz,
 
         ret = HashForSignature(buf, sz, sigAlgoType, certSignCtx->digest,
                                &typeH, &digestSz, 0);
+
         /* set next state, since WC_PENDING_E rentry for these are not "call again" */
         certSignCtx->state = CERTSIGN_STATE_ENCODE;
         if (ret != 0) {
@@ -33152,10 +33184,6 @@ static int SignCert(int requestSz, int sType, byte* buf, word32 buffSz,
 
     if (requestSz < 0)
         return requestSz;
-
-    // TODO: Fix the call to MakeSignature and
-    //       add support for ML-DSA Composite Keys
-    (void)mldsaCompKey;
 
     /* locate ctx */
     if (rsaKey) {

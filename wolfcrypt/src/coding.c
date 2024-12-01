@@ -388,7 +388,10 @@ static int DoBase64_Encode(const byte* in, word32 inLen, byte* out,
     /* if escaped we can't predetermine size for one pass encoding, but
      * make sure we have enough if no escapes are in input
      * Also need to ensure outLen valid before dereference */
-    if (!outLen || (outSz > *outLen && !getSzOnly)) return BAD_FUNC_ARG;
+    if (!outLen || (outSz > *outLen && !getSzOnly)) {
+        WOLFSSL_MSG("Base64_Encode out buffer too small");
+        return BAD_FUNC_ARG;
+    }
 
     while (inLen > 2) {
         byte b1 = in[j++];
