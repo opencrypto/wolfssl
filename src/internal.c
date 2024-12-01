@@ -796,16 +796,16 @@ static int ExportCipherSpecState(WOLFSSL* ssl, byte* exp, word32 len, byte ver,
             ssl->specs.bulk_cipher_algorithm == wolfssl_aes) {
         byte *pt = (byte*)ssl->encrypt.aes->reg;
 
-        if ((idx + 2*AES_BLOCK_SIZE) > len) {
+        if ((idx + 2*WC_AES_BLOCK_SIZE) > len) {
             WOLFSSL_MSG("Can not fit AES state into buffer");
             return BUFFER_E;
         }
-        XMEMCPY(exp + idx, pt, AES_BLOCK_SIZE);
-        idx += AES_BLOCK_SIZE;
+        XMEMCPY(exp + idx, pt, WC_AES_BLOCK_SIZE);
+        idx += WC_AES_BLOCK_SIZE;
 
         pt = (byte*)ssl->decrypt.aes->reg;
-        XMEMCPY(exp + idx, pt, AES_BLOCK_SIZE);
-        idx += AES_BLOCK_SIZE;
+        XMEMCPY(exp + idx, pt, WC_AES_BLOCK_SIZE);
+        idx += WC_AES_BLOCK_SIZE;
     }
 
     WOLFSSL_LEAVE("ExportCipherSpecState", idx);
@@ -1048,12 +1048,12 @@ static int ImportCipherSpecState(WOLFSSL* ssl, const byte* exp, word32 len,
     if (type == WOLFSSL_EXPORT_TLS &&
             ssl->specs.bulk_cipher_algorithm == wolfssl_aes) {
         byte *pt = (byte*)ssl->encrypt.aes->reg;
-        XMEMCPY(pt, exp + idx, AES_BLOCK_SIZE);
-        idx += AES_BLOCK_SIZE;
+        XMEMCPY(pt, exp + idx, WC_AES_BLOCK_SIZE);
+        idx += WC_AES_BLOCK_SIZE;
 
         pt = (byte*)ssl->decrypt.aes->reg;
-        XMEMCPY(pt, exp + idx, AES_BLOCK_SIZE);
-        idx += AES_BLOCK_SIZE;
+        XMEMCPY(pt, exp + idx, WC_AES_BLOCK_SIZE);
+        idx += WC_AES_BLOCK_SIZE;
     }
 
     WOLFSSL_LEAVE("ImportCipherSpecState", idx);
@@ -2108,7 +2108,7 @@ int wolfSSL_session_export_internal(WOLFSSL* ssl, byte* buf, word32* sz,
 
         /* possible AES state needed */
         if (type == WOLFSSL_EXPORT_TLS) {
-            *sz += AES_BLOCK_SIZE*2;
+            *sz += WC_AES_BLOCK_SIZE*2;
         }
         ret = WC_NO_ERR_TRACE(LENGTH_ONLY_E);
     }
@@ -3273,17 +3273,17 @@ void InitSuites(Suites* suites, ProtocolVersion pv, int keySz, word16 haveRSA,
         return;      /* trust user settings, don't override */
 
 #ifdef WOLFSSL_TLS13
-#ifdef BUILD_TLS_AES_128_GCM_SHA256
-    if (tls1_3) {
-        suites->suites[idx++] = TLS13_BYTE;
-        suites->suites[idx++] = TLS_AES_128_GCM_SHA256;
-    }
-#endif
-
 #ifdef BUILD_TLS_AES_256_GCM_SHA384
     if (tls1_3) {
         suites->suites[idx++] = TLS13_BYTE;
         suites->suites[idx++] = TLS_AES_256_GCM_SHA384;
+    }
+#endif
+
+#ifdef BUILD_TLS_AES_128_GCM_SHA256
+    if (tls1_3) {
+        suites->suites[idx++] = TLS13_BYTE;
+        suites->suites[idx++] = TLS_AES_128_GCM_SHA256;
     }
 #endif
 
@@ -22476,7 +22476,7 @@ int SendChangeCipher(WOLFSSL* ssl)
         if (ssl->CBIS != NULL)
             ssl->CBIS(ssl, WOLFSSL_CB_ACCEPT_LOOP, WOLFSSL_SUCCESS);
     }
-    else{
+    else {
         ssl->options.clientState =
             CLIENT_CHANGECIPHERSPEC_COMPLETE;
         if (ssl->CBIS != NULL)
@@ -39554,7 +39554,7 @@ static int TicketEncDec(byte* key, int keyLen, byte* iv, byte* aad, int aadSz,
         }
         if (ret == 0) {
             ret = wc_AesGcmEncrypt(aes, in, out, inLen, iv, GCM_NONCE_MID_SZ,
-                                   tag, AES_BLOCK_SIZE, aad, aadSz);
+                                   tag, WC_AES_BLOCK_SIZE, aad, aadSz);
         }
         wc_AesFree(aes);
     }
@@ -39565,7 +39565,7 @@ static int TicketEncDec(byte* key, int keyLen, byte* iv, byte* aad, int aadSz,
         }
         if (ret == 0) {
             ret = wc_AesGcmDecrypt(aes, in, out, inLen, iv, GCM_NONCE_MID_SZ,
-                                   tag, AES_BLOCK_SIZE, aad, aadSz);
+                                   tag, WC_AES_BLOCK_SIZE, aad, aadSz);
         }
         wc_AesFree(aes);
     }

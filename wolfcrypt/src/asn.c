@@ -8633,7 +8633,7 @@ static int CheckAlgoV2(int oid, int* id, int* blockSz)
     case AES256CBCb:
         *id = PBE_AES256_CBC;
         if (blockSz != NULL) {
-            *blockSz = AES_BLOCK_SIZE;
+            *blockSz = WC_AES_BLOCK_SIZE;
         }
         break;
 #endif
@@ -8641,7 +8641,7 @@ static int CheckAlgoV2(int oid, int* id, int* blockSz)
     case AES128CBCb:
         *id = PBE_AES128_CBC;
         if (blockSz != NULL) {
-            *blockSz = AES_BLOCK_SIZE;
+            *blockSz = WC_AES_BLOCK_SIZE;
         }
         break;
 #endif
@@ -17150,7 +17150,7 @@ static int HashForSignature(const byte* buf, word32 bufSz, word32 sigOID,
             }
             else if ((ret = wc_Md2Hash(buf, bufSz, digest)) == 0) {
                 *typeH    = MD2h;
-                *digestSz = MD2_DIGEST_SIZE;
+                *digestSz = WC_MD2_DIGEST_SIZE;
             }
         break;
     #endif
@@ -26390,9 +26390,9 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
                 #if !defined(NO_AES) && defined(HAVE_AES_CBC) && \
                     defined(HAVE_AES_DECRYPT)
                     if (info->cipherType == WC_CIPHER_AES_CBC) {
-                        if (der->length > AES_BLOCK_SIZE) {
+                        if (der->length > WC_AES_BLOCK_SIZE) {
                             padVal = der->buffer[der->length-1];
-                            if (padVal <= AES_BLOCK_SIZE) {
+                            if (padVal <= WC_AES_BLOCK_SIZE) {
                                 der->length -= (word32)padVal;
                             }
                         }

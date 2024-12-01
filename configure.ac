@@ -2369,7 +2369,7 @@ fi
 
 # OPENSSL Extra Compatibility
 AC_ARG_ENABLE([opensslextra],
-    [AS_HELP_STRING([--enable-opensslextra],[Enable extra OpenSSL API, size+ (default: disabled)])],
+    [AS_HELP_STRING([--enable-opensslextra],[Enable extra OpenSSL API, size+ (default: disabled). Skip compat header install using "noinstall"])],
     [ ENABLED_OPENSSLEXTRA=$enableval ],
     [ ENABLED_OPENSSLEXTRA=no ]
     )
@@ -4733,6 +4733,11 @@ fi
 if test "$ENABLED_WOLFSENTRY" = "yes"
 then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_WOLFSENTRY_HOOKS -DHAVE_EX_DATA -DHAVE_EX_DATA_CLEANUP_HOOKS"
+    if test "$ENABLED_OPENSSLEXTRA" = "no"
+    then
+        ENABLED_OPENSSLEXTRA="yes"
+        AM_CFLAGS="$AM_CFLAGS -DOPENSSL_EXTRA"
+    fi
     WOLFSENTRY_LIB="$WOLFSENTRY_LIB -lwolfsentry"
 fi
 
@@ -9930,6 +9935,7 @@ fi
 # Some of these affect build targets and objects, some trigger different
 # test scripts for make check.
 AM_CONDITIONAL([BUILD_DISTRO],[test "x$ENABLED_DISTRO" = "xyes"])
+AM_CONDITIONAL([BUILD_OPENSSL_COMPAT],[test "x$ENABLED_OPENSSLEXTRA" != "xnoinstall"])
 AM_CONDITIONAL([BUILD_ALL],[test "x$ENABLED_ALL" = "xyes"])
 AM_CONDITIONAL([BUILD_TLS13],[test "x$ENABLED_TLS13" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_RNG],[test "x$ENABLED_RNG" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])

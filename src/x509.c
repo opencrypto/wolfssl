@@ -49,10 +49,10 @@ unsigned int wolfSSL_X509_get_extension_flags(WOLFSSL_X509* x509)
 
     if (x509 != NULL) {
         if (x509->keyUsageSet) {
-            flags |= EXFLAG_KUSAGE;
+            flags |= WOLFSSL_EXFLAG_KUSAGE;
         }
         if (x509->extKeyUsageSrc != NULL) {
-            flags |= EXFLAG_XKUSAGE;
+            flags |= WOLFSSL_EXFLAG_XKUSAGE;
         }
     }
 
@@ -92,19 +92,19 @@ unsigned int wolfSSL_X509_get_extended_key_usage(WOLFSSL_X509* x509)
 
     if (x509 != NULL) {
         if (x509->extKeyUsage & EXTKEYUSE_OCSP_SIGN)
-            ret |= XKU_OCSP_SIGN;
+            ret |= WOLFSSL_XKU_OCSP_SIGN;
         if (x509->extKeyUsage & EXTKEYUSE_TIMESTAMP)
-            ret |= XKU_TIMESTAMP;
+            ret |= WOLFSSL_XKU_TIMESTAMP;
         if (x509->extKeyUsage & EXTKEYUSE_EMAILPROT)
-            ret |= XKU_SMIME;
+            ret |= WOLFSSL_XKU_SMIME;
         if (x509->extKeyUsage & EXTKEYUSE_CODESIGN)
-            ret |= XKU_CODE_SIGN;
+            ret |= WOLFSSL_XKU_CODE_SIGN;
         if (x509->extKeyUsage & EXTKEYUSE_CLIENT_AUTH)
-            ret |= XKU_SSL_CLIENT;
+            ret |= WOLFSSL_XKU_SSL_CLIENT;
         if (x509->extKeyUsage & EXTKEYUSE_SERVER_AUTH)
-            ret |= XKU_SSL_SERVER;
+            ret |= WOLFSSL_XKU_SSL_SERVER;
         if (x509->extKeyUsage & EXTKEYUSE_ANY)
-            ret |= XKU_ANYEKU;
+            ret |= WOLFSSL_XKU_ANYEKU;
     }
 
     WOLFSSL_LEAVE("wolfSSL_X509_get_extended_key_usage", ret);
@@ -1688,7 +1688,7 @@ WOLFSSL_v3_ext_method* wolfSSL_X509V3_EXT_get(WOLFSSL_X509_EXTENSION* ex)
         case WC_NID_basic_constraints:
             break;
         case WC_NID_subject_key_identifier:
-            method.i2s = (X509V3_EXT_I2S)wolfSSL_i2s_ASN1_STRING;
+            method.i2s = (WOLFSSL_X509V3_EXT_I2S)wolfSSL_i2s_ASN1_STRING;
             break;
         case WC_NID_subject_alt_name:
             WOLFSSL_MSG("i2v function not yet implemented for Subject "
@@ -2965,7 +2965,7 @@ static void wolfSSL_X509V3_EXT_METHOD_populate(WOLFSSL_v3_ext_method *method,
     WOLFSSL_ENTER("wolfSSL_X509V3_EXT_METHOD_populate");
     switch (nid) {
     case WC_NID_subject_key_identifier:
-        method->i2s = (X509V3_EXT_I2S)wolfSSL_i2s_ASN1_STRING;
+        method->i2s = (WOLFSSL_X509V3_EXT_I2S)wolfSSL_i2s_ASN1_STRING;
         FALL_THROUGH;
     case WC_NID_authority_key_identifier:
     case WC_NID_key_usage:
@@ -3295,6 +3295,7 @@ int wolfSSL_X509_pubkey_digest(const WOLFSSL_X509 *x509,
 #endif /* OPENSSL_EXTRA */
 
 #if defined(KEEP_PEER_CERT) || defined(SESSION_CERTS) || \
+    defined(KEEP_OUR_CERT) || \
     defined(OPENSSL_EXTRA)  || defined(OPENSSL_EXTRA_X509_SMALL)
 
 /* user externally called free X509, if dynamic go ahead with free, otherwise
@@ -3317,9 +3318,6 @@ static void ExternalFreeX509(WOLFSSL_X509* x509)
             if (ret != 0) {
                 WOLFSSL_MSG("Couldn't lock x509 mutex");
             }
-        #endif /* OPENSSL_EXTRA_X509_SMALL || OPENSSL_EXTRA */
-
-        #if defined(OPENSSL_EXTRA_X509_SMALL) || defined(OPENSSL_EXTRA)
             if (doFree)
         #endif /* OPENSSL_EXTRA_X509_SMALL || OPENSSL_EXTRA */
             {
@@ -3337,10 +3335,13 @@ static void ExternalFreeX509(WOLFSSL_X509* x509)
 WOLFSSL_ABI
 void wolfSSL_X509_free(WOLFSSL_X509* x509)
 {
-    WOLFSSL_ENTER("wolfSSL_FreeX509");
+    WOLFSSL_ENTER("wolfSSL_X509_free");
     ExternalFreeX509(x509);
 }
+#endif
 
+#if defined(KEEP_PEER_CERT) || defined(SESSION_CERTS) || \
+    defined(OPENSSL_EXTRA)  || defined(OPENSSL_EXTRA_X509_SMALL)
 
 /* copy name into in buffer, at most sz bytes, if buffer is null will
    malloc buffer, call responsible for freeing                     */
@@ -3766,7 +3767,7 @@ int wolfSSL_X509_NAME_entry_count(WOLFSSL_X509_NAME* name)
 #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
 
 #if defined(OPENSSL_EXTRA) || \
-    defined(KEEP_OUR_CERT) || defined(KEEP_PEER_CERT) || defined(SESSION_CERTS)
+    defined(KEEP_OUR_CERT) || defined(KEEP_PEER_CERT)
 
 /* return the next, if any, altname from the peer cert */
 WOLFSSL_ABI
@@ -5354,7 +5355,8 @@ WOLFSSL_X509* wolfSSL_X509_REQ_load_certificate_buffer(
 }
 #endif
 
-#endif /* KEEP_PEER_CERT || SESSION_CERTS */
+#endif /* OPENSSL_EXTRA || WOLFSSL_WPAS_SMALL || KEEP_PEER_CERT || \
+          SESSION_CERTS */
 
 #if defined(OPENSSL_EXTRA_X509_SMALL) || defined(KEEP_PEER_CERT) || \
     defined(SESSION_CERTS)
@@ -14121,10 +14123,7 @@ int wolfSSL_sk_X509_num(const WOLF_STACK_OF(WOLFSSL_X509) *s)
 
 #endif /* OPENSSL_EXTRA */
 
-#if defined(HAVE_EX_DATA) && (defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) \
-     || defined(WOLFSSL_HAPROXY) || defined(OPENSSL_EXTRA)                   \
-     || defined(HAVE_LIGHTY))
-
+#ifdef HAVE_EX_DATA_CRYPTO
 int wolfSSL_X509_get_ex_new_index(int idx, void *arg,
                                   WOLFSSL_CRYPTO_EX_new* new_func,
                                   WOLFSSL_CRYPTO_EX_dup* dup_func,
@@ -14137,8 +14136,7 @@ int wolfSSL_X509_get_ex_new_index(int idx, void *arg,
 }
 #endif
 
-#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL) || \
-    defined(WOLFSSL_WPAS_SMALL)
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
 void *wolfSSL_X509_get_ex_data(WOLFSSL_X509 *x509, int idx)
 {
     WOLFSSL_ENTER("wolfSSL_X509_get_ex_data");
@@ -14157,8 +14155,7 @@ int wolfSSL_X509_set_ex_data(WOLFSSL_X509 *x509, int idx, void *data)
 {
     WOLFSSL_ENTER("wolfSSL_X509_set_ex_data");
 #ifdef HAVE_EX_DATA
-    if (x509 != NULL)
-    {
+    if (x509 != NULL) {
         return wolfSSL_CRYPTO_set_ex_data(&x509->ex_data, idx, data);
     }
 #else
@@ -14185,8 +14182,7 @@ int wolfSSL_X509_set_ex_data_with_cleanup(
     return WOLFSSL_FAILURE;
 }
 #endif /* HAVE_EX_DATA_CLEANUP_HOOKS */
-
-#endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL || WOLFSSL_WPAS_SMALL */
+#endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
 
 
 #ifndef NO_ASN
@@ -14477,7 +14473,7 @@ int wolfSSL_X509_check_issued(WOLFSSL_X509 *issuer, WOLFSSL_X509 *subject)
 #endif /* WOLFSSL_NGINX || WOLFSSL_HAPROXY || OPENSSL_EXTRA || OPENSSL_ALL */
 
 #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL) || \
-    defined(KEEP_PEER_CERT)
+    defined(KEEP_PEER_CERT) || defined(SESSION_CERTS)
 WOLFSSL_X509* wolfSSL_X509_dup(WOLFSSL_X509 *x)
 {
     WOLFSSL_ENTER("wolfSSL_X509_dup");
@@ -14495,7 +14491,8 @@ WOLFSSL_X509* wolfSSL_X509_dup(WOLFSSL_X509 *x)
     return wolfSSL_X509_d2i_ex(NULL, x->derCert->buffer, x->derCert->length,
         x->heap);
 }
-#endif /* OPENSSL_EXTRA || WOLFSSL_WPAS_SMALL */
+#endif /* OPENSSL_EXTRA || WOLFSSL_WPAS_SMALL || KEEP_PEER_CERT || \
+          SESSION_CERTS */
 
 #if defined(OPENSSL_EXTRA)
 int wolfSSL_X509_check_ca(WOLFSSL_X509 *x509)

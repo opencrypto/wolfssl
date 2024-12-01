@@ -1024,7 +1024,8 @@
 #endif
 
 #if defined(NO_AES) || !defined(HAVE_AES_DECRYPT)
-    #define AES_BLOCK_SIZE 16
+    #undef WC_AES_BLOCK_SIZE
+    #define WC_AES_BLOCK_SIZE 16
     #undef  BUILD_AES
 #else
     #undef  BUILD_AES
@@ -1758,7 +1759,7 @@ enum Misc {
     #endif
 #endif
 
-    MAX_IV_SZ           = AES_BLOCK_SIZE,
+    MAX_IV_SZ           = WC_AES_BLOCK_SIZE,
 
     AEAD_SEQ_OFFSET     = 4,   /* Auth Data: Sequence number */
     AEAD_TYPE_OFFSET    = 8,   /* Auth Data: Type            */
@@ -2797,6 +2798,7 @@ typedef struct WOLFSSL_DTLS_PEERSEQ {
 #endif
 } WOLFSSL_DTLS_PEERSEQ;
 
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
 struct WOLFSSL_BIO {
     WOLFSSL_BUF_MEM* mem_buf;
     WOLFSSL_BIO_METHOD* method;
@@ -2857,6 +2859,7 @@ struct WOLFSSL_BIO {
     wolfSSL_Ref  ref;
 #endif
 };
+#endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
 
 #if defined(WOLFSSL_HAVE_BIO_ADDR) && defined(OPENSSL_EXTRA)
 WOLFSSL_LOCAL socklen_t wolfSSL_BIO_ADDR_size(const WOLFSSL_BIO_ADDR *addr);
@@ -4384,7 +4387,7 @@ typedef struct Ciphers {
     byte* nonce;
 #endif
 #ifdef HAVE_CAMELLIA
-    Camellia* cam;
+    wc_Camellia* cam;
 #endif
 #ifdef HAVE_CHACHA
     ChaCha*   chacha;
@@ -5210,6 +5213,8 @@ typedef enum {
     STACK_TYPE_X509_REQ_ATTR      = 18,
 } WOLF_STACK_TYPE;
 
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+
 struct WOLFSSL_STACK {
     unsigned long num; /* number of nodes in stack
                         * (safety measure for freeing and shortcut for count) */
@@ -5244,6 +5249,8 @@ struct WOLFSSL_STACK {
     WOLFSSL_STACK* next;
     WOLF_STACK_TYPE type;     /* Identifies type of stack. */
 };
+
+#endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
 
 struct WOLFSSL_X509_NAME {
     char  *name;
@@ -5335,7 +5342,7 @@ struct WOLFSSL_X509 {
     byte*            rawCRLInfo;
     byte*            CRLInfo;
     byte*            authInfo;
-#if defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA) || defined(WOLFSSL_QT)
+#ifdef WOLFSSL_ASN_CA_ISSUER
     byte*            authInfoCaIssuer;
     int              authInfoCaIssuerSz;
 #endif
@@ -6548,8 +6555,10 @@ static WC_INLINE int wolfSSL_curve_is_disabled(const WOLFSSL* ssl,
 }
 #endif
 
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
 WOLFSSL_LOCAL WC_RNG* WOLFSSL_RSA_GetRNG(WOLFSSL_RSA *rsa, WC_RNG **tmpRNG,
                                          int *initTmpRng);
+#endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
 
 #ifndef NO_CERTS
     #ifndef NO_RSA
@@ -6831,6 +6840,7 @@ WOLFSSL_LOCAL int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys,
 WOLFSSL_LOCAL int SetKeysSide(WOLFSSL* ssl, enum encrypt_side side);
 
 /* Set*Internal and Set*External functions */
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
 WOLFSSL_LOCAL int SetDsaInternal(WOLFSSL_DSA* dsa);
 WOLFSSL_LOCAL int SetDsaExternal(WOLFSSL_DSA* dsa);
 WOLFSSL_LOCAL int SetRsaExternal(WOLFSSL_RSA* rsa);
@@ -6846,6 +6856,7 @@ typedef enum elem_set {
 WOLFSSL_LOCAL int SetDhExternal_ex(WOLFSSL_DH *dh, int elm );
 WOLFSSL_LOCAL int SetDhInternal(WOLFSSL_DH* dh);
 WOLFSSL_LOCAL int SetDhExternal(WOLFSSL_DH *dh);
+#endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
 
 #if !defined(NO_DH) && (!defined(NO_CERTS) || !defined(NO_PSK))
     WOLFSSL_LOCAL int DhGenKeyPair(WOLFSSL* ssl, DhKey* dhKey,
@@ -7026,11 +7037,7 @@ WOLFSSL_LOCAL int GetX509Error(int e);
 #endif
 #endif
 
-#if defined(HAVE_EX_DATA) && \
-    (defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || \
-    defined(WOLFSSL_HAPROXY) || defined(OPENSSL_EXTRA) || \
-    defined(HAVE_LIGHTY)) || defined(HAVE_EX_DATA) || \
-    defined(WOLFSSL_WPAS_SMALL)
+#ifdef HAVE_EX_DATA_CRYPTO
 typedef struct CRYPTO_EX_cb_ctx {
     long ctx_l;
     void *ctx_ptr;
@@ -7039,6 +7046,7 @@ typedef struct CRYPTO_EX_cb_ctx {
     WOLFSSL_CRYPTO_EX_dup* dup_func;
     struct CRYPTO_EX_cb_ctx* next;
 } CRYPTO_EX_cb_ctx;
+
 /* use wolfSSL_API visibility to be able to clear in tests/api.c */
 WOLFSSL_API extern CRYPTO_EX_cb_ctx* crypto_ex_cb_ctx_session;
 WOLFSSL_API void crypto_ex_cb_free(CRYPTO_EX_cb_ctx* cb_ctx);
@@ -7051,7 +7059,7 @@ WOLFSSL_LOCAL int crypto_ex_cb_dup_data(const WOLFSSL_CRYPTO_EX_DATA *in,
 WOLFSSL_LOCAL int wolfssl_get_ex_new_index(int class_index, long ctx_l,
         void* ctx_ptr, WOLFSSL_CRYPTO_EX_new* new_func,
         WOLFSSL_CRYPTO_EX_dup* dup_func, WOLFSSL_CRYPTO_EX_free* free_func);
-#endif
+#endif /* HAVE_EX_DATA_CRYPTO */
 
 WOLFSSL_LOCAL WC_RNG* wolfssl_get_global_rng(void);
 WOLFSSL_LOCAL WC_RNG* wolfssl_make_global_rng(void);
@@ -7063,7 +7071,7 @@ WOLFSSL_LOCAL int EncryptDerKey(byte *der, int *derSz, const WOLFSSL_EVP_CIPHER*
 #endif
 #endif
 
-#if !defined(NO_RSA)
+#if !defined(NO_RSA) && defined(OPENSSL_EXTRA)
 WOLFSSL_LOCAL int wolfSSL_RSA_To_Der(WOLFSSL_RSA* rsa, byte** outBuf,
     int publicKey, void* heap);
 #endif
@@ -7129,11 +7137,13 @@ WOLFSSL_LOCAL int wolfssl_asn1_obj_set(WOLFSSL_ASN1_OBJECT* obj,
         const byte* der, word32 len, int addHdr);
 #endif
 
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
 WOLFSSL_LOCAL int pkcs8_encode(WOLFSSL_EVP_PKEY* pkey, byte* key,
         word32* keySz);
 WOLFSSL_LOCAL int pkcs8_encrypt(WOLFSSL_EVP_PKEY* pkey,
         const WOLFSSL_EVP_CIPHER* enc, char* passwd, int passwdSz, byte* key,
         word32* keySz);
+#endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
 
 #ifdef __cplusplus
     }  /* extern "C" */
