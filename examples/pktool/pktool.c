@@ -838,8 +838,6 @@ int gen_csr(const void * keyPair, const void * altkey, const char * out_filename
         printf("CSR DER to PEM failed: %d\n", ret);
         goto exit;
     }
-    // pemSz = ret;
-
     if (out_filename) {
         file = fopen(out_filename, "wb");
         if (file) {
@@ -863,9 +861,6 @@ exit:
     (void)out_format;
     (void)out_filename;
     (void)keyPair;
-    (void)der;
-    (void)derSz;
-    (void)certType;
     (void)ret;
 
     return ret;

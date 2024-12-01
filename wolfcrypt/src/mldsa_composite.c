@@ -3716,8 +3716,6 @@ int wc_mldsa_composite_import_private(const byte* priv, word32 privSz,
                 break;
             }
 
-            MADWOLF_DEBUG("Attempting at Importing ECDSA component (keyType: %d, curveId: %d, curveSz: %d)", type, curveId, curveSz);
-
 #if defined(HAVE_MLDSA_COMPOSITE_DRAFT_3)
             if (type == WC_MLDSA87_BPOOL384_SHA384 ||
                 type == WC_MLDSA87_NISTP384_SHA384 ||
@@ -3726,30 +3724,9 @@ int wc_mldsa_composite_import_private(const byte* priv, word32 privSz,
                 type == WC_MLDSA65_NISTP256_SHA384 ||
                 type == WC_MLDSA44_NISTP256_SHA256) {
 
-                MADWOLF_DEBUG("Checking otherBuffer Size: %d (key: %p, keyType: %d, keySum: %d, curveId: %d, curveSz: %d)\n", 
-                    other_BufferLen, key, type, algorSum, curveId, curveSz);
-
-                // MADWOLF_DEBUG0("WARNING: Importing ECDSA component with x963 (ECC_SECP256R1 - Fixed)!!!!\n");
-                // ret = wc_ecc_import_x963_ex(other_Buffer, other_BufferLen, key->alt_key.ecc, curveId);
-                // if (ret < 0) {
-                //     MADWOLF_DEBUG("[1] failed to import ECDSA component with code %d (buff_len: %d)", ret, other_BufferLen);
-                //     ret = wc_ecc_import_x963(other_Buffer, other_BufferLen, key->alt_key.ecc);
-                //     if (ret < 0) {
-                //         MADWOLF_DEBUG("[2] failed to import ECDSA component with code %d (buff_len: %d)", ret, other_BufferLen);
-                //         wc_ecc_free(key->alt_key.ecc);
-                //         key->alt_key.ecc = NULL;
-                //         break;
-                //     }
-                // }
-
                 idx = 0;
                 ret = wc_EccPrivateKeyDecode(other_Buffer, &idx, key->alt_key.ecc, other_BufferLen);
                 if (ret < 0) {
-                    FILE *fp = fopen("ecc_error.bin", "wb");
-                    if (fp) {
-                        fwrite(other_Buffer, 1, other_BufferLen, fp);
-                        fclose(fp);
-                    }
                     MADWOLF_DEBUG("failed to import ECDSA component with code %d (buff_len: %d)", ret, other_BufferLen);
                     wc_ecc_free(key->alt_key.ecc);
                     key->alt_key.ecc = NULL;
