@@ -1704,6 +1704,7 @@ int wc_mldsa_composite_key_get_keySum(const mldsa_composite_key * key) {
     int ret = 0;
 
     if (key == NULL || key->compType <= 0) {
+        if (key) MADWOLF_DEBUG("Invalid ML-DSA composite type: %d", key->compType);
         ret = BAD_FUNC_ARG;
     }
 
@@ -1955,6 +1956,32 @@ int wc_composite_level_to_keySum(const enum mldsa_composite_type type) {
             ret = MLDSA87_BPOOL384k;
         } else if (type == WC_MLDSA87_ED448_SHA384) {
             ret = MLDSA87_ED448k;
+        } else if (type == D2_WC_MLDSA44_RSAPSS2048_SHA256) {
+            ret = D2_MLDSA44_RSAPSS2048k;
+        } else if (type == D2_WC_MLDSA44_RSA2048_SHA256) {
+            ret = D2_MLDSA44_RSA2048k;
+        } else if (type == D2_WC_MLDSA44_ED25519_SHA256) {
+            ret = D2_MLDSA44_ED25519k;
+        } else if (type == D2_WC_MLDSA44_NISTP256_SHA256) {
+            ret = D2_MLDSA44_NISTP256k;
+        // } else if (type == D2_MLDSA44_BPOOL256k) {
+        //     ret = D2_WC_MLDSA44_BPOOL256_SHA256;
+        } else if (type == D2_WC_MLDSA65_RSAPSS3072_SHA512) {
+            ret = D2_MLDSA65_RSAPSS3072k;
+        } else if (type == D2_WC_MLDSA65_RSA3072_SHA512) {
+            ret = D2_MLDSA65_RSA3072k;
+        } else if (type == D2_WC_MLDSA65_ED25519_SHA512) {
+            ret = D2_MLDSA65_ED25519k;
+        } else if (type == D2_WC_MLDSA65_NISTP256_SHA512) {
+            ret = D2_MLDSA65_NISTP256k;
+        } else if (type == D2_WC_MLDSA65_BPOOL256_SHA512) {
+            ret = D2_MLDSA65_BPOOL256k;
+        } else if (type == D2_WC_MLDSA87_NISTP384_SHA512) {
+            ret = D2_MLDSA87_NISTP384k;
+        } else if (type == D2_WC_MLDSA87_BPOOL384_SHA512) {
+            ret = D2_MLDSA87_BPOOL384k;
+        } else if (type == D2_WC_MLDSA87_ED448_SHA512) {
+            ret = D2_MLDSA87_ED448k;
         // Error
         } else {
             return BAD_FUNC_ARG;
@@ -3473,6 +3500,12 @@ int wc_mldsa_composite_import_private(const byte* priv, word32 privSz,
             { 1, ASN_OCTET_STRING, 0, 0, 0 },
             { 1, ASN_OCTET_STRING, 0, 0, 0 },
     };
+
+    ASNItem D2_compPrivKeyIT[3] = {
+        { 0, ASN_SEQUENCE, 1, 1, 0 },
+            { 1, ASN_SEQUENCE, 1, 0, 0 },
+            { 1, ASN_SEQUENCE, 1, 0, 0 },
+    };
         // ASN.1 items for the composite private key
 
     ASNGetData compPrivKeyASN[3];
@@ -3485,8 +3518,8 @@ int wc_mldsa_composite_import_private(const byte* priv, word32 privSz,
     word32 mldsa_BufferLen = DILITHIUM_ML_DSA_87_PRV_KEY_SIZE;
         // Buffer to hold the ML-DSA public key
 
-    byte other_Buffer[MLDSA_COMPOSITE_MAX_OTHER_KEY_SZ + 10000];
-    word32 other_BufferLen = MLDSA_COMPOSITE_MAX_OTHER_KEY_SZ + 10000;
+    byte other_Buffer[MLDSA_COMPOSITE_MAX_OTHER_KEY_SZ];
+    word32 other_BufferLen = MLDSA_COMPOSITE_MAX_OTHER_KEY_SZ;
         // Buffer to hold the public key of the other DSA component
 
     // Input checks
@@ -3512,7 +3545,7 @@ int wc_mldsa_composite_import_private(const byte* priv, word32 privSz,
             MADWOLF_DEBUG("Key type mismatch (%d vs. %d)", type, pkcs8_type);
             ret = BAD_FUNC_ARG;
             goto err;
-            }
+        }
  
         word32 stringSz = 0;
         ASNGetData octetStringData[1];
@@ -3533,8 +3566,10 @@ int wc_mldsa_composite_import_private(const byte* priv, word32 privSz,
 
     // Parse the ASN.1 data
     if ((ret = GetASN_Items(compPrivKeyIT, compPrivKeyASN, 3, 0, keyBuffer, &idx, privSz)) < 0) {
-        MADWOLF_DEBUG("Error while parsing ASN.1 (%d, privSz: %d, idx: %d, type: %d)", ret, privSz, idx, type);
-        goto err;
+        if ((ret = GetASN_Items(D2_compPrivKeyIT, compPrivKeyASN, 3, 0, keyBuffer, &idx, privSz)) < 0) {
+            MADWOLF_DEBUG("Error while parsing ASN.1 (%d, privSz: %d, idx: %d, type: %d)", ret, privSz, idx, type);
+            goto err;
+        }
     }
 
     // If no passed type, let's check the key type
@@ -3560,8 +3595,6 @@ int wc_mldsa_composite_import_private(const byte* priv, word32 privSz,
         MADWOLF_DEBUG("failed to init ML-DSA component with code %d", ret);
         goto err;
     }
-
-#if defined(HAVE_MLDSA_COMPOSITE_DRAFT_3)
 
     // Import the ML-DSA private key 
     switch (type) {
@@ -3616,21 +3649,37 @@ int wc_mldsa_composite_import_private(const byte* priv, word32 privSz,
         goto err;
     }
 
-    if ((ret = wc_dilithium_import_private(mldsa_Buffer, mldsa_BufferLen, key->mldsa_key)) < 0) {
-        MADWOLF_DEBUG("failed to import ML-DSA component with code %d", ret);
-        goto err;
-    }
-
-#elif defined(HAVE_MLDSA_COMPOSITE_DRAFT_2)
-
     // Import PKCS8 ML-DSA Component
-    if ((ret = wc_Dilithium_PrivateKeyDecode(mldsa_Buffer, &idx, key->mldsa_key, mldsa_BufferLen)) < 0) {
-        MADWOLF_DEBUG("failed to import ML-DSA-44 component with code %d", ret);
-        goto err;
-        return ret;
-    }
 
-#endif
+    if (type == D2_WC_MLDSA44_RSAPSS2048_SHA256
+        || type == D2_WC_MLDSA44_RSA2048_SHA256
+        || type == D2_WC_MLDSA44_ED25519_SHA256
+        || type == D2_WC_MLDSA44_NISTP256_SHA256
+        // || type == D2_WC_MLDSA44_BPOOL256_SHA256
+        || type == D2_WC_MLDSA65_RSAPSS3072_SHA512
+        || type == D2_WC_MLDSA65_RSA3072_SHA512
+        || type == D2_WC_MLDSA65_ED25519_SHA512
+        || type == D2_WC_MLDSA65_NISTP256_SHA512
+        || type == D2_WC_MLDSA65_BPOOL256_SHA512
+        || type == D2_WC_MLDSA87_NISTP384_SHA512
+        || type == D2_WC_MLDSA87_BPOOL384_SHA512
+        || type == D2_WC_MLDSA87_ED448_SHA512) {
+
+        // Processes a sequence of PKCS8 objects
+        if ((ret = wc_Dilithium_PrivateKeyDecode(mldsa_Buffer, &idx, key->mldsa_key, mldsa_BufferLen)) < 0) {
+            MADWOLF_DEBUG("failed to import ML-DSA-44 component with code %d", ret);
+            goto err;
+            return ret;
+        }
+
+    } else {
+
+        // Processes a sequence of OCTET STRING objects
+        if ((ret = wc_dilithium_import_private(mldsa_Buffer, mldsa_BufferLen, key->mldsa_key)) < 0) {
+            MADWOLF_DEBUG("failed to import ML-DSA component with code %d", ret);
+            goto err;
+        }
+}
 
     // Resets the index
     idx = other_BufferLen;
@@ -4359,21 +4408,52 @@ int wc_MlDsaComposite_PrivateKeyDecode(const byte* input, word32* inOutIdx,
     word32 pubKeyLen = 0;
     int keySum = 0;
 
+    byte * local_buffer = NULL;
+
     /* Validate parameters. */
     if ((input == NULL) || (inOutIdx == NULL) || (key == NULL) || (inSz == 0) || (type <= 0)) {
         ret = BAD_FUNC_ARG;
     }
 
-    /* Retrieves the OID SUM for the key type*/
-    if ((keySum =wc_composite_level_to_keySum(type)) < 0) {
-        WOLFSSL_MSG_VSNPRINTF("error cannot get ML-DSA Composite type");
-        return ret;
+    /* Creates a local copy of the input buffer */
+    local_buffer = (byte *)XMALLOC(inSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (local_buffer == NULL) {
+        return MEMORY_E;
     }
+    XMEMCPY(local_buffer, input, inSz);
+
+    /* Retrieves the OID SUM for the key type*/
+    if ((keySum = wc_composite_level_to_keySum(type)) < 0) {
+        WOLFSSL_MSG_VSNPRINTF("error cannot get ML-DSA Composite type");
+    }
+
+    /* Remove the PKCS8 outer shell if present. */
+    ret = ToTraditional_ex(local_buffer, inSz, (word32 *)&keySum);
+    if (ret < 0 || keySum <= 0) {
+        keySum = wc_composite_level_to_keySum(type);
+        if (keySum <= 0) {
+            MADWOLF_DEBUG("error cannot get ML-DSA Composite type from PKCS8 or type (%d)", type);
+            ret = BAD_FUNC_ARG;
+            goto err;
+        }
+    }
+    // Sets the size of the stripped buffer
+    // and resets the return code
+    inSz = ret;
+    ret = 0;
 
     if (ret == 0) {
         /* Decode the asymmetric key and get out private and public key data. */
-        ret = DecodeAsymKey_Assign(input, inOutIdx, inSz, &privKey, &privKeyLen,
+        *inOutIdx = 0;
+        ret = DecodeAsymKey_Assign(local_buffer, inOutIdx, inSz, &privKey, &privKeyLen,
             &pubKey, &pubKeyLen, &keySum);
+        if (ret < 0) {
+            MADWOLF_DEBUG("error cannot decode ML-DSA Composite key with code %d", ret);
+            // goto err;
+            privKey = local_buffer;
+            privKeyLen = inSz;
+            ret = 0;
+        }
     }
     if (ret == 0) {
         /* Check whether public key data was found. */
@@ -4383,6 +4463,9 @@ int wc_MlDsaComposite_PrivateKeyDecode(const byte* input, word32* inOutIdx,
         {
             /* No public key data, only import private key data. */
             ret = wc_mldsa_composite_import_private(privKey, privKeyLen, key, type);
+            FILE *fp = fopen("privkey.der", "wb");
+            fwrite(privKey, 1, privKeyLen, fp);
+            fclose(fp);
         }
 #if defined(WOLFSSL_DILITHIUM_PUBLIC_KEY)
         else {
@@ -4390,13 +4473,17 @@ int wc_MlDsaComposite_PrivateKeyDecode(const byte* input, word32* inOutIdx,
             ret = wc_mldsa_composite_import_key(privKey, privKeyLen, pubKey,
                 pubKeyLen, key, type);
         }
-        /* sets the key type */
-        key->compType = type;
 #endif
     }
 
     (void)pubKey;
     (void)pubKeyLen;
+
+err:
+
+    if (local_buffer) {
+        XFREE(local_buffer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    }
 
     return ret;
 }

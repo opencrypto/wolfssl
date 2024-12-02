@@ -4428,7 +4428,7 @@ static word32 SetBitString16Bit(word16 val, byte* output)
     static const byte D2_keyMlDsa44_Ed25519_Sha256Oid[] =
         { 0x60, 0x86, 0x48, 0x01, 0x86, 0xFA, 0x6B, 0x50, 0x08, 0x01, 0x03 };
     static const byte D2_keyMlDsa44_NistP256_Sha256Oid[] =
-        { 0x60, 0x86, 0x48, 0x01, 0x86, 0xFA, 0x6B, 0x50, 0x08, 0x01, 0x04 };
+        { 0x06, 0x0B, 0x60, 0x86, 0x48, 0x01, 0x86, 0xFA, 0x6B, 0x50, 0x08, 0x01, 0x04 };
     // static const byte D2_keyMlDsa44_Bpool256_Sha256Oid[] =
     //     { 0x60, 0x86, 0x48, 0x01, 0x86, 0xFA, 0x6B, 0x50, 0x08, 0x01, 0x05 };
     
@@ -27434,6 +27434,7 @@ int wc_KeySum_get(const char * name) {
 const char * wc_KeySum_name(const int keySum) {
 
     if (keySum <= 0) {
+        printf("[%s:%d] KeySum not found (%d)\n", __FILE__, __LINE__, keySum);
         return NULL;
     }
 
@@ -27576,6 +27577,7 @@ const char * wc_KeySum_name(const int keySum) {
             break;
         
         default:
+            printf("[%s:%d] KeySum not found (%d)\n", __FILE__, __LINE__, keySum);
             return NULL;
     }
 
@@ -36742,6 +36744,10 @@ int DecodeAsymKey_Assign(const byte* input, word32* inOutIdx, word32 inSz,
                                                 oidKeyType, &oidSz);
             GetASN_ExpBuffer(&dataASN[EDKEYASN_IDX_PKEYALGO_OID], oidDerBytes,
                             oidSz);
+                            
+            /* Store detected OID if requested */
+            *inOutKeyType =
+                    (int)dataASN[EDKEYASN_IDX_PKEYALGO_OID].data.oid.sum;
         }
         else {
             /* Auto-detect OID using template */
@@ -36759,12 +36765,6 @@ int DecodeAsymKey_Assign(const byte* input, word32* inOutIdx, word32 inSz,
             if (ret != 0) {
                 ret = ASN_PARSE_E;
             }
-        }
-
-        /* Store detected OID if requested */
-        if (ret == 0 && *inOutKeyType == ANONk) {
-            *inOutKeyType =
-                (int)dataASN[EDKEYASN_IDX_PKEYALGO_OID].data.oid.sum;
         }
     }
     if (ret == 0) {

@@ -489,6 +489,8 @@ int load_key_p8(void ** key, int type, const char * key_file, int format) {
         return -1;
     }
 
+    printf(">>>> Key Algorithm: %d\n", algorSum);
+
     switch (algorSum) {
 #ifndef NO_RSA
     case RSAk:
@@ -497,7 +499,6 @@ int load_key_p8(void ** key, int type, const char * key_file, int format) {
         ret = wc_RsaPrivateKeyDecode(derPtr, &idx, rsaKey, keySz);
         if (ret != 0) {
             XFREE(rsaKey, NULL, DYNAMIC_TYPE_PRIVATE_KEY);
-            printf("[%d] Error loading key\n", __LINE__);
             return -1;
         }
         *key = rsaKey;
@@ -518,14 +519,6 @@ int load_key_p8(void ** key, int type, const char * key_file, int format) {
             printf("Cannot retrieve the curve Id, aborting (%d)", ecKey->idx);
             return BAD_STATE_E;
         }
-
-        printf("Curve ID: %d\n", ecKey->idx);
-
-        // ret = wc_ecc_import_private_key(derPtr, keySz, (ecc_key *)ecKey, );
-        // if (ret != 0) {
-        //     printf("[%d] Error loading key\n", __LINE__);
-        //     return -1;
-        // }
         *key = ecKey;
         break;
 #endif
@@ -624,11 +617,15 @@ int load_key_p8(void ** key, int type, const char * key_file, int format) {
         int comp_type = 0;
         mldsa_composite_key * mldsaCompKey = NULL;
 
+        printf("Loading Key with algorSum: %d\n", algorSum);
+
         // Gets the composite type
         if ((comp_type = wc_KeySum_to_composite_level(algorSum)) < 0) {
             printf("[%d] Cannot convert keytype to type (sum: %d)\n", __LINE__, algorSum);
             return ALGO_ID_E;
         }
+
+        printf("Allocating Key Memory with comp_type: %d\n", comp_type);
 
         // Allocates the memory for the key        
         mldsaCompKey = (mldsa_composite_key *)XMALLOC(sizeof(mldsa_composite_key), NULL, DYNAMIC_TYPE_PRIVATE_KEY);
@@ -640,16 +637,12 @@ int load_key_p8(void ** key, int type, const char * key_file, int format) {
 
         printf("Loading Key: %d (%d)\n", algorSum, comp_type);
 
-        // Decodes the key
-        // if ((ret = wc_mldsa_composite_import_private(derPtr, keySz, mldsaCompKey, comp_type)) < 0) {
-        //     return ret;
-        // }
         if ((ret = wc_MlDsaComposite_PrivateKeyDecode(derPtr, &idx, mldsaCompKey, keySz, comp_type)) < 0) {
             printf("[%d] Failed to PrivateKeyDecode\n", __LINE__);
             return ret;
         }
-
         *key = mldsaCompKey;
+
         break;
 #endif
         default:
@@ -657,7 +650,7 @@ int load_key_p8(void ** key, int type, const char * key_file, int format) {
             return BAD_FUNC_ARG;
     }
 
-    printf("Key Loaded Successfully: %d\n", algorSum);
+    printf("[%s:%d] Key Loaded Successfully: %d\n", __FILE__, __LINE__, ((mldsa_composite_key *)key)->compType);
 
     if (derPtr) XFREE(derPtr, NULL, DYNAMIC_TYPE_PRIVATE_KEY);
 
@@ -705,11 +698,13 @@ int gen_csr(const void * keyPair, const void * altkey, const char * out_filename
     keySum = wc_mldsa_composite_key_get_keySum((mldsa_composite_key *)keyPair);
     certType = wc_mldsa_composite_get_certType((mldsa_composite_key *)keyPair);
 
-    const char * algName = wc_KeySum_name(keySum);
+    char * algName = (char *)wc_KeySum_name(keySum);
     if (algName == NULL) {
         printf("Cannot Retreieve Alg Name for key type: %d\n", keySum);
-        goto exit;
+        // goto exit;
     }
+
+    printf("certType: %d, keySum: %d, algName: %s\n", certType, keySum, algName);
 
     strncpy(req.subject.country, "US", CTC_NAME_SIZE);
     // strncpy(req.subject.state, "OR", CTC_NAME_SIZE);
