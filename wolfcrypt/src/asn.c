@@ -7574,20 +7574,29 @@ int ToTraditionalInline_ex2(const byte* input, word32* inOutIdx, word32 sz,
             case FALCON_LEVEL1k:
             case FALCON_LEVEL5k:
 
-            // Composite - Level 1
+            // Composite
+            // Draft 2
+            case D2_MLDSA44_RSAPSS2048k:
+            case D2_MLDSA44_RSA2048k:
+            case D2_MLDSA44_NISTP256k:
+            case D2_MLDSA44_ED25519k:
+            case D2_MLDSA65_RSAPSS3072k:
+            case D2_MLDSA65_RSA3072k:
+            case D2_MLDSA65_NISTP256k:
+            case D2_MLDSA65_BPOOL256k:
+            case D2_MLDSA87_BPOOL384k:
+            case D2_MLDSA87_NISTP384k:
+            case D2_MLDSA87_ED448k:
+            // Draft 3
             case MLDSA44_NISTP256k:
             case MLDSA44_RSA2048k:
             case MLDSA44_RSAPSS2048k:
             // case MLDSA44_BPOOL256k:
             case MLDSA44_ED25519k:
-
-            // Composite - Level 3
             case MLDSA65_RSAPSS3072k:
             case MLDSA65_NISTP256k:
             case MLDSA65_RSA3072k:
             case MLDSA65_BPOOL256k:
-
-            // Composite - Level 5
             case MLDSA87_BPOOL384k:
             case MLDSA87_NISTP384k:
             case MLDSA87_ED448k:
@@ -8279,7 +8288,20 @@ int wc_CheckPrivateKey(const byte* privKey, word32 privKeySz,
         (ks == MLDSA65_BPOOL256k) ||
         (ks == MLDSA87_NISTP384k) ||
         (ks == MLDSA87_BPOOL384k) ||
-        (ks == MLDSA87_ED448k)) {
+        (ks == MLDSA87_ED448k) ||
+        (ks == D2_MLDSA44_RSA2048k) ||
+        (ks == D2_MLDSA44_RSAPSS2048k) ||
+        (ks == D2_MLDSA44_NISTP256k) ||
+        (ks == D2_MLDSA44_ED25519k) ||
+        // (ks == D2_MLDSA44_BPOOL256k) ||
+        (ks == D2_MLDSA65_RSA3072k) ||
+        (ks == D2_MLDSA65_RSAPSS3072k) ||
+        (ks == D2_MLDSA65_NISTP256k) ||
+        (ks == D2_MLDSA65_ED25519k) ||
+        (ks == D2_MLDSA65_BPOOL256k) ||
+        (ks == D2_MLDSA87_NISTP384k) ||
+        (ks == D2_MLDSA87_BPOOL384k) ||
+        (ks == D2_MLDSA87_ED448k)) {
     #ifdef WOLFSSL_SMALL_STACK
         falcon_key* key_pair = NULL;
     #else
@@ -36744,7 +36766,7 @@ int DecodeAsymKey_Assign(const byte* input, word32* inOutIdx, word32 inSz,
                                                 oidKeyType, &oidSz);
             GetASN_ExpBuffer(&dataASN[EDKEYASN_IDX_PKEYALGO_OID], oidDerBytes,
                             oidSz);
-                            
+
             /* Store detected OID if requested */
             *inOutKeyType =
                     (int)dataASN[EDKEYASN_IDX_PKEYALGO_OID].data.oid.sum;
