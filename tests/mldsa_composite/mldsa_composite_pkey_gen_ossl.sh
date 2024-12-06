@@ -17,8 +17,8 @@ ALGOS="$DRAFT_3_ALGOS_1 $DRAFT_2_ALGOS_3 $DRAFT_3_ALGOS_5"
 
 for algo in $ALGOS; do
     echo "Generating key for $algo"
-    openssl genpkey -algorithm $algo -out $OUTDIR/$algo.key
-    openssl req -new -key $OUTDIR/$algo.key -out $OUTDIR/$algo.csr -subj "/CN=$algo"
+    openssl genpkey -algorithm $algo -out $OUTDIR/ossl_$algo.key
+    openssl req -new -key $OUTDIR/ossl_$algo.key -out $OUTDIR/ossl_$algo.csr -subj "/CN=$algo"
 done
 
 exit 0
