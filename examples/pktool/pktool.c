@@ -643,6 +643,8 @@ int load_key_p8(void ** key, int type, const char * key_file, int format) {
         }
         *key = mldsaCompKey;
 
+        printf("[%s:%d] Private Key Imported - CompType: %d\n", __FILE__, __LINE__, comp_type);
+
         break;
 #endif
         default:
