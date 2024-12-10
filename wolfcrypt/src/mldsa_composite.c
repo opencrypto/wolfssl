@@ -545,54 +545,63 @@ int wc_mldsa_composite_make_key(mldsa_composite_key* key, enum mldsa_composite_l
 
 err:
 
-    // ML-DSA
-    if (key->mldsa_key) {
-        XFREE(key->mldsa_key, key->heap, DYNAMIC_TYPE_DILITHIUM);
-        key->mldsa_key = NULL;
-    }
-    // RSA
-    else if ((composite_level == WC_MLDSA44_RSAPSS2048_SHA256
-         || composite_level == WC_MLDSA44_RSA2048_SHA256
-         || composite_level == WC_MLDSA65_RSAPSS3072_SHA384
-         || composite_level == WC_MLDSA65_RSA3072_SHA384
-         || composite_level == WC_MLDSA65_RSAPSS4096_SHA384
-         || composite_level == WC_MLDSA65_RSA4096_SHA384) && key->alt_key.rsa) {
-        wc_FreeRsaKey(key->alt_key.rsa);
-        key->alt_key.rsa = NULL;
-    }
-    // Ed 25519
-    else if ((composite_level == WC_MLDSA44_ED25519_SHA256
-         || composite_level == WC_MLDSA65_ED25519_SHA384
-         || composite_level == D2_WC_MLDSA44_ED25519_SHA256
-         || composite_level == D2_WC_MLDSA65_ED25519_SHA512) && key->alt_key.ed25519) {
-        wc_ed25519_free(key->alt_key.ed25519);
-        key->alt_key.ed25519 = NULL;
-    }
-    // NIST P256, NIST P384, Brainpool P256, Brainpool P384
-    else if ((composite_level == WC_MLDSA44_NISTP256_SHA256
-        //  || composite_level == WC_MLDSA44_BPOOL256_SHA256
-         || composite_level == WC_MLDSA65_NISTP256_SHA384
-         || composite_level == WC_MLDSA65_BPOOL256_SHA384
-         || composite_level == WC_MLDSA87_NISTP384_SHA384
-         || composite_level == WC_MLDSA87_BPOOL384_SHA384
-         // -------------- Draft 2 ---------------- //
-         || composite_level == D2_WC_MLDSA44_NISTP256_SHA256
-         || composite_level == D2_WC_MLDSA65_BPOOL256_SHA512
-         || composite_level == D2_WC_MLDSA65_NISTP256_SHA512
-         || composite_level == D2_WC_MLDSA87_BPOOL384_SHA512
-         || composite_level == D2_WC_MLDSA87_NISTP384_SHA512) && key->alt_key.ecc) {
-        wc_ecc_key_free(key->alt_key.ecc);
-        key->alt_key.ecc = NULL;
-    }
-    else if ((composite_level == WC_MLDSA87_ED448_SHA384
-         || composite_level == D2_WC_MLDSA87_ED448_SHA512) && key->alt_key.ed448) {
-        wc_ed448_free(key->alt_key.ed448);
-        key->alt_key.ed448 = NULL;
-    }
-    else {
-        MADWOLF_DEBUG("Invalid key type in composite key (compType: %d)", composite_level);
-        ret = BAD_STATE_E;
-    }
+    // Frees the memory
+    wc_mldsa_composite_clear(key);
+
+    // // ML-DSA
+    // if (key->mldsa_key) {
+    //     wc_dilithium_free(key->mldsa_key);
+    //     XFREE(key->mldsa_key, key->heap, DYNAMIC_TYPE_DILITHIUM);
+    //     key->mldsa_key = NULL;
+    // }
+    // // RSA
+    // else if ((composite_level == WC_MLDSA44_RSAPSS2048_SHA256
+    //             || composite_level == WC_MLDSA44_RSA2048_SHA256
+    //             || composite_level == WC_MLDSA65_RSAPSS3072_SHA384
+    //             || composite_level == WC_MLDSA65_RSA3072_SHA384
+    //             || composite_level == WC_MLDSA65_RSAPSS4096_SHA384
+    //             || composite_level == WC_MLDSA65_RSA4096_SHA384) 
+    //         && key->alt_key.rsa) {
+    //     wc_FreeRsaKey(key->alt_key.rsa);
+    //     XFREE(key->alt_key.rsa, key->heap, DYNAMIC_TYPE_RSA);
+    //     key->alt_key.rsa = NULL;
+    // }
+    // // Ed 25519
+    // else if ((composite_level == WC_MLDSA44_ED25519_SHA256
+    //      || composite_level == WC_MLDSA65_ED25519_SHA384
+    //      || composite_level == D2_WC_MLDSA44_ED25519_SHA256
+    //      || composite_level == D2_WC_MLDSA65_ED25519_SHA512) && key->alt_key.ed25519) {
+    //     wc_ed25519_free(key->alt_key.ed25519);
+    //     XFREE(key->alt_key.ed25519, key->heap, DYNAMIC_TYPE_ED25519);
+    //     key->alt_key.ed25519 = NULL;
+    // }
+    // // NIST P256, NIST P384, Brainpool P256, Brainpool P384
+    // else if ((composite_level == WC_MLDSA44_NISTP256_SHA256
+    //     //  || composite_level == WC_MLDSA44_BPOOL256_SHA256
+    //      || composite_level == WC_MLDSA65_NISTP256_SHA384
+    //      || composite_level == WC_MLDSA65_BPOOL256_SHA384
+    //      || composite_level == WC_MLDSA87_NISTP384_SHA384
+    //      || composite_level == WC_MLDSA87_BPOOL384_SHA384
+    //      // -------------- Draft 2 ---------------- //
+    //      || composite_level == D2_WC_MLDSA44_NISTP256_SHA256
+    //      || composite_level == D2_WC_MLDSA65_BPOOL256_SHA512
+    //      || composite_level == D2_WC_MLDSA65_NISTP256_SHA512
+    //      || composite_level == D2_WC_MLDSA87_BPOOL384_SHA512
+    //      || composite_level == D2_WC_MLDSA87_NISTP384_SHA512) && key->alt_key.ecc) {
+    //     wc_ecc_key_free(key->alt_key.ecc);
+    //     XFREE(key->alt_key.ecc, key->heap, DYNAMIC_TYPE_ECC);
+    //     key->alt_key.ecc = NULL;
+    // }
+    // else if ((composite_level == WC_MLDSA87_ED448_SHA384
+    //      || composite_level == D2_WC_MLDSA87_ED448_SHA512) && key->alt_key.ed448) {
+    //     wc_ed448_free(key->alt_key.ed448);
+    //     XFREE(key->alt_key.ed448, key->heap, DYNAMIC_TYPE_ED448);
+    //     key->alt_key.ed448 = NULL;
+    // }
+    // else {
+    //     MADWOLF_DEBUG("Invalid key type in composite key (compType: %d)", composite_level);
+    //     ret = BAD_STATE_E;
+    // }
 
     return ret;
 }
@@ -1489,7 +1498,11 @@ int wc_mldsa_composite_clear(mldsa_composite_key* key) {
     }
     if (ret == 0 && (key->pubKeySet || key->prvKeySet)) {
         // Clear the ML-DSA key
-        wc_dilithium_free(key->mldsa_key);
+        if (key->mldsa_key) {
+            wc_dilithium_free(key->mldsa_key);
+            XFREE(key->mldsa_key, key->heap, DYNAMIC_TYPE_DILITHIUM);
+            key->mldsa_key = NULL;
+        }
 
         // Clear the alternative key
         switch (key->type) {
@@ -1503,6 +1516,7 @@ int wc_mldsa_composite_clear(mldsa_composite_key* key) {
             case MLDSA65_RSA4096_TYPE:
                 if (key->alt_key.rsa != NULL) {
                     ret = wc_FreeRsaKey(key->alt_key.rsa);
+                    XFREE(key->alt_key.rsa, key->heap, DYNAMIC_TYPE_RSA);
                     key->alt_key.rsa = NULL;
                 }
                 break;
@@ -1513,6 +1527,7 @@ int wc_mldsa_composite_clear(mldsa_composite_key* key) {
             case MLDSA65_ED25519_TYPE:
                 if (key->alt_key.ed25519 != NULL) {
                     wc_ed25519_free(key->alt_key.ed25519);
+                    XFREE(key->alt_key.ed25519, key->heap, DYNAMIC_TYPE_ED25519);
                     key->alt_key.ed25519 = NULL;
                 }
                 ret = 0;
@@ -1530,6 +1545,7 @@ int wc_mldsa_composite_clear(mldsa_composite_key* key) {
             case MLDSA87_BPOOL384_TYPE:
                 if (key->alt_key.ecc != NULL) {
                     ret = wc_ecc_free(key->alt_key.ecc);
+                    XFREE(key->alt_key.ecc, key->heap, DYNAMIC_TYPE_ECC);
                     key->alt_key.ecc = NULL;
                 }
                 break;
@@ -1538,6 +1554,7 @@ int wc_mldsa_composite_clear(mldsa_composite_key* key) {
             case MLDSA87_ED448_TYPE:
                 if (key->alt_key.ed448 != NULL) {
                     wc_ed448_free(key->alt_key.ed448);
+                    XFREE(key->alt_key.ed448, key->heap, DYNAMIC_TYPE_ED448);
                     key->alt_key.ed448 = NULL;
                 }
                 ret = 0;
@@ -1837,8 +1854,6 @@ int wc_mldsa_composite_level(const mldsa_composite_key* key)
 
     /* Get the type of the composite key */
     type = wc_mldsa_composite_type(key);
-
-    MADWOLF_DEBUG("Type: %d (key->type: %d)", type, key->type);
 
     /* Only recognized combinations are returned */
     switch (type) {
