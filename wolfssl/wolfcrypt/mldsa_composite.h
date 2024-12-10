@@ -528,13 +528,13 @@ WOLFSSL_API int wc_mldsa_composite_type(const mldsa_composite_key* key);
  */
 WOLFSSL_API int wc_mldsa_composite_type_level(int type);
 
-// /* Set the level of the MlDsaComposite private/public key.
-//  *
-//  * key   [out]  MlDsaComposite key.
-//  * level [in]   One of WC_MLDSA_COMPOSITE_TYPE_* values.
-//  * returns BAD_FUNC_ARG when key is NULL or level is a bad values.
-//  */
-// WOLFSSL_API int wc_mldsa_composite_set_level(mldsa_composite_key* key, int wc_mldsa_composite_type);
+/* Set the level of the MlDsaComposite private/public key.
+ *
+ * key   [out]  MlDsaComposite key.
+ * level [in]   One of WC_MLDSA_COMPOSITE_TYPE_* values.
+ * returns BAD_FUNC_ARG when key is NULL or level is a bad values.
+ */
+WOLFSSL_API int wc_mldsa_composite_set_level(mldsa_composite_key* key, int wc_mldsa_composite_type);
 
 /* Get the level of the MlDsaComposite private/public key.
  *
