@@ -46212,12 +46212,12 @@ static wc_test_ret_t mldsa_composite_param_test(int param, WC_RNG* rng)
         return ret;
     }
 
-printf("[%s:%d] DEBUG\n", __FILE__, __LINE__);
+// printf("[%s:%d] DEBUG\n", __FILE__, __LINE__);
 
-    ret = wc_mldsa_composite_key_set_level(key, param);
-    if (ret != 0) {
-        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
-    }
+//     ret = wc_mldsa_composite_key_set_level(key, param);
+//     if (ret != 0) {
+//         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+//     }
 
 printf("[%s:%d] DEBUG\n", __FILE__, __LINE__);
 
@@ -46253,7 +46253,7 @@ printf("[%s:%d] DEBUG\n", __FILE__, __LINE__);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
-printf("[%s:%d] %s(): Exported Private (and Public) Key: ret = %d, type = %d, keySum = %d\n", __FILE__, __LINE__, __FUNCTION__, ret, param, wc_mldsa_composite_key_get_keySum(key));
+printf("[%s:%d] %s(): Exported Private (and Public) Key: ret = %d, type = %d, keySum = %d\n", __FILE__, __LINE__, __FUNCTION__, ret, param, wc_mldsa_composite_key_sum(key));
 
 
     // do {
@@ -46277,7 +46277,7 @@ printf("[%s:%d] %s(): MLDSA Composite Key RE-Initialized (MLDSA Comp Type: %d)\n
 
     ret = wc_mldsa_composite_import_private(privKey_Buffer, privKey_BufferLen, &imported_key, param);
 
-printf("[%s:%d] %s(): Imported Private (and Public) Key: ret = %d, type = %d, keySum = %d\n", __FILE__, __LINE__, __FUNCTION__, ret, param, wc_mldsa_composite_key_get_keySum(key));
+printf("[%s:%d] %s(): Imported Private (and Public) Key: ret = %d, type = %d, keySum = %d\n", __FILE__, __LINE__, __FUNCTION__, ret, param, wc_mldsa_composite_key_sum(key));
 
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
@@ -46467,10 +46467,10 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t mldsa_composite_test(void)
         return 101;
     }
 
-    ret = wc_mldsa_composite_key_set_level(c_key, WC_MLDSA44_RSA2048_SHA256);
-    if (ret < 0) {
-        return 102;
-    }
+    // ret = wc_mldsa_composite_key_set_level(c_key, WC_MLDSA44_RSA2048_SHA256);
+    // if (ret < 0) {
+    //     return 102;
+    // }
 
     ret = wc_mldsa_composite_make_key(c_key, WC_MLDSA44_RSA2048_SHA256, &rng);
     if (ret < 0) {

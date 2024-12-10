@@ -225,7 +225,7 @@
                     // ===============
 
 
-enum mldsa_composite_type {
+enum mldsa_composite_level {
     WC_MLDSA_COMPOSITE_UNDEF = 0,
 
     // ---------- Draft 2 ----------
@@ -281,7 +281,7 @@ extern const byte mldsa_composite_oid_data[][13];
 // Composite Key Parameters
 struct mldsa_composite_params {
 
-    enum mldsa_composite_type type;
+    enum mldsa_composite_level type;
 
     union {
 
@@ -341,11 +341,8 @@ struct mldsa_composite_key {
     void* heap;
         /* heap hint */
 
-    enum mldsa_composite_type compType;
-        /* Type of Composite Key */
-
-    struct mldsa_composite_params mldsa_kp;
-        /* PQ Key Parameters */
+    int type;
+        /* Type of keys/cert from CertType */
 
     MlDsaKey * mldsa_key;
         /* ML-DSA Key */
@@ -379,15 +376,15 @@ struct mldsa_composite_key {
 #ifndef WOLFSSL_MLDSA_COMPOSITE_NO_MAKE_KEY
 /* Make a key from a random seed.
  *
- * @param [in, out] key  Dilithium key.
- * @param [in]      type ML-DSA composite type.
- * @param [in]      rng  Random number generator.
+ * @param [in, out] key   Dilithium key.
+ * @param [in]      level ML-DSA composite level.
+ * @param [in]      rng   Random number generator.
  * @return  0 on success.
  * @return  MEMORY_E when memory allocation fails.
  * @return  Other negative when an error occurs.
  */
 WOLFSSL_API int wc_mldsa_composite_make_key(mldsa_composite_key       * key, 
-                                            enum mldsa_composite_type   type, 
+                                            enum mldsa_composite_level  level, 
                                             WC_RNG                    * rng);
 #endif /* ! WOLFSSL_MLDSA_COMPOSITE_NO_MAKE_KEY */
 
@@ -506,13 +503,38 @@ int wc_mldsa_composite_init_label(mldsa_composite_key* key, const char* label, v
     int devId);
 #endif
 
-/* Set the level of the MlDsaComposite private/public key.
+// /* Get the type of the composite key.
+//  *
+//  * key   [in]  MlDsaComposite key.
+//  * returns a value from enum CertType for the key.
+//  * returns BAD_FUNC_ARG when key is NULL or level has not been set.
+//  */
+// WOLFSSL_API int wc_mldsa_composite_set_type(const mldsa_composite_key* key, int type);
+
+
+/* Get the type of the composite key.
  *
- * key   [out]  MlDsaComposite key.
- * level [in]   One of WC_MLDSA_COMPOSITE_TYPE_* values.
- * returns BAD_FUNC_ARG when key is NULL or level is a bad values.
+ * key   [in]  MlDsaComposite key.
+ * returns a value from enum CertType for the key.
+ * returns BAD_FUNC_ARG when key is NULL or level has not been set.
  */
-WOLFSSL_API int wc_mldsa_composite_key_set_level(mldsa_composite_key* key, int wc_mldsa_composite_type);
+WOLFSSL_API int wc_mldsa_composite_type(const mldsa_composite_key* key);
+
+/* Get the level of the composite key.
+ *
+ * key   [in]  MlDsaComposite key.
+ * returns a value from enum MlDsaCompositeLevel for the key.
+ * returns BAD_FUNC_ARG when key is NULL or level has not been set.
+ */
+WOLFSSL_API int wc_mldsa_composite_type_level(int type);
+
+// /* Set the level of the MlDsaComposite private/public key.
+//  *
+//  * key   [out]  MlDsaComposite key.
+//  * level [in]   One of WC_MLDSA_COMPOSITE_TYPE_* values.
+//  * returns BAD_FUNC_ARG when key is NULL or level is a bad values.
+//  */
+// WOLFSSL_API int wc_mldsa_composite_set_level(mldsa_composite_key* key, int wc_mldsa_composite_type);
 
 /* Get the level of the MlDsaComposite private/public key.
  *
@@ -520,7 +542,15 @@ WOLFSSL_API int wc_mldsa_composite_key_set_level(mldsa_composite_key* key, int w
  * returns a value from enum mldsa_composite_type.
  * returns BAD_FUNC_ARG when key is NULL or level has not been set.
  */
-WOLFSSL_API int wc_mldsa_composite_key_get_level(const mldsa_composite_key* key);
+WOLFSSL_API int wc_mldsa_composite_level(const mldsa_composite_key* key);
+
+/* Get the key/cert type from a composite level.
+ *
+ * key   [in]  MlDsaComposite key.
+ * returns a value from CertType enum.
+ * returns BAD_FUNC_ARG when key is NULL or level has not been set.
+ */
+WOLFSSL_API int wc_mldsa_composite_level_type(int comp_level);
 
 /* Get the KeySum of the MlDsaComposite private/public key.
  *
@@ -528,7 +558,7 @@ WOLFSSL_API int wc_mldsa_composite_key_get_level(const mldsa_composite_key* key)
  * returns enum Key_Sum value of the key.
  * returns BAD_FUNC_ARG when key is NULL or not initialized.
  */
-WOLFSSL_API int wc_mldsa_composite_key_get_keySum(const mldsa_composite_key * key);
+WOLFSSL_API int wc_mldsa_composite_key_sum(const mldsa_composite_key * key);
 
 /*
 * Convert the KeySum to the MlDsaComposite type.
@@ -537,32 +567,16 @@ WOLFSSL_API int wc_mldsa_composite_key_get_keySum(const mldsa_composite_key * ke
 * returns enum mldsa_composite_type value.
 * returns BAD_FUNC_ARG when keytype_sum is not a valid value.
 */
-WOLFSSL_API int wc_KeySum_to_composite_level(const enum Key_Sum keytype_sum);
+WOLFSSL_API int wc_mldsa_composite_key_sum_level(const enum Key_Sum keytype_sum);
 
 /*
 * Convert the MlDsaComposite type to the KeySum.
 *
-* type  [in]  enum mldsa_composite_type value.
+* level   [in]  enum mldsa_composite_type value.
 * returns enum Key_Sum value.
 * returns BAD_FUNC_ARG when type is not a valid value.
 */
-WOLFSSL_API int wc_composite_level_to_keySum(const enum mldsa_composite_type type);
-
-/* Get the type of the composite key.
- *
- * key   [in]  MlDsaComposite key.
- * returns a value from enum CertType for the key.
- * returns BAD_FUNC_ARG when key is NULL or level has not been set.
- */
-WOLFSSL_API int wc_mldsa_composite_get_certType(const mldsa_composite_key* key);
-
-/* Get the type of the composite key.
- *
- * key   [in]  MlDsaComposite key.
- * returns a value from enum CertType for the key.
- * returns BAD_FUNC_ARG when key is NULL or level has not been set.
- */
-WOLFSSL_API int wc_mldsa_composite_key_level_to_certType(int mldsa_composite_level);
+WOLFSSL_API int wc_composite_level_key_sum(const enum mldsa_composite_level level);
 
 /* Clears the MlDsaComposite key data
  *
@@ -654,7 +668,7 @@ WOLFSSL_API int wc_mldsa_composite_check_key(mldsa_composite_key* key);
  * @return  BAD_FUNC_ARG when in or key is NULL or key format is not supported.
  */
 WOLFSSL_API int wc_mldsa_composite_import_public(const byte* in, word32 inLen,
-    mldsa_composite_key* key, enum mldsa_composite_type type);
+    mldsa_composite_key* key, enum mldsa_composite_level type);
 
 /* Export the MlDsaComposite public key.
  *
@@ -680,7 +694,7 @@ WOLFSSL_API int wc_mldsa_composite_export_public(mldsa_composite_key* key, byte*
  *          required for level,
  */
 WOLFSSL_API int wc_mldsa_composite_import_private(const byte* priv, word32 privSz,
-    mldsa_composite_key* key, enum mldsa_composite_type type);
+    mldsa_composite_key* key, enum mldsa_composite_level type);
 
 /* Export the mldsa_composite private key.
  *
@@ -711,7 +725,7 @@ WOLFSSL_API int wc_mldsa_composite_export_private(mldsa_composite_key* key, byte
  *          combination of keys/lengths is supplied.
  */
 WOLFSSL_API int wc_mldsa_composite_import_key(const byte* priv, word32 privSz,
-    const byte* pub, word32 pubSz, mldsa_composite_key* key, enum mldsa_composite_type type);
+    const byte* pub, word32 pubSz, mldsa_composite_key* key, enum mldsa_composite_level type);
 
 /* Export the mldsa_composite private and public key.
  *
@@ -747,7 +761,7 @@ WOLFSSL_API int wc_mldsa_composite_export_key(mldsa_composite_key* key, byte* pr
  * @return  Other negative on parse error.
  */
 WOLFSSL_API int wc_MlDsaComposite_PrivateKeyDecode(const byte* input,
-    word32* inOutIdx, mldsa_composite_key* key, word32 inSz, enum mldsa_composite_type type);
+    word32* inOutIdx, mldsa_composite_key* key, word32 inSz, enum mldsa_composite_level type);
 
 #endif /* WOLFSSL_MLDSA_COMPOSITE_PRIVATE_KEY */
 #endif /* WOLFSSL_MLDSA_COMPOSITE_NO_ASN1 */
@@ -760,7 +774,7 @@ WOLFSSL_API int wc_MlDsaComposite_PrivateKeyDecode(const byte* input,
  *                            On out, index into array after DER encoding.
  * @param [in, out] key       mldsa_composite key to store key.
  * @param [in]      inSz      Total size of data in array.
- * @param [in]      type      ML-DSA Composite Type (e.g., WC_MLDSA44_NISTP256_SHA256)
+ * @param [in]      level     ML-DSA Composite Type (e.g., WC_MLDSA44_NISTP256_SHA256)
  *                            or WC_MLDSA_COMPOSITE_UNDEF to use the type in the key.
  * @return  0 on success.
  * @return  BAD_FUNC_ARG when input, inOutIdx or key is NULL or inSz is 0.
@@ -768,7 +782,7 @@ WOLFSSL_API int wc_MlDsaComposite_PrivateKeyDecode(const byte* input,
  * @return  Other negative on parse error.
  */
 WOLFSSL_API int wc_MlDsaComposite_PublicKeyDecode(const byte* input,
-    word32* inOutIdx, mldsa_composite_key* key, word32 inSz, enum mldsa_composite_type type);
+    word32* inOutIdx, mldsa_composite_key* key, word32 inSz, enum mldsa_composite_level level);
 #endif /* WOLFSSL_MLDSA_COMPOSITE_PUBLIC_KEY */
 
 #ifndef WOLFSSL_MLDSA_COMPOSITE_NO_ASN1

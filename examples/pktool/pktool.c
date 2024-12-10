@@ -620,7 +620,7 @@ int load_key_p8(void ** key, int type, const char * key_file, int format) {
         printf("Loading Key with algorSum: %d\n", algorSum);
 
         // Gets the composite type
-        if ((comp_type = wc_KeySum_to_composite_level(algorSum)) < 0) {
+        if ((comp_type = wc_mldsa_composite_key_sum_level(algorSum)) < 0) {
             printf("[%d] Cannot convert keytype to type (sum: %d)\n", __LINE__, algorSum);
             return ALGO_ID_E;
         }
@@ -650,7 +650,7 @@ int load_key_p8(void ** key, int type, const char * key_file, int format) {
             return BAD_FUNC_ARG;
     }
 
-    printf("[%s:%d] Key Loaded Successfully: %d\n", __FILE__, __LINE__, ((mldsa_composite_key *)key)->compType);
+    printf("[%s:%d] Key Loaded Successfully: %d\n", __FILE__, __LINE__, ((mldsa_composite_key *)key)->type);
 
     if (derPtr) XFREE(derPtr, NULL, DYNAMIC_TYPE_PRIVATE_KEY);
 
@@ -695,8 +695,8 @@ int gen_csr(const void * keyPair, const void * altkey, const char * out_filename
     }
 
     // Extracts the type of key
-    keySum = wc_mldsa_composite_key_get_keySum((mldsa_composite_key *)keyPair);
-    certType = wc_mldsa_composite_get_certType((mldsa_composite_key *)keyPair);
+    keySum = wc_mldsa_composite_key_sum((mldsa_composite_key *)keyPair);
+    certType = wc_mldsa_composite_type((mldsa_composite_key *)keyPair);
 
     char * algName = (char *)wc_KeySum_name(keySum);
     if (algName == NULL) {
@@ -1012,7 +1012,7 @@ int gen_keypair(void ** key, int keySum, int param) {
         int key_type = 0;
         
         ret = wc_mldsa_composite_init(&mldsa_compositeKey);
-        if ((key_type = wc_KeySum_to_composite_level(keySum)) < 0)
+        if ((key_type = wc_mldsa_composite_key_sum_level(keySum)) < 0)
             return key_type;
         if (ret == 0)
             ret = wc_mldsa_composite_make_key(&mldsa_compositeKey, key_type, &rng);
