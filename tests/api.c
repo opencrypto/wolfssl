@@ -9515,7 +9515,7 @@ static int test_wolfSSL_CTX_verifyDepth_ServerClient_1_ctx_ready(
     WOLFSSL_CTX* ctx)
 {
     wolfSSL_CTX_set_verify(ctx, SSL_VERIFY_PEER, myVerify);
-    myVerifyAction = VERIFY_USE_PREVERFIY;
+    myVerifyAction = VERIFY_USE_PREVERIFY;
     wolfSSL_CTX_set_verify_depth(ctx, 2);
     return TEST_SUCCESS;
 }
@@ -9595,7 +9595,7 @@ static int test_wolfSSL_CTX_verifyDepth_ServerClient_3_ctx_ready(
     WOLFSSL_CTX* ctx)
 {
     wolfSSL_CTX_set_verify(ctx, SSL_VERIFY_PEER, myVerify);
-    myVerifyAction = VERIFY_USE_PREVERFIY;
+    myVerifyAction = VERIFY_USE_PREVERIFY;
     wolfSSL_CTX_set_verify_depth(ctx, 0);
     return TEST_SUCCESS;
 }
@@ -73915,7 +73915,9 @@ static int test_wolfSSL_sk_DIST_POINT(void)
 static int test_wolfSSL_verify_mode(void)
 {
     EXPECT_DECLS;
-#if defined(OPENSSL_ALL) && !defined(NO_RSA)
+#if !defined(NO_RSA) && (defined(OPENSSL_ALL) || \
+    defined(HAVE_STUNNEL) || defined(WOLFSSL_MYSQL_COMPATIBLE) || \
+    defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY))
     WOLFSSL*     ssl = NULL;
     WOLFSSL_CTX* ctx = NULL;
 
@@ -98916,7 +98918,7 @@ static int test_revoked_loaded_int_cert_ctx_ready1(WOLFSSL_CTX* ctx)
 {
     EXPECT_DECLS;
     wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_PEER, myVerify);
-    myVerifyAction = VERIFY_USE_PREVERFIY;
+    myVerifyAction = VERIFY_USE_PREVERIFY;
     ExpectIntEQ(wolfSSL_CTX_load_verify_locations_ex(ctx,
             "./certs/ca-cert.pem", NULL, 0), WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_CTX_load_verify_locations_ex(ctx,
@@ -98936,7 +98938,7 @@ static int test_revoked_loaded_int_cert_ctx_ready2(WOLFSSL_CTX* ctx)
 {
     EXPECT_DECLS;
     wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_PEER, myVerify);
-    myVerifyAction = VERIFY_USE_PREVERFIY;
+    myVerifyAction = VERIFY_USE_PREVERIFY;
     ExpectIntEQ(wolfSSL_CTX_load_verify_locations_ex(ctx,
             "./certs/ca-cert.pem", NULL, 0), WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_CTX_load_verify_locations_ex(ctx,
@@ -98973,7 +98975,7 @@ static int test_revoked_loaded_int_cert_ctx_ready3(WOLFSSL_CTX* ctx)
 {
     EXPECT_DECLS;
     wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_PEER, myVerify);
-    myVerifyAction = VERIFY_USE_PREVERFIY;
+    myVerifyAction = VERIFY_USE_PREVERIFY;
     ExpectIntEQ(wolfSSL_CTX_load_verify_locations_ex(ctx,
             "./certs/ca-cert.pem", NULL, 0), WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_CTX_load_verify_locations_ex(ctx,
