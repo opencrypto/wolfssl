@@ -75,7 +75,8 @@
 typedef struct AsymKey {
     /* Type of key - RSA, ECC, etc. */
     int type;
-    /* Security Bits */
+    /* Key Parameter - Integer for Curve OIDs or level */
+    int param;
     union {
         /* RSA key data. */
 #ifndef NO_RSA
@@ -115,11 +116,29 @@ typedef struct AsymKey {
 
 /* Functions */
 
+/* Allocates the memory associated with a new AsymKey.
+ *
+ * @return  MEMORY_E when memory allocation fails.
+ * @return  the pointer to the new AsymKey.
+ */
+WOLFSSL_API AsymKey * wc_AsymKey_new(void);
+
+/* Free the memory associated with an AsymKey.
+ *
+ * @param [in] key The Asymmetric key. The memory associated with the
+ *                 key pointer will not be freed, the caller still
+ *                 needs to call XFREE on the key pointer.
+ * @return  0 on success.
+ * @return  BAD_FUNC_ARG when key is NULL.
+ */
+WOLFSSL_API int wc_AsymKey_free(AsymKey * key);
+
 #ifndef WOLFSSL_NO_MAKE_KEY
-/* Make a key from a random seed.
+/* Generates a new keypair of a specified type.
  *
  * @param [out] key      Asymmetric key.
- * @param [in]  key_type Type of key to make.
+ * @param [in]  type     Type of key to make.
+ * @param [in]  param    Key parameter (e.g., 2048 for RSA).
  * @param [in]  seed     Random seed.
  * @param [in]  seedSz   Size of seed in bytes.
  * @param [in]  rng      Random number generator.
@@ -128,8 +147,9 @@ typedef struct AsymKey {
  * @return  MEMORY_E when memory allocation fails.
  * @return  Other negative when an error occurs.
  */
-WOLFSSL_API int wc_AsymKey_new(AsymKey ** key,
-                               int        key_type, 
+WOLFSSL_API int wc_AsymKey_gen(AsymKey ** key,
+                               int        type,
+                               int        param,
                                byte     * seed,
                                word32     seedSz,
                                WC_RNG   * rng);
@@ -137,55 +157,13 @@ WOLFSSL_API int wc_AsymKey_new(AsymKey ** key,
 
 #ifndef WOLFSSL_NO_VERIFY
 
-/* Free the memory associated with an AsymKey.
- *
- * @param [in] key Asymmetric key.
- * @return  0 on success.
- * @return  BAD_FUNC_ARG when key is NULL.
- */
-WOLFSSL_API int wc_AsymKey_free(AsymKey * key);
-
-/* Initialize a private/public key.
- *
- * @param [in, out] key     The Asymmetric Key.
- * @return  0 on success.
- * @return  BAD_FUNC_ARG when key is NULL
- */
-WOLFSSL_API int wc_AsymKey_init(AsymKey* key, int param);
-
-/* Initialize the MlDsaComposite private/public key.
- *
- * @param [in, out] key     ML-DSA composite key.
- * @param [in]      heap    Heap hint.
- * @param [in]      devId   Device ID.
- * @return  0 on success.
- * @return  BAD_FUNC_ARG when key is NULL
- */
-WOLFSSL_API int wc_AsymKey_init_ex(AsymKey* key, void* heap, int devId);
-
-/* Set the level of a private/public key.
- *
- * key   [out]  The AsymKey to set the parater for.
- * level [in]   The value for the supported level.
- * returns BAD_FUNC_ARG when key is NULL or level is a bad values.
- */
-WOLFSSL_API int wc_AsymKey_set_level(AsymKey* key, int level);
-
-/* Get the level of a private/public key.
- *
- * key   [in]  The public/private keypair to query.
- * returns an integer value for the level of the key (algorithm dependent).
- * returns BAD_FUNC_ARG when key is NULL or level has not been set.
- */
-WOLFSSL_API int wc_AsymKey_level(const AsymKey* key);
-
 /* Get the KeySum of a private/public key.
  *
  * key   [in]  The public/private keypair to query.
  * returns enum Key_Sum value of the key.
  * returns BAD_FUNC_ARG when key is NULL or not initialized.
  */
-WOLFSSL_API int wc_AsymKey_keySum(const AsymKey * key);
+WOLFSSL_API int wc_AsymKey_Oid(const AsymKey * key);
 
 /* Get the type of certificate associated with the key.
  *
@@ -193,15 +171,7 @@ WOLFSSL_API int wc_AsymKey_keySum(const AsymKey * key);
  * returns a value from enum CertType for the key.
  * returns BAD_FUNC_ARG when key is NULL or type has not been set.
  */
-WOLFSSL_API int wc_AsymKey_certType(const AsymKey* key);
-
-// /* Returns the size of the private key.
-//  *
-//  * @param [in] key  The public/private keypair to query.
-//  * @return  Private key size on success.
-//  * @return  BAD_FUNC_ARG when key is NULL or level not set,
-//  */
-// WOLFSSL_API int wc_AsymKey_size(const AsymKey* key);
+WOLFSSL_API int wc_AsymKey_type(const AsymKey* key);
 
 /* Returns the size of a private plus public key.
  *
@@ -248,7 +218,7 @@ WOLFSSL_API int wc_AsymKey_check(const AsymKey* key);
  * @return  0 on success.
  * @return  BAD_FUNC_ARG when in or key is NULL or key format is not supported.
  */
-WOLFSSL_API int wc_AsymKey_import_public(AsymKey* key, int type, const byte* in, word32 inLen);
+WOLFSSL_API int wc_AsymKey_Public_import(AsymKey* key, int type, const byte* in, word32 inLen, int format);
 
 /* Export the public key.
  *
@@ -260,54 +230,37 @@ WOLFSSL_API int wc_AsymKey_import_public(AsymKey* key, int type, const byte* in,
  * @return  BAD_FUNC_ARG when a parameter is NULL.
  * @return  BUFFER_E when outLen is less than DILITHIUM_LEVEL2_PUB_KEY_SIZE.
  */
-WOLFSSL_API int wc_AsymKey_export_public(const AsymKey* key, byte* out, word32* outLen);
+WOLFSSL_API int wc_AsymKey_Public_export(byte* buff, word32 buffLen, int format, const AsymKey* key);
 #endif /* WOLFSSL_PUBLIC_KEY */
 
 /* Import a keypair from a byte array.
  *
- * @param [in]      priv    Array holding private key.
- * @param [in]      privSz  Number of bytes of data in array.
- * @param [in, out] key     mldsa_composite private key.
+ * @param [out] key     Asymmetric key.
+ * @param [in]  type    Type of key to make.
+ * @param [in]  data    Key data.
+ * @param [in]  dataSz  Size of key data.
+ * @param [in]  passwd  Password for the keypair, NULL if not encrypted.
+ * @param [in]  passwdSz  Size of the password in bytes, 0 if not encrypted.
  * @return  0 otherwise.
  * @return  BAD_FUNC_ARG when a parameter is NULL or privSz is less than size
  *          required for level,
  */
-WOLFSSL_API int wc_AsymKey_import_private(const byte* priv, word32 privSz,
-    AsymKey* key, int type);
+WOLFSSL_API int wc_AsymKey_import(AsymKey* key, const byte* data, word32 dataSz, int standard, int format, const byte* passwd, word32 passwdSz);
 
-/* Export the mldsa_composite private key.
+/* Export a keypair to a byte array.
  *
- * @param [in]      key     mldsa_composite private key.
- * @param [out]     out     Array to hold private key.
- * @param [in, out] outLen  On in, the number of bytes in array.
- *                          On out, the number bytes put into array.
+ * @param [in]  key       The keypair to export.
+ * @param [out] buff      Array to hold the exported keypair.
+ * @param [in]  buffLen   Number of bytes in the array.
+ * @param [in]  standard Use 1 for standard (pkcs8) or 0 for legacy (pkcs1).
+ * @param [in]  format  Format of key data (1 = PEM, 0 = DER).
+ * @param [in]  passwd    Password for the keypair, NULL if not encrypted.
+ * @param [in]  passwdSz  Size of the password in bytes, 0 if not encrypted.
  * @return  0 on success.
  * @return  BAD_FUNC_ARG when a parameter is NULL.
  * @return  BUFFER_E when outLen is less than DILITHIUM_LEVEL2_KEY_SIZE.
  */
-WOLFSSL_API int wc_AsymKey_export_private(mldsa_composite_key* key, byte* out, word32* outLen);
-
-/* Import a keypair from the DER representation of a PKCS8 data structure.
- *
- * @param [in]      pkcsData    Array holding the PKCS#8 encoded KeyPair.
- * @param [in]      pkcsDataSz  Number of bytes of data in array.
- * @param [in, out] type        The `enum Key_Sum` value for the used Key.
- * 
- */
-WOLFSSL_API int wc_PKCS8_import(const byte* pkcsData, word32 pkcsDataSz, enum Key_Sum *type, AsymKey* key);
-
-/* Export the mldsa_composite private and public key.
- *
- * @param [in]      pkcsData    Array to hold the PKCS#8 encoded KeyPair.
- * @param [in, out] pkcsDataSz  On in, the number of bytes in private key array.
- *                              On out, the number bytes put into private key.
- * @param [out]     keySum      The `enum Key_Sum` value for the used Key.
- * @param [in]      key         Destination for the parsed keypair.
- * @return  0 on success.
- * @return  BAD_FUNC_ARG when a key, priv, privSz, pub or pubSz is NULL.
- * @return  BUFFER_E when privSz or pubSz is less than required size.
- */
-WOLFSSL_API int wc_PKCS8_export(byte* pkcsData, word32 *pkcsDataSz, word32 * oid, const AsymKey** key);
+WOLFSSL_API int wc_AsymKey_export(byte* buff, word32 buffLen, int standard, int format, const byte* passwd, word32 passwdSz, const AsymKey* key);
 
 /* Retrieves the OID of the keypair.
  *
@@ -317,7 +270,76 @@ WOLFSSL_API int wc_PKCS8_export(byte* pkcsData, word32 *pkcsDataSz, word32 * oid
  * @return  0 on success.
  * @return  BAD_FUNC_ARG when p8_data or p8_dataSz is NULL.
  */
-WOLFSSL_API int wc_PKCS8_info(byte * p8_data, word32 p8_dataSz, word32 * oid);
+WOLFSSL_API int wc_Pkcs8_info(byte * p8_data, word32 p8_dataSz, word32 * oid);
+
+/* Sign a message with the key.
+ *
+ * @param [out] sig    Array to hold the signature.
+ * @param [in, out] sigLen  On in, the number of bytes in array.
+ *                          On out, the number bytes put into array.
+ * @param [in] msg     Message to sign.
+ * @param [in] msgLen  Number of bytes in message.
+ * @param [in] key     The key to sign with.
+ * @param [in] rng     Random number generator.
+ * @return  0 on success.
+ * @return  BAD_FUNC_ARG when a parameter is NULL.
+ * @return  NOT_COMPILED_IN when the function is not compiled in.
+ */
+WOLFSSL_API int wc_AsymKey_Sign(byte* sig, word32* sigLen, const byte* msg, word32 msgLen, const AsymKey* key,
+    WC_RNG* rng);
+
+/* Verify a message with the key.
+*
+* @param [in] key     The key to verify with.
+* @param [in] sig     Signature to verify.
+* @param [in] sigLen  Number of bytes in signature.
+* @param [in] msg     Message to verify.
+* @param [in] msgLen  Number of bytes in message.
+* @param [out] res    Result of the verification.
+* @return  0 on success.
+* @return  BAD_FUNC_ARG when a parameter is NULL.
+* @return  NOT_COMPILED_IN when the function is not compiled in.
+*/
+WOLFSSL_API int wc_AsymKey_Verify(const AsymKey* key, const byte* sig, word32 sigLen,
+        const byte* msg, word32 msgLen, int* res);
+
+/*
+* Sign a message with the key.
+*
+* @param [in] key     The key to sign with.
+* @param [in] in      Message to sign.
+* @param [in] inLen   Number of bytes in message.
+* @param [out] out    Array to hold the signature.
+* @param [in, out] outLen  On in, the number of bytes in array.
+*                          On out, the number bytes put into array.
+* @param [in] rng     Random number generator.
+* @param [in] context Context for the signature.
+* @param [in] contextLen  Number of bytes in context.
+* @return  0 on success.
+* @return  BAD_FUNC_ARG when a parameter is NULL.
+* @return  NOT_COMPILED_IN when the function is not compiled in.
+*/
+WOLFSSL_API int wc_AsymKey_Sign_ex(const AsymKey* key, const byte* in, word32 inLen,
+        byte* out, word32* outLen, WC_RNG* rng, const byte* context, byte contextLen);
+
+/*
+* Verify a message with the key.
+*
+* @param [in] key     The key to verify with.
+* @param [in] sig     Signature to verify.
+* @param [in] sigLen  Number of bytes in signature.
+* @param [in] in      Message to verify.
+* @param [in] inLen   Number of bytes in message.
+* @param [out] res    Result of the verification.
+* @param [in] context Context for the signature.
+* @param [in] contextLen  Number of bytes in context.
+* @return  0 on success.
+* @return  BAD_FUNC_ARG when a parameter is NULL.
+* @return  NOT_COMPILED_IN when the function is not compiled in.
+*/
+
+WOLFSSL_API int wc_AsymKey_Verify_ex(const AsymKey* key, const byte* sig, word32 sigLen,
+        const byte* in, word32 inLen, int* res, const byte* context, byte contextLen);
 
 #ifdef __cplusplus
     }    /* extern "C" */

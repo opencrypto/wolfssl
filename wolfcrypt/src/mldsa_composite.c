@@ -2436,6 +2436,7 @@ void wc_mldsa_composite_free(mldsa_composite_key* key)
     /* Free the ML-DSA key*/
     if (key->mldsa_key) {
         wc_dilithium_free(key->mldsa_key);
+        XFREE(key->mldsa_key, key->heap, sizeof(dilithium_key));
         key->mldsa_key = NULL;
     }
 
@@ -2462,6 +2463,7 @@ void wc_mldsa_composite_free(mldsa_composite_key* key)
         case WC_MLDSA65_RSAPSS4096_SHA384: {
             if (key->alt_key.rsa) {
                 wc_FreeRsaKey(key->alt_key.rsa);
+                XFREE(key->alt_key.rsa, key->heap, sizeof(RsaKey));
                 key->alt_key.rsa = NULL;
             }
         } break;
@@ -2472,6 +2474,7 @@ void wc_mldsa_composite_free(mldsa_composite_key* key)
         case WC_MLDSA65_ED25519_SHA384: {
             if (key->alt_key.ed25519) {
                 wc_ed25519_free(key->alt_key.ed25519);
+                XFREE(key->alt_key.ed25519, key->heap, sizeof(ed25519_key));
                 key->alt_key.ed25519 = NULL;
             }
         } break;
@@ -2490,6 +2493,7 @@ void wc_mldsa_composite_free(mldsa_composite_key* key)
         case WC_MLDSA87_BPOOL384_SHA384: {
             if (key->alt_key.ecc) {
                 wc_ecc_free(key->alt_key.ecc);
+                XFREE(key->alt_key.ecc, key->heap, sizeof(ecc_key));
                 key->alt_key.ecc = NULL;
             }
         } break;
@@ -2498,6 +2502,7 @@ void wc_mldsa_composite_free(mldsa_composite_key* key)
         case WC_MLDSA87_ED448_SHA384: {
             if (key->alt_key.ed448) {
                 wc_ed448_free(key->alt_key.ed448);
+                XFREE(key->alt_key.ed448, key->heap, sizeof(ed448_key));
                 key->alt_key.ed448 = NULL;
             }
         } break;

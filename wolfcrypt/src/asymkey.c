@@ -6,11 +6,161 @@
 
 /* Functions */
 
+/* Allocates the memory associated with a new AsymKey.
+ *
+ * @return  MEMORY_E when memory allocation fails.
+ * @return  the pointer to the new AsymKey.
+ */
+WOLFSSL_API AsymKey * wc_AsymKey_new(void) {
+
+  AsymKey * ret = NULL;
+
+  ret = (AsymKey *)XMALLOC(sizeof(AsymKey), NULL, DYNAMIC_TYPE_PRIVATE_KEY);
+  if (ret == NULL) return NULL;
+
+  XMEMSET(ret, 0, sizeof(AsymKey));
+
+  return ret;
+}
+
+/* Free the memory associated with an AsymKey.
+ *
+ * @param [in] key The Asymmetric key. The memory associated with the
+ *                 key pointer will not be freed, the caller still
+ *                 needs to call XFREE on the key pointer.
+ * @return  0 on success.
+ * @return  BAD_FUNC_ARG when key is NULL.
+ */
+WOLFSSL_API int wc_AsymKey_free(AsymKey * key) {
+
+  if (!key)
+    return BAD_FUNC_ARG;
+
+  switch (key->type) {
+#ifdef HAVE_DSA
+    case DSA_TYPE:
+        if (!key->key.dsaKey) {
+          wc_FreeDsaKey(key->key.dsaKey);
+          XFREE(key->key.dsaKey, NULL, DYNAMIC_TYPE_DSA);
+          key->key.dsaKey = NULL;
+        }
+        break;
+#endif
+#ifndef NO_RSA
+    case RSA_TYPE:
+        if (!key->key.rsaKey) {
+          wc_FreeRsaKey(key->key.rsaKey);
+          XFREE(key->key.rsaKey, NULL, DYNAMIC_TYPE_RSA);
+          key->key.rsaKey = NULL;
+        } break;
+#endif
+#ifdef HAVE_ECC
+    case ECC_TYPE:
+        if (!key->key.eccKey) {
+          wc_ecc_free(key->key.eccKey);
+          XFREE(key->key.eccKey, NULL, DYNAMIC_TYPE_ECC);
+          key->key.eccKey = NULL;
+        } break;
+#endif
+#ifdef HAVE_ED25519
+    case ED25519_TYPE: {
+        if (!key->key.ed25519Key) {
+          wc_ed25519_free(key->key.ed25519Key);
+          XFREE(key->key.ed25519Key, NULL, DYNAMIC_TYPE_ED25519);
+          key->key.ed25519Key = NULL;
+        }
+    } break;
+
+#endif
+#ifdef HAVE_ED448
+    case ED448_TYPE:{
+        if (!key->key.ed448Key) {
+          wc_ed448_free(key->key.ed448Key);
+          XFREE(key->key.ed448Key, NULL, DYNAMIC_TYPE_ED448);
+          key->key.ed448Key = NULL;
+        }
+    } break;
+#endif
+#ifdef HAVE_DILITHIUM
+    case ML_DSA_LEVEL2_TYPE:
+    case ML_DSA_LEVEL3_TYPE:
+    case ML_DSA_LEVEL5_TYPE: {
+        if (!key->key.dilithiumKey) {
+          wc_dilithium_free(key->key.dilithiumKey);
+          XFREE(key->key.dilithiumKey, NULL, DYNAMIC_TYPE_DILITHIUM);
+          key->key.dilithiumKey = NULL;
+        }
+    } break;
+#endif
+#ifdef HAVE_FALCON
+    case FALCON_LEVEL1_TYPE:
+    case FALCON_LEVEL5_TYPE: {
+        if (!key->key.falconKey) {
+          wc_falcon_free(key->key.falconKey);
+          XFREE(key->key.falconKey, NULL, DYNAMIC_TYPE_FALCON);
+          key->key.falconKey = NULL;
+        }
+    } break;
+#endif
+#ifdef HAVE_SPHINCS
+    case SPHINCS_HARAKA_128S_ROBUST_TYPE:
+    case SPHINCS_HARAKA_128S_SIMPLE_TYPE:
+    case SPHINCS_HARAKA_192S_ROBUST_TYPE:
+    case SPHINCS_HARAKA_192S_SIMPLE_TYPE:
+    case SPHINCS_HARAKA_256S_ROBUST_TYPE:
+    case SPHINCS_HARAKA_256S_SIMPLE_TYPE:
+    case SPHINCS_SHAKE_128S_ROBUST_TYPE:
+    case SPHINCS_SHAKE_128S_SIMPLE_TYPE:
+    case SPHINCS_SHAKE_192S_ROBUST_TYPE:
+    case SPHINCS_SHAKE_192S_SIMPLE_TYPE:
+    case SPHINCS_SHAKE_256S_ROBUST_TYPE:
+    case SPHINCS_SHAKE_256S_SIMPLE_TYPE: {
+        if (!key->key.sphincsKey) {
+          wc_sphincs_free(key->key.sphincsKey);
+          XFREE(key->key.sphincsKey, NULL, DYNAMIC_TYPE_SPHINCS);
+          key->key.sphincsKey = NULL;
+        }
+    } break;
+#endif
+#ifdef HAVE_MLDSA_COMPOSITE
+    case MLDSA44_RSAPSS2048_TYPE:
+    case MLDSA44_RSA2048_TYPE:
+    case MLDSA44_NISTP256_TYPE:
+    case MLDSA44_ED25519_TYPE:
+    case MLDSA65_ED25519_TYPE:
+    case MLDSA65_RSAPSS4096_TYPE:
+    case MLDSA65_RSA4096_TYPE:
+    case MLDSA65_RSAPSS3072_TYPE:
+    case MLDSA65_RSA3072_TYPE:
+    case MLDSA65_NISTP256_TYPE:
+    case MLDSA65_BPOOL256_TYPE:
+    case MLDSA87_BPOOL384_TYPE:
+    case MLDSA87_NISTP384_TYPE:
+    case MLDSA87_ED448_TYPE: {
+        if (!key->key.mldsaCompKey) {
+          wc_mldsa_composite_free(key->key.mldsaCompKey);
+          XFREE(key->key.mldsaCompKey, NULL, DYNAMIC_TYPE_MLDSA_COMPOSITE);
+          key->key.mldsaCompKey = NULL;
+        }
+    } break;
+#endif
+    default:
+        return BAD_FUNC_ARG;
+  }
+
+  // Resets the type
+  key->type = 0;
+
+  return 0;
+}
+
+
 #ifndef WOLFSSL_NO_MAKE_KEY
-/* Make a key from a random seed.
+/* Generates a new keypair of a specified type.
  *
  * @param [out] key      Asymmetric key.
- * @param [in]  key_type Type of key to make.
+ * @param [in]  type     Type of key to make.
+ * @param [in]  param    Key parameter.
  * @param [in]  seed     Random seed.
  * @param [in]  seedSz   Size of seed in bytes.
  * @param [in]  rng      Random number generator.
@@ -19,7 +169,7 @@
  * @return  MEMORY_E when memory allocation fails.
  * @return  Other negative when an error occurs.
  */
-WOLFSSL_API int wc_AsymKey_new(AsymKey ** key,
+WOLFSSL_API int wc_AsymKey_gen(AsymKey ** key,
                                int        type,
                                int        param,
                                byte     * seed,
@@ -50,8 +200,7 @@ WOLFSSL_API int wc_AsymKey_new(AsymKey ** key,
   mldsa_composite_key mldsa_compositeKey;
 #endif
   void* keyPtr = NULL;
-  WC_RNG rng;
-  int rngAlloc = 0;
+  // int rngAlloc = 0;
 
 #ifdef HAVE_MLDSA_COMPOSITE
     byte der[MLDSA_COMPOSITE_MAX_PRV_KEY_SIZE];
@@ -61,6 +210,8 @@ WOLFSSL_API int wc_AsymKey_new(AsymKey ** key,
 
     (void)der;
     (void)outSz;
+    (void)seed;
+    (void)seedSz;
 
   if (!key)
       return BAD_FUNC_ARG;
@@ -85,7 +236,7 @@ WOLFSSL_API int wc_AsymKey_new(AsymKey ** key,
             XFREE(keyPtr, NULL, DYNAMIC_TYPE_RSA);
             return ret;
         }
-        ret = wc_MakeRsaKey(&rsaKey, param, WC_RSA_EXPONENT, &rng);
+        ret = wc_MakeRsaKey(&rsaKey, param, WC_RSA_EXPONENT, rng);
         if (ret < 0) {
             wc_FreeRsaKey(&rsaKey);
             XFREE(keyPtr, NULL, DYNAMIC_TYPE_RSA);
@@ -95,17 +246,6 @@ WOLFSSL_API int wc_AsymKey_new(AsymKey ** key,
 #endif
 #ifdef HAVE_ECC
     case ECC_TYPE:
-        // keyPtr = &ecKey;
-        // ret = wc_ecc_init(&ecKey);
-        // int keySz = 32;
-        // if (param <= 0)
-        //     param = ECC_SECP256R1;
-        // if (ret == 0) {
-        //     if ((keySz = wc_ecc_get_curve_size_from_id(param)) < 0)
-        //         ret = keySz;
-        //     if (ret == 0)
-        //         ret = wc_ecc_make_key_ex(&rng, keySz, keyPtr, param);
-        // }
         int keySz = wc_ecc_get_curve_size_from_id(param);
         if (keySz < 0)
                 return keySz;
@@ -122,7 +262,7 @@ WOLFSSL_API int wc_AsymKey_new(AsymKey ** key,
             XFREE(keyPtr, NULL, DYNAMIC_TYPE_ECC);
             return ret;
         }
-        ret = wc_ecc_make_key_ex(&rng, keySz, keyPtr, param);
+        ret = wc_ecc_make_key_ex(rng, keySz, keyPtr, param);
         if (ret < 0) {
             wc_ecc_free(keyPtr);
             XFREE(keyPtr, NULL, DYNAMIC_TYPE_ECC);
@@ -139,7 +279,7 @@ WOLFSSL_API int wc_AsymKey_new(AsymKey ** key,
         ret = wc_ed25519_init(&ed25519Key);
         if (ret < 0)
             return ret;
-        ret = wc_ed25519_make_key(&rng, ED25519_KEY_SIZE, keyPtr);
+        ret = wc_ed25519_make_key(rng, ED25519_KEY_SIZE, keyPtr);
         if (ret < 0) {
             wc_ed25519_free(keyPtr);
             XFREE(keyPtr, NULL, DYNAMIC_TYPE_ED25519);
@@ -155,7 +295,7 @@ WOLFSSL_API int wc_AsymKey_new(AsymKey ** key,
         ret = wc_ed448_init(&ed448Key);
         if (ret < 0)
             return ret;
-        ret = wc_ed448_make_key(&rng, ED448_KEY_SIZE, keyPtr);
+        ret = wc_ed448_make_key(rng, ED448_KEY_SIZE, keyPtr);
         if (ret < 0) {
             wc_ed448_free(keyPtr);
             XFREE(keyPtr, NULL, DYNAMIC_TYPE_ED448);
@@ -188,7 +328,7 @@ WOLFSSL_API int wc_AsymKey_new(AsymKey ** key,
           return BAD_FUNC_ARG;
         }
 
-        ret = wc_dilithium_make_key(&mldsaKey, &rng);
+        ret = wc_dilithium_make_key(&mldsaKey, rng);
         if (ret < 0) {
           wc_dilithium_free(keyPtr);
           XFREE(keyPtr, NULL, DYNAMIC_TYPE_DILITHIUM);
@@ -213,7 +353,7 @@ WOLFSSL_API int wc_AsymKey_new(AsymKey ** key,
     case MLDSA87_BPOOL384_TYPE:
     case MLDSA87_NISTP384_TYPE:
     case MLDSA87_ED448_TYPE:
-        int composite_level = wc_composite_level_type(type);
+        int composite_level = wc_mldsa_composite_level_type(type);
         keyPtr = (void *)XMALLOC(sizeof(mldsa_composite_key), NULL, DYNAMIC_TYPE_MLDSA_COMPOSITE);
         if (keyPtr == NULL)
             return MEMORY_E;
@@ -224,7 +364,7 @@ WOLFSSL_API int wc_AsymKey_new(AsymKey ** key,
             return ret;
         }
         if (ret == 0)
-            ret = wc_mldsa_composite_make_key(&mldsa_compositeKey, composite_level, &rng);
+            ret = wc_mldsa_composite_make_key(&mldsa_compositeKey, composite_level, rng);
 
         break;
 #endif
@@ -237,6 +377,7 @@ WOLFSSL_API int wc_AsymKey_new(AsymKey ** key,
     // Returns the key
     if (ret == 0) {
         *key = keyPtr;
+        (*key)->type = type;
     }
 
 #ifdef HAVE_MLDSA_COMPOSITE
@@ -260,65 +401,10 @@ WOLFSSL_API int wc_AsymKey_new(AsymKey ** key,
 #ifdef HAVE_DSA
     (void)dsaKey;
 #endif
-    wc_FreeRng(&rng);
 
     return 0;
 }
 #endif /* ! WOLFSSL_NO_MAKE_KEY */
-
-#ifndef WOLFSSL_NO_VERIFY
-
-/* Free the memory associated with an AsymKey.
- *
- * @param [in] key Asymmetric key.
- * @return  0 on success.
- * @return  BAD_FUNC_ARG when key is NULL.
- */
-WOLFSSL_API int wc_AsymKey_free(AsymKey * key) {
-
-}
-
-/* Initialize a private/public key.
- *
- * @param [in, out] key     The Asymmetric Key.
- * @return  0 on success.
- * @return  BAD_FUNC_ARG when key is NULL
- */
-WOLFSSL_API int wc_AsymKey_init(AsymKey* key, int param) {
-
-}
-
-/* Initialize the MlDsaComposite private/public key.
- *
- * @param [in, out] key     ML-DSA composite key.
- * @param [in]      heap    Heap hint.
- * @param [in]      devId   Device ID.
- * @return  0 on success.
- * @return  BAD_FUNC_ARG when key is NULL
- */
-WOLFSSL_API int wc_AsymKey_init_ex(AsymKey* key, void* heap, int devId) {
-
-}
-
-/* Set the level of a private/public key.
- *
- * key   [out]  The AsymKey to set the parater for.
- * level [in]   The value for the supported level.
- * returns BAD_FUNC_ARG when key is NULL or level is a bad values.
- */
-WOLFSSL_API int wc_AsymKey_set_level(AsymKey* key, int level) {
-
-}
-
-/* Get the level of a private/public key.
- *
- * key   [in]  The public/private keypair to query.
- * returns an integer value for the level of the key (algorithm dependent).
- * returns BAD_FUNC_ARG when key is NULL or level has not been set.
- */
-WOLFSSL_API int wc_AsymKey_level(const AsymKey* key) {
-
-}
 
 /* Get the KeySum of a private/public key.
  *
@@ -326,8 +412,10 @@ WOLFSSL_API int wc_AsymKey_level(const AsymKey* key) {
  * returns enum Key_Sum value of the key.
  * returns BAD_FUNC_ARG when key is NULL or not initialized.
  */
-WOLFSSL_API int wc_AsymKey_keySum(const AsymKey * key) {
+WOLFSSL_API int wc_AsymKey_Oid(const AsymKey * key) {
 
+  (void)key;
+  return NOT_COMPILED_IN;
 }
 
 /* Get the type of certificate associated with the key.
@@ -336,17 +424,13 @@ WOLFSSL_API int wc_AsymKey_keySum(const AsymKey * key) {
  * returns a value from enum CertType for the key.
  * returns BAD_FUNC_ARG when key is NULL or type has not been set.
  */
-WOLFSSL_API int wc_AsymKey_certType(const AsymKey* key) {
+WOLFSSL_API int wc_AsymKey_type(const AsymKey* key) {
 
+  if (!key || key->type <= 0)
+    return BAD_FUNC_ARG;
+
+  return key->type;
 }
-
-// /* Returns the size of the private key.
-//  *
-//  * @param [in] key  The public/private keypair to query.
-//  * @return  Private key size on success.
-//  * @return  BAD_FUNC_ARG when key is NULL or level not set,
-//  */
-// WOLFSSL_API int wc_AsymKey_size(const AsymKey* key);
 
 /* Returns the size of a private plus public key.
  *
@@ -354,9 +438,7 @@ WOLFSSL_API int wc_AsymKey_certType(const AsymKey* key) {
  * @return  Private key size on success.
  * @return  BAD_FUNC_ARG when key is NULL or level not set,
  */
-WOLFSSL_API int wc_AsymKey_priv_size(const AsymKey* key) {
-
-}
+WOLFSSL_API int wc_AsymKey_priv_size(const AsymKey* key);
 
 /* Returns the size of a public key.
  *
@@ -366,6 +448,8 @@ WOLFSSL_API int wc_AsymKey_priv_size(const AsymKey* key) {
  */
 WOLFSSL_API int wc_AsymKey_pub_size(const AsymKey* key) {
 
+  (void)key;
+  return NOT_COMPILED_IN;
 }
 
 /* Returns the size of a private key signature.
@@ -376,6 +460,8 @@ WOLFSSL_API int wc_AsymKey_pub_size(const AsymKey* key) {
  */
 WOLFSSL_API int wc_AsymKey_sig_size(const AsymKey* key) {
 
+  (void)key;
+  return NOT_COMPILED_IN;
 }
 
 /* Check the public key matches the private key.
@@ -388,66 +474,102 @@ WOLFSSL_API int wc_AsymKey_sig_size(const AsymKey* key) {
  */
 WOLFSSL_API int wc_AsymKey_check(const AsymKey* key) {
 
+  (void)key;
+  return NOT_COMPILED_IN;
 }
 
-/* Import a der encoded public key from a byte array.
+/* Import a public key from a byte array.
  *
- * Public key encoded in big-endian.
- *
- * @param [in]      in     Array holding public key.
- * @param [in]      inLen  Number of bytes of data in array.
- * @param [in]      type   ML-DSA Composite Type (e.g., WC_MLDSA44_NISTP256_SHA256)
- * @param [in, out] key    MlDsaComposite public key.
+ * @param [out] key     Asymmetric key.
+ * @param [in]  type    Type of Public key to import.
+ * @param [in]  in      Key data.
+ * @param [in]  inLen   Size of key data.
+ * @param [in]  format  Format of key data (1 = PEM, 0 = DER).
  * @return  0 on success.
  * @return  BAD_FUNC_ARG when in or key is NULL or key format is not supported.
  */
-WOLFSSL_API int wc_AsymKey_import_public(AsymKey* key, int type, const byte* in, word32 inLen) {
+WOLFSSL_API int wc_AsymKey_Public_import(AsymKey* key, int type, const byte* in, word32 inLen, int format) {
 
+  (void)key;
+  (void)type;
+  (void)in;
+  (void)inLen;
+  (void)format;
+
+  return NOT_COMPILED_IN;
 }
 
-/* Export the public key.
+/* Export a Public key.
  *
- * @param [in]      key     The keypair to export the public key from.
- * @param [out]     out     Array to hold public key. Use NULL to get the needed the size for `in`.
- * @param [in, out] outLen  On in, the number of bytes in array.
- *                          On out, the number bytes put into array.
+ * @param [out]  buff      Array to hold the exported public key.
+ * @param [in]   buffLen   Number of bytes in the array.
+ * @param [in]   format    Format of key data (1 = PEM, 0 = DER).
+ * @param [in]   key       The public key to export.
  * @return  0 on success.
  * @return  BAD_FUNC_ARG when a parameter is NULL.
  * @return  BUFFER_E when outLen is less than DILITHIUM_LEVEL2_PUB_KEY_SIZE.
  */
-WOLFSSL_API int wc_AsymKey_export_public(const AsymKey* key, byte* out, word32* outLen) {
+WOLFSSL_API int wc_AsymKey_Public_export(byte* buff, word32 buffLen, int format, const AsymKey* key) {
+  
+  (void)key;
+  (void)buff;
+  (void)buffLen;
+  (void)format;
 
+  return NOT_COMPILED_IN;
 }
-
-#endif /* WOLFSSL_PUBLIC_KEY */
 
 /* Import a keypair from a byte array.
  *
- * @param [in]      priv    Array holding private key.
- * @param [in]      privSz  Number of bytes of data in array.
- * @param [in, out] key     mldsa_composite private key.
+ * @param [out] key     Asymmetric key.
+ * @param [in]  type    Type of key to make.
+ * @param [in]  data    Key data.
+ * @param [in]  dataSz  Size of key data.
+ * @param [in]  passwd  Password for the keypair, NULL if not encrypted.
+ * @param [in]  passwdSz  Size of the password in bytes, 0 if not encrypted.
  * @return  0 otherwise.
  * @return  BAD_FUNC_ARG when a parameter is NULL or privSz is less than size
  *          required for level,
  */
-WOLFSSL_API int wc_AsymKey_import_private(const byte* priv, word32 privSz,
-                                          AsymKey* key, int type) {
+WOLFSSL_API int wc_AsymKey_import(AsymKey* key, const byte* data, word32 dataSz, int standard, int format, const byte* passwd, word32 passwdSz) {
 
+  (void)key;
+  (void)data;
+  (void)dataSz;
+  (void)format;
+  (void)standard;
+  (void)passwd;
+  (void)passwdSz;
+
+  return NOT_COMPILED_IN;
 }
 
-/* Export the mldsa_composite private key.
+/* Export a keypair to a byte array.
  *
- * @param [in]      key     mldsa_composite private key.
- * @param [out]     out     Array to hold private key.
- * @param [in, out] outLen  On in, the number of bytes in array.
- *                          On out, the number bytes put into array.
+ * @param [in]  key       The keypair to export.
+ * @param [out] buff      Array to hold the exported keypair.
+ * @param [in]  buffLen   Number of bytes in the array.
+ * @param [in]  standard Use 1 for standard (pkcs8) or 0 for legacy (pkcs1).
+ * @param [in]  format  Format of key data (1 = PEM, 0 = DER).
+ * @param [in]  passwd    Password for the keypair, NULL if not encrypted.
+ * @param [in]  passwdSz  Size of the password in bytes, 0 if not encrypted.
  * @return  0 on success.
  * @return  BAD_FUNC_ARG when a parameter is NULL.
  * @return  BUFFER_E when outLen is less than DILITHIUM_LEVEL2_KEY_SIZE.
  */
-WOLFSSL_API int wc_AsymKey_export_private(mldsa_composite_key* key, byte* out, word32* outLen) {
+WOLFSSL_API int wc_AsymKey_export(byte* buff, word32 buffLen, int standard, int format, const byte* passwd, word32 passwdSz, const AsymKey* key) {
 
+  (void)key;
+  (void)buff;
+  (void)buffLen;
+  (void)standard;
+  (void)format;
+  (void)passwd;
+  (void)passwdSz;
+
+  return NOT_COMPILED_IN;
 }
+
 
 /* Retrieves the OID of the keypair.
  *
@@ -457,34 +579,95 @@ WOLFSSL_API int wc_AsymKey_export_private(mldsa_composite_key* key, byte* out, w
  * @return  0 on success.
  * @return  BAD_FUNC_ARG when p8_data or p8_dataSz is NULL.
  */
-WOLFSSL_API int wc_PKCS8_info(byte * p8_data, word32 p8_dataSz, word32 * oid) {
-  
+WOLFSSL_API int wc_Pkcs8_info(byte * pkcsData, word32 pkcsDataSz, word32 * oid) {
+  int ret = 0;
+    word32 algorSum = 0;
+
+    if (!pkcsData || !pkcsDataSz) {
+        return BAD_FUNC_ARG;
+    }
+
+    // Creates a copy of the data
+    byte * buff = XMALLOC(pkcsDataSz, NULL, DYNAMIC_TYPE_PRIVATE_KEY);
+    if (buff == NULL) {
+        ret = MEMORY_E;
+    }
+    if (ret == 0) {
+      // Copies the data
+      XMEMCPY(buff, pkcsData, pkcsDataSz);
+
+#if defined(HAVE_PKCS8) || defined(HAVE_PKCS12)
+
+      // Removes the PKCS8 header
+      ret = ToTraditional_ex(buff, pkcsDataSz, &algorSum);
+      *oid = algorSum;
+#else
+    ret = NOT_COMPILED_IN;
+#endif // HAVE_PKCS8 || HAVE_PKCS12
+
+
+      // Frees the buffer
+      if (buff) XFREE(buff, NULL, DYNAMIC_TYPE_PRIVATE_KEY);
+      buff = NULL;
+    }
+
+    return ret;
 }
 
-/* Import a keypair from the DER representation of a PKCS8 data structure.
- *
- * @param [in]      pkcsData    Array holding the PKCS#8 encoded KeyPair.
- * @param [in]      pkcsDataSz  Number of bytes of data in array.
- * @param [in, out] type        The `enum Key_Sum` value for the used Key.
- * 
- */
-WOLFSSL_API int wc_PKCS8_import(const byte* pkcsData, word32 pkcsDataSz, enum Key_Sum *type, AsymKey* key) {
+WOLFSSL_API int wc_AsymKey_Sign(byte* sig, word32* sigLen, const byte* msg, word32 msgLen, const AsymKey* key,
+    WC_RNG* rng) {
 
+  (void)sig;
+  (void)sigLen;
+  (void)msg;
+  (void)msgLen;
+  (void)key;
+  (void)rng;
+
+  return NOT_COMPILED_IN;
 }
 
-/* Export the mldsa_composite private and public key.
- *
- * @param [in]      pkcsData    Array to hold the PKCS#8 encoded KeyPair.
- * @param [in, out] pkcsDataSz  On in, the number of bytes in private key array.
- *                              On out, the number bytes put into private key.
- * @param [out]     keySum      The `enum Key_Sum` value for the used Key.
- * @param [in]      key         Destination for the parsed keypair.
- * @return  0 on success.
- * @return  BAD_FUNC_ARG when a key, priv, privSz, pub or pubSz is NULL.
- * @return  BUFFER_E when privSz or pubSz is less than required size.
- */
-WOLFSSL_API int wc_PKCS8_export(byte* pkcsData, word32 *pkcsDataSz, word32 * oid, const AsymKey** key) {
+WOLFSSL_API int wc_AsymKey_Verify(const AsymKey* key, const byte* sig, word32 sigLen,
+        const byte* msg, word32 msgLen, int* res) {
 
+  (void)key;
+  (void)sig;
+  (void)sigLen;
+  (void)msg;
+  (void)msgLen;
+  (void)res;
+
+  return NOT_COMPILED_IN;
+}
+
+WOLFSSL_API int wc_AsymKey_Sign_ex(const AsymKey* key, const byte* in, word32 inLen,
+        byte* out, word32* outLen, WC_RNG* rng, const byte* context, byte contextLen) {
+
+  (void)key;
+  (void)in;
+  (void)inLen;
+  (void)out;
+  (void)outLen;
+  (void)rng;
+  (void)context;
+  (void)contextLen;
+
+  return NOT_COMPILED_IN;
+}
+
+WOLFSSL_API int wc_AsymKey_Verify_ex(const AsymKey* key, const byte* sig, word32 sigLen,
+        const byte* in, word32 inLen, int* res, const byte* context, byte contextLen) {
+
+  (void)key;
+  (void)sig;
+  (void)sigLen;
+  (void)in;
+  (void)inLen;
+  (void)res;
+  (void)context;
+  (void)contextLen;
+
+  return NOT_COMPILED_IN;
 }
 
 
