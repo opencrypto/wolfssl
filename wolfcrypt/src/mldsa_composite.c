@@ -49,7 +49,7 @@
 #endif
 
 #include <wolfssl/wolfcrypt/sha512.h>
-
+#include <wolfssl/wolfcrypt/asymkey.h>
 
 /* Log a message that has the printf format string.
  *
@@ -3778,19 +3778,6 @@ int wc_mldsa_composite_import_private(const byte                * priv,
     //         MADWOLF_DEBUG("Error while parsing ASN.1 (%d, privSz: %d, idx: %d, type: %d)", ret, privSz, idx, key->type);
     //         goto err;
     //     }
-
-    //     MADWOLF_DEBUG("<<<<<<<<< PKCS8 header removed (privSz: %d, idx: %d, type: %d)", privSz, idx, key->type);
-    // }
-
-    // MADWOLF_DEBUG0("--------------- Importing ML-DSA Composite Private Key");
-
-    do {
-        FILE * fp = fopen("privkey.der", "wb");
-        if (fp) {
-            fwrite(priv, 1, privSz, fp);
-            fclose(fp);
-        }
-    } while (0);
 
     // Parse the ASN.1 data
     if (level == D2_WC_MLDSA44_RSAPSS2048_SHA256

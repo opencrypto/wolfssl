@@ -187,6 +187,7 @@
     #include <wolfssl/wolfcrypt/mldsa_composite.h>
 #endif
 
+#include <wolfssl/wolfcrypt/asymkey.h>
 
 #ifdef HAVE_PKCS12
     #include <wolfssl/wolfcrypt/pkcs12.h>

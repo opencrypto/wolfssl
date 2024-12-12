@@ -176,8 +176,6 @@ WOLFSSL_API int wc_AsymKey_gen(AsymKey ** key,
                                word32     seedSz,
                                WC_RNG   * rng) {
 
-  int ret = 0;
-  int outSz = 0;
 #ifndef NO_RSA
   RsaKey rsaKey;
 #endif
@@ -199,19 +197,12 @@ WOLFSSL_API int wc_AsymKey_gen(AsymKey ** key,
 #ifdef HAVE_MLDSA_COMPOSITE
   mldsa_composite_key mldsa_compositeKey;
 #endif
+
+  int ret = 0;
   void* keyPtr = NULL;
-  // int rngAlloc = 0;
 
-#ifdef HAVE_MLDSA_COMPOSITE
-    byte der[MLDSA_COMPOSITE_MAX_PRV_KEY_SIZE];
-#else
-    byte der[10192]; /* 10k */
-#endif
-
-    (void)der;
-    (void)outSz;
-    (void)seed;
-    (void)seedSz;
+  (void)seed;
+  (void)seedSz;
 
   if (!key)
       return BAD_FUNC_ARG;
@@ -522,26 +513,236 @@ WOLFSSL_API int wc_AsymKey_Public_export(byte* buff, word32 buffLen, int format,
 /* Import a keypair from a byte array.
  *
  * @param [out] key     Asymmetric key.
- * @param [in]  type    Type of key to make.
  * @param [in]  data    Key data.
  * @param [in]  dataSz  Size of key data.
+ * @param [in]  format  Format of key data (1 = PEM, 0 = DER).
  * @param [in]  passwd  Password for the keypair, NULL if not encrypted.
  * @param [in]  passwdSz  Size of the password in bytes, 0 if not encrypted.
  * @return  0 otherwise.
  * @return  BAD_FUNC_ARG when a parameter is NULL or privSz is less than size
  *          required for level,
  */
-WOLFSSL_API int wc_AsymKey_import(AsymKey* key, const byte* data, word32 dataSz, int standard, int format, const byte* passwd, word32 passwdSz) {
+WOLFSSL_API int wc_AsymKey_import(AsymKey* key, const byte* data, word32 dataSz, int format, const char* passwd) {
 
-  (void)key;
-  (void)data;
-  (void)dataSz;
-  (void)format;
-  (void)standard;
-  (void)passwd;
-  (void)passwdSz;
+  byte * buff = NULL;
+  word32 buffSz = 0;
 
-  return NOT_COMPILED_IN;
+  byte * der = NULL;
+  word32 derSz = 0;
+
+  word32 algorSum = 0;
+  word32 idx = 0;
+  
+  int ret = 0;
+
+  if (!key || !data || dataSz <= 0)
+    return BAD_FUNC_ARG;
+
+  /* Assumes the input is DER for now */
+  derSz = dataSz;
+
+  /* Convert PEM to DER. */
+  if (format == 1 || format < 0) {
+
+      // Allocates memory for the buffer (to avoid changing the original key data)
+      buff = (byte *)XMALLOC(dataSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+      buffSz = dataSz;
+
+      // Decodes PEM into DER
+      if ((ret = wc_KeyPemToDer(data, dataSz, buff, buffSz, passwd)) < 0) {
+        XFREE(buff, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        return ret;
+      }
+
+      // If the format was not explicity required, allow for the DER format
+      if (format == 1 && ret <= 0) {
+        XFREE(buff, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        return ret;
+      }
+
+      if (ret > 0) {
+          der = buff;
+          derSz  = buffSz;
+      } else {
+          der = (byte *)data;
+      }
+
+  } else {
+      der = (byte *)data;
+  }
+
+  // Gets the key information (OID or Key_Sum)
+  if ((ret = wc_AsymKey_info(&algorSum, der, derSz, 0)) < 0) {
+    return ret;
+  }
+
+  switch (algorSum) {
+#ifndef NO_RSA
+    case RSAk:
+    case RSAPSSk:
+        RsaKey * rsaKey = (RsaKey *)XMALLOC(sizeof(RsaKey), NULL, DYNAMIC_TYPE_PRIVATE_KEY);
+        ret = wc_RsaPrivateKeyDecode(der, &idx, rsaKey, derSz);
+        if (ret != 0) {
+            XFREE(rsaKey, NULL, DYNAMIC_TYPE_PRIVATE_KEY);
+            return -1;
+        }
+        key->key.rsaKey = rsaKey;
+        key->type = RSA_TYPE;
+        break;
+#endif
+#ifdef HAVE_ECC
+    case ECDSAk:
+        ecc_key * ecKey = (ecc_key *)XMALLOC(sizeof(ecc_key), NULL, DYNAMIC_TYPE_PRIVATE_KEY);
+        XMEMSET(ecKey, 0, sizeof(ecc_key));
+        if (wc_EccPrivateKeyDecode(der, &idx, ecKey, derSz) < 0) {
+            return ASN_PARSE_E;
+        }
+
+        // Checks the ECDSA curve (P-256)
+        if (wc_ecc_get_curve_id(ecKey->idx) < 0) {
+            return BAD_STATE_E;
+        }
+        key->key.eccKey = ecKey;
+        key->type = ECC_TYPE;
+        break;
+#endif
+#ifdef HAVE_ED25519
+    case ED25519k:
+        ed25519_key * edKey = (ed25519_key *)XMALLOC(sizeof(ed25519_key), NULL, DYNAMIC_TYPE_PRIVATE_KEY);
+        XMEMSET(edKey, 0, sizeof(ed25519_key));
+
+        if ((ret = wc_Ed25519PrivateKeyDecode(der, &idx, edKey, derSz)) < 0) {
+            return ASN_PARSE_E;
+        }
+        key->key.ed25519Key = edKey;
+        key->type = ED25519_TYPE;
+        break;
+#endif
+#ifdef HAVE_ED448
+    case ED448k:
+        ed448_key * ed448Key = (ed448_key *)XMALLOC(sizeof(ed448_key), NULL, DYNAMIC_TYPE_PRIVATE_KEY);
+        XMEMSET(ed448Key, 0, sizeof(ed448_key));
+
+        if ((ret = wc_Ed448PrivateKeyDecode(der, &idx, ed448Key, derSz)) < 0) {
+            return ASN_PARSE_E;
+        }
+        key->key.ed448Key = ed448Key;
+        key->type = ED448_TYPE;
+        break;
+#endif
+#ifdef HAVE_DILITHIUM
+    case ML_DSA_LEVEL5k:
+    case ML_DSA_LEVEL3k:
+    case ML_DSA_LEVEL2k:
+        MlDsaKey * mlDsaKey = (MlDsaKey *)XMALLOC(sizeof(MlDsaKey), NULL, DYNAMIC_TYPE_PRIVATE_KEY);
+        if (mlDsaKey == NULL) {
+            return MEMORY_E;
+        }
+        XMEMSET(mlDsaKey, 0, sizeof(MlDsaKey));
+
+        // Initializes the key and sets the expected level
+        wc_dilithium_init(mlDsaKey);
+        if (algorSum == ML_DSA_LEVEL5k) {
+            wc_dilithium_set_level(mlDsaKey, 5);
+            key->type = ML_DSA_LEVEL5_TYPE;
+        } else if (algorSum == ML_DSA_LEVEL3k) {
+            wc_dilithium_set_level(mlDsaKey, 3);
+            key->type = ML_DSA_LEVEL3_TYPE;
+        } else if (algorSum == ML_DSA_LEVEL2k) {
+            wc_dilithium_set_level(mlDsaKey, 2);
+            key->type = ML_DSA_LEVEL2_TYPE;
+        }
+
+        // Decodes the key
+        if ((ret = wc_Dilithium_PrivateKeyDecode(der, &idx, mlDsaKey, derSz)) < 0) {
+            return ret;
+        }
+        key->key.dilithiumKey = mlDsaKey;
+        break;
+#endif
+#ifdef HAVE_FALCON
+    case FALCON_LEVEL1k:
+    case FALCON_LEVEL5k:
+        falcon_key * falconKey = (falcon_key *)XMALLOC(sizeof(falcon_key), NULL, DYNAMIC_TYPE_PRIVATE_KEY);
+        if ((ret = wc_FalconPrivateKeyDecode(der, idx, falconKey, derSz)) < 0) {
+            return ret;
+        }
+        XMEMSET(falconKey, 0, sizeof(falcon_key *));
+        wc_falcon_init(falconKey);
+        if (algorSum == FALCON_LEVEL1k) {
+            wc_falcon_set_level(falconKey, 1);
+            key->type = FALCON_LEVEL1_TYPE;
+        } else if (algorSum == FALCON_LEVEL5k) {
+            wc_falcon_set_level(falconKey, 5);
+            key->type = FALCON_LEVEL5_TYPE;
+        }
+        key->key.falconKey = falconKey;
+        break;
+#endif
+#ifdef HAVE_MLDSA_COMPOSITE
+    case MLDSA44_RSA2048k:
+    case MLDSA44_RSAPSS2048k:
+    case MLDSA44_NISTP256k:
+    // case MLDSA44_BPOOL256k:
+    case MLDSA44_ED25519k:
+
+    case MLDSA65_RSAPSS3072k:
+    case MLDSA65_RSA3072k:
+    case MLDSA65_RSAPSS4096k:
+    case MLDSA65_RSA4096k:
+    case MLDSA65_NISTP256k:
+    case MLDSA65_ED25519k:
+    case MLDSA65_BPOOL256k:
+
+    case MLDSA87_BPOOL384k:
+    case MLDSA87_NISTP384k:
+    case MLDSA87_ED448k:
+    // ----- Draft 2 ----- //
+    case D2_MLDSA44_RSAPSS2048k:
+    case D2_MLDSA44_RSA2048k:
+    case D2_MLDSA44_NISTP256k:
+    case D2_MLDSA44_ED25519k:
+
+    case D2_MLDSA65_RSAPSS3072k:
+    case D2_MLDSA65_RSA3072k:
+    case D2_MLDSA65_NISTP256k:
+    case D2_MLDSA65_ED25519k:
+    case D2_MLDSA65_BPOOL256k:
+
+    case D2_MLDSA87_BPOOL384k:
+    case D2_MLDSA87_NISTP384k:
+    case D2_MLDSA87_ED448k:
+        mldsa_composite_key * mldsaCompKey = NULL;
+        int level = 0;
+
+        // Gets the composite type
+        if ((level = wc_mldsa_composite_key_sum_level(algorSum)) < 0) {
+            return ALGO_ID_E;
+        }
+
+        // Allocates the memory for the key        
+        mldsaCompKey = (mldsa_composite_key *)XMALLOC(sizeof(mldsa_composite_key), NULL, DYNAMIC_TYPE_PRIVATE_KEY);
+        if (mldsaCompKey == NULL) {
+            return MEMORY_E;
+        }
+        XMEMSET(mldsaCompKey, 0, sizeof(mldsa_composite_key));
+
+        if ((ret = wc_MlDsaComposite_PrivateKeyDecode(der, &idx, mldsaCompKey, derSz, level)) < 0) {
+            XFREE(mldsaCompKey, NULL, DYNAMIC_TYPE_PRIVATE_KEY);
+            return ret;
+        }
+        key->key.mldsaCompKey = mldsaCompKey;
+        key->type = wc_mldsa_composite_level_type(level);
+        break;
+#endif
+
+        default:
+            return BAD_FUNC_ARG;
+    }
+
+    if (der) XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+    return ret;
 }
 
 /* Export a keypair to a byte array.
@@ -579,7 +780,7 @@ WOLFSSL_API int wc_AsymKey_export(byte* buff, word32 buffLen, int standard, int 
  * @return  0 on success.
  * @return  BAD_FUNC_ARG when p8_data or p8_dataSz is NULL.
  */
-WOLFSSL_API int wc_Pkcs8_info(byte * pkcsData, word32 pkcsDataSz, word32 * oid) {
+WOLFSSL_API int wc_AsymKey_info(word32 * oid, byte * pkcsData, word32 pkcsDataSz, int format) {
   int ret = 0;
     word32 algorSum = 0;
 
@@ -588,13 +789,38 @@ WOLFSSL_API int wc_Pkcs8_info(byte * pkcsData, word32 pkcsDataSz, word32 * oid) 
     }
 
     // Creates a copy of the data
+    word32 buffSz = pkcsDataSz;
     byte * buff = XMALLOC(pkcsDataSz, NULL, DYNAMIC_TYPE_PRIVATE_KEY);
     if (buff == NULL) {
         ret = MEMORY_E;
     }
+    /* Convert PEM to DER. */
+    if (format == 1 || format < 0) {
+
+        // Decodes PEM into DER
+        if ((ret = wc_KeyPemToDer(pkcsData, pkcsDataSz, buff, buffSz, NULL)) < 0) {
+          XFREE(buff, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+          return ret;
+        }
+
+        // If the format was not explicity required, allow for the DER format
+        if (format == 1 && ret <= 0) {
+          XFREE(buff, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+          return ret;
+        }
+
+        if (ret > 0) {
+            buffSz = ret;
+        } else {
+            // Copies the data (allows for trying with DER)
+            XMEMCPY(buff, pkcsData, pkcsDataSz);
+        }
+
+    } else {
+        // Copies the data
+        XMEMCPY(buff, pkcsData, pkcsDataSz);
+    }
     if (ret == 0) {
-      // Copies the data
-      XMEMCPY(buff, pkcsData, pkcsDataSz);
 
 #if defined(HAVE_PKCS8) || defined(HAVE_PKCS12)
 
@@ -604,7 +830,6 @@ WOLFSSL_API int wc_Pkcs8_info(byte * pkcsData, word32 pkcsDataSz, word32 * oid) 
 #else
     ret = NOT_COMPILED_IN;
 #endif // HAVE_PKCS8 || HAVE_PKCS12
-
 
       // Frees the buffer
       if (buff) XFREE(buff, NULL, DYNAMIC_TYPE_PRIVATE_KEY);

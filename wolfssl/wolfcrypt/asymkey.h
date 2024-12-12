@@ -245,7 +245,7 @@ WOLFSSL_API int wc_AsymKey_Public_export(byte* buff, word32 buffLen, int format,
  * @return  BAD_FUNC_ARG when a parameter is NULL or privSz is less than size
  *          required for level,
  */
-WOLFSSL_API int wc_AsymKey_import(AsymKey* key, const byte* data, word32 dataSz, int standard, int format, const byte* passwd, word32 passwdSz);
+WOLFSSL_API int wc_AsymKey_import(AsymKey* key, const byte* data, word32 dataSz, int format, const char* passwd);
 
 /* Export a keypair to a byte array.
  *
@@ -264,13 +264,14 @@ WOLFSSL_API int wc_AsymKey_export(byte* buff, word32 buffLen, int standard, int 
 
 /* Retrieves the OID of the keypair.
  *
- * @param [in]  p8_data    Array holding the PKCS#8 encoded KeyPair.
- * @param [in]  p8_dataSz  Number of bytes of data in array.
  * @param [out] oid        The OID of the keypair.
+ * @param [in]  pkcsData    Array holding the PKCS#8 encoded KeyPair.
+ * @param [in]  pkcsDataSz  Number of bytes of data in array.
+ * @param [in]  format      Format of key data (1 = PEM, 0 = DER).
  * @return  0 on success.
  * @return  BAD_FUNC_ARG when p8_data or p8_dataSz is NULL.
  */
-WOLFSSL_API int wc_Pkcs8_info(byte * p8_data, word32 p8_dataSz, word32 * oid);
+WOLFSSL_API int wc_AsymKey_info(word32 * oid, byte * pkcsData, word32 pkcsDataSz, int format);
 
 /* Sign a message with the key.
  *
