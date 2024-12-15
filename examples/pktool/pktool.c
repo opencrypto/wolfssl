@@ -409,12 +409,6 @@ int load_key_p8(void ** key, int type, const char * key_file, int format) {
 
     FILE * file = NULL;
     byte * keyData = NULL;
-    byte * derPtr = NULL;
-
-    byte * buff = NULL;
-    int buff_sz = 0;
-
-    word32 algorSum = 0;
 
     word32 idx = 0;
     char * privKey = NULL;
@@ -422,6 +416,8 @@ int load_key_p8(void ** key, int type, const char * key_file, int format) {
 
     char * pubKey = NULL;
     word32 pubKeySz = 0;
+
+    AsymKey * asymKeyPtr = NULL;
 
     // Input checks
     if (!key) {
@@ -454,207 +450,34 @@ int load_key_p8(void ** key, int type, const char * key_file, int format) {
         return -1;
     }
 
-    /* Convert PEM to DER. */
-    if (format == 1 || format < 0) {
-
-        // Allocates memory for the buffer (to avoid changing the original key data)
-        buff = (byte *)XMALLOC(keySz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        buff_sz = keySz;
-
-        // Decodes PEM into DER
-        ret = wc_KeyPemToDer(keyData, keySz, buff, buff_sz, NULL);
-
-        // If the format was not explicity required, allow for the DER format
-        if (format == 1 && ret <= 0) {
-            printf("[%d] Error loading key (err: %d)\n", __LINE__, ret);
-            return ret;
-        }
-
-        if (ret > 0) {
-            derPtr = buff;
-            keySz  = buff_sz;
-
-            XFREE(keyData, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        } else {
-            derPtr = keyData;
-        }
-
-    } else {
-        derPtr = keyData;
-    }
-
-    // Retrieves the PKCS8 information
-    if ((ret = wc_PKCS8_info(derPtr, keySz, &algorSum)) < 0) {
-        printf("[%d] Error loading key (sz: %d, sum: %d, err: %d)\n", __LINE__, keySz, algorSum, ret);
+    word32 algorSum = 0;
+    ret = wc_AsymKey_info(&algorSum, keyData, keySz, format);
+    if (ret < 0) {
+        printf("[%d] Error Retrieving AsymKey Information (sz: %d, sum: %d, err: %d)\n", __LINE__, keySz, algorSum, ret);
         return -1;
     }
 
     printf(">>>> Key Algorithm: %d\n", algorSum);
 
-    switch (algorSum) {
-#ifndef NO_RSA
-    case RSAk:
-    case RSAPSSk:
-        RsaKey * rsaKey = (RsaKey *)XMALLOC(sizeof(RsaKey), NULL, DYNAMIC_TYPE_PRIVATE_KEY);
-        ret = wc_RsaPrivateKeyDecode(derPtr, &idx, rsaKey, keySz);
-        if (ret != 0) {
-            XFREE(rsaKey, NULL, DYNAMIC_TYPE_PRIVATE_KEY);
-            return -1;
-        }
-        *key = rsaKey;
-        break;
-#endif
-#ifdef HAVE_ECC
-    case ECDSAk:
-
-        ecc_key * ecKey = (ecc_key *)XMALLOC(sizeof(ecc_key), NULL, DYNAMIC_TYPE_PRIVATE_KEY);
-        XMEMSET(ecKey, 0, sizeof(ecc_key));
-
-        if (wc_EccPrivateKeyDecode(derPtr, &idx, ecKey, keySz) < 0) {
-            printf("[%d] Error loading key\n", __LINE__);
-            return -1;
-        }
-        // Checks the ECDSA curve (P-256)
-        if (wc_ecc_get_curve_id(ecKey->idx) < 0) {
-            printf("Cannot retrieve the curve Id, aborting (%d)", ecKey->idx);
-            return BAD_STATE_E;
-        }
-        *key = ecKey;
-        break;
-#endif
-#ifdef HAVE_ED25519
-    case ED25519k:
-        ed25519_key * edKey = (ed25519_key *)XMALLOC(sizeof(ed25519_key), NULL, DYNAMIC_TYPE_PRIVATE_KEY);
-        XMEMSET(edKey, 0, sizeof(ed25519_key));
-
-        if ((ret = wc_Ed25519PrivateKeyDecode(derPtr, &idx, edKey, keySz)) < 0) {
-            printf("[%d] Error loading key\n", __LINE__);
-            return -1;
-        }
-        *key = edKey;
-        break;
-#endif
-#ifdef HAVE_ED448
-    case ED448k:
-        ed448_key * ed448Key = (ed448_key *)XMALLOC(sizeof(ed448_key), NULL, DYNAMIC_TYPE_PRIVATE_KEY);
-        XMEMSET(ed448Key, 0, sizeof(ed448_key));
-
-        if ((ret = wc_Ed448PrivateKeyDecode(derPtr, &idx, ed448Key, keySz)) < 0) {
-            printf("[%d] Error loading key\n", __LINE__);
-            return -1;
-        }
-        *key = ed448Key;
-        break;
-#endif
-#ifdef HAVE_DILITHIUM
-    case ML_DSA_LEVEL5k:
-    case ML_DSA_LEVEL3k:
-    case ML_DSA_LEVEL2k:
-        MlDsaKey * mlDsaKey = (MlDsaKey *)XMALLOC(sizeof(MlDsaKey), NULL, DYNAMIC_TYPE_PRIVATE_KEY);
-        XMEMSET(mlDsaKey, 0, sizeof(MlDsaKey));
-
-        // Initializes the key and sets the expected level
-        wc_dilithium_init(mlDsaKey);
-        if (algorSum == ML_DSA_LEVEL5k) {
-            wc_dilithium_set_level(mlDsaKey, 5);
-        } else if (algorSum == ML_DSA_LEVEL3k) {
-            wc_dilithium_set_level(mlDsaKey, 3);
-        } else if (algorSum == ML_DSA_LEVEL2k) {
-            wc_dilithium_set_level(mlDsaKey, 2);
-        }
-
-        // Decodes the key
-        if ((ret = wc_Dilithium_PrivateKeyDecode(derPtr, &idx, mlDsaKey, keySz)) < 0) {
-            return ret;
-        }
-        *key = mlDsaKey;
-        break;
-#endif
-// #ifdef HAVE_FALCON
-//     case FALCON_LEVEL1k:
-//     case FALCON_LEVEL5k:
-//         falcon_key * falconKey = (falcon_key *)XMALLOC(sizeof(falcon_key), NULL, DYNAMIC_TYPE_PRIVATE_KEY);
-//         XMEMSET(falconKey, 0, sizeof(falcon_key *));
-//         if ((ret = wc_FalconPrivateKeyDecode(derPtr, idx, falconKey, keySz)) < 0) {
-//             printf("[%d] Error loading key\n", __LINE__);
-//             return -1;
-//         }
-//         break;
-// #endif
-#ifdef HAVE_MLDSA_COMPOSITE
-    case MLDSA44_RSA2048k:
-    case MLDSA44_RSAPSS2048k:
-    case MLDSA44_NISTP256k:
-    // case MLDSA44_BPOOL256k:
-    case MLDSA44_ED25519k:
-
-    case MLDSA65_RSAPSS3072k:
-    case MLDSA65_RSA3072k:
-    case MLDSA65_RSAPSS4096k:
-    case MLDSA65_RSA4096k:
-    case MLDSA65_NISTP256k:
-    case MLDSA65_ED25519k:
-    case MLDSA65_BPOOL256k:
-
-    case MLDSA87_BPOOL384k:
-    case MLDSA87_NISTP384k:
-    case MLDSA87_ED448k:
-    // ----- Draft 2 ----- //
-    case D2_MLDSA44_RSAPSS2048k:
-    case D2_MLDSA44_RSA2048k:
-    case D2_MLDSA44_NISTP256k:
-    case D2_MLDSA44_ED25519k:
-
-    case D2_MLDSA65_RSAPSS3072k:
-    case D2_MLDSA65_RSA3072k:
-    case D2_MLDSA65_NISTP256k:
-    case D2_MLDSA65_ED25519k:
-    case D2_MLDSA65_BPOOL256k:
-
-    case D2_MLDSA87_BPOOL384k:
-    case D2_MLDSA87_NISTP384k:
-    case D2_MLDSA87_ED448k:
-        int comp_type = 0;
-        mldsa_composite_key * mldsaCompKey = NULL;
-
-        printf("Loading Key with algorSum: %d\n", algorSum);
-
-        // Gets the composite type
-        if ((comp_type = wc_KeySum_to_composite_level(algorSum)) < 0) {
-            printf("[%d] Cannot convert keytype to type (sum: %d)\n", __LINE__, algorSum);
-            return ALGO_ID_E;
-        }
-
-        printf("Allocating Key Memory with comp_type: %d\n", comp_type);
-
-        // Allocates the memory for the key        
-        mldsaCompKey = (mldsa_composite_key *)XMALLOC(sizeof(mldsa_composite_key), NULL, DYNAMIC_TYPE_PRIVATE_KEY);
-        if (mldsaCompKey == NULL) {
-            printf("[%d] Error loading key\n", __LINE__);
-            return MEMORY_E;
-        }
-        XMEMSET(mldsaCompKey, 0, sizeof(mldsa_composite_key));
-
-        printf("Loading Key: %d (%d)\n", algorSum, comp_type);
-
-        if ((ret = wc_MlDsaComposite_PrivateKeyDecode(derPtr, &idx, mldsaCompKey, keySz, comp_type)) < 0) {
-            printf("[%d] Failed to PrivateKeyDecode\n", __LINE__);
-            return ret;
-        }
-        *key = mldsaCompKey;
-
-        printf("[%s:%d] Private Key Imported - CompType: %d\n", __FILE__, __LINE__, mldsaCompKey->compType);
-
-        break;
-#endif
-        default:
-            printf("[%s:%d] Invalid key type: %d\n", __FILE__, __LINE__, algorSum);
-            return BAD_FUNC_ARG;
+    // Allocates memory for the key
+    asymKeyPtr = wc_AsymKey_new();
+    if (asymKeyPtr == NULL) {
+        printf("[%d] Error allocating memory for the key\n", __LINE__);
+        XFREE(keyData, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        return -1;
     }
 
-    printf("[%s:%d] Key Loaded Successfully: %d\n", __FILE__, __LINE__, ((mldsa_composite_key *)key)->compType);
+    ret = wc_AsymKey_import(asymKeyPtr, keyData, keySz, format, NULL);
+    if (ret != 0) {
+        printf("[%d] Error loading key (err: %d)\n", __LINE__, ret);
+        wc_AsymKey_free(asymKeyPtr);
+        XFREE(asymKeyPtr, NULL, DYNAMIC_TYPE_PRIVATE_KEY);
+        XFREE(keyData, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        return ret;
+    }
 
-    if (derPtr) XFREE(derPtr, NULL, DYNAMIC_TYPE_PRIVATE_KEY);
+    if (keyData) XFREE(keyData, NULL, DYNAMIC_TYPE_PRIVATE_KEY);
+    *key = asymKeyPtr;
 
     (void)idx;
     (void)privKey;
@@ -666,7 +489,7 @@ int load_key_p8(void ** key, int type, const char * key_file, int format) {
     return 0;
 }
 
-int gen_csr(const void * keyPair, const void * altkey, const char * out_filename, int out_format)
+int gen_csr(const AsymKey* key, const void * altkey, const char * out_filename, int out_format)
 {
     int ret = NOT_COMPILED_IN;
 #ifdef WOLFSSL_CERT_REQ
@@ -689,6 +512,13 @@ int gen_csr(const void * keyPair, const void * altkey, const char * out_filename
 #endif
 
     enum Key_Sum keySum;
+
+    const void * keyPair = key->key.mldsaCompKey;
+
+    if (!keyPair) {
+        printf("Invalid key\n");
+        return BAD_FUNC_ARG;
+    }
     
     ret = wc_InitCert(&req);
     if (ret != 0) {
@@ -697,8 +527,8 @@ int gen_csr(const void * keyPair, const void * altkey, const char * out_filename
     }
 
     // Extracts the type of key
-    keySum = wc_mldsa_composite_key_get_keySum((mldsa_composite_key *)keyPair);
-    certType = wc_mldsa_composite_get_certType((mldsa_composite_key *)keyPair);
+    keySum = wc_mldsa_composite_key_sum((mldsa_composite_key *)keyPair);
+    certType = wc_mldsa_composite_type((mldsa_composite_key *)keyPair);
 
     char * algName = (char *)wc_KeySum_name(keySum);
     if (algName == NULL) {
@@ -755,6 +585,20 @@ int gen_csr(const void * keyPair, const void * altkey, const char * out_filename
         req.sigType = CTC_FALCON_LEVEL1;
     if (certType == FALCON_LEVEL5_TYPE)
         req.sigType = CTC_FALCON_LEVEL5;
+#endif
+#ifdef HAVE_SPHINCS
+    if (certType == SPHINCS_HARAKA_128F_ROBUST_TYPE)
+        req.sigType = CTC_SPHINCS_HARAKA_128F_ROBUST;
+    if (certType == SPHINCS_HARAKA_128S_ROBUST_TYPE)
+        req.sigType = CTC_SPHINCS_HARAKA_128S_ROBUST;
+    if (certType == SPHINCS_HARAKA_192F_ROBUST_TYPE)
+        req.sigType = CTC_SPHINCS_HARAKA_192F_ROBUST;
+    if (certType == SPHINCS_HARAKA_192S_ROBUST_TYPE)
+        req.sigType = CTC_SPHINCS_HARAKA_192S_ROBUST;
+    if (certType == SPHINCS_HARAKA_256F_ROBUST_TYPE)
+        req.sigType = CTC_SPHINCS_HARAKA_256F_ROBUST;
+    if (certType == SPHINCS_HARAKA_256S_ROBUST_TYPE)
+        req.sigType = CTC_SPHINCS_HARAKA_256S_ROBUST;
 #endif
 #ifdef HAVE_MLDSA_COMPOSITE
     if (certType == MLDSA44_NISTP256_TYPE)
@@ -1014,7 +858,7 @@ int gen_keypair(void ** key, int keySum, int param) {
         int key_type = 0;
         
         ret = wc_mldsa_composite_init(&mldsa_compositeKey);
-        if ((key_type = wc_KeySum_to_composite_level(keySum)) < 0)
+        if ((key_type = wc_mldsa_composite_key_sum_level(keySum)) < 0)
             return key_type;
         if (ret == 0)
             ret = wc_mldsa_composite_make_key(&mldsa_compositeKey, key_type, &rng);

@@ -132,6 +132,8 @@ ASN Options:
 
 #include <wolfssl/wolfcrypt/random.h>
 #include <wolfssl/wolfcrypt/hash.h>
+#include <wolfssl/wolfcrypt/asymkey.h>
+
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>
 #else
@@ -8323,28 +8325,29 @@ int wc_CheckPrivateKey(const byte* privKey, word32 privKeySz,
             return ret;
         }
 
-        enum mldsa_composite_type type = WC_MLDSA_COMPOSITE_UNDEF;
+        enum mldsa_composite_level composite_level = WC_MLDSA_COMPOSITE_UNDEF;
             // Holds the type of the key
 
         // Convert key type to enum
-        if ((type = wc_KeySum_to_composite_level(ks)) < 0) {
+        if ((composite_level = wc_mldsa_composite_key_sum_level(ks)) < 0) {
             WOLFSSL_MSG("Invalid ML-DSA Composite key type");
             return -1;
         }
 
-        ret = wc_mldsa_composite_key_set_level(key_pair, type);
-        if (ret  < 0) {
-    #ifdef WOLFSSL_SMALL_STACK
-            XFREE(key_pair, NULL, DYNAMIC_TYPE_KEY);
-    #endif
-            return ret;
-        }
+
+    //     ret = wc_mldsa_composite_set_level(key_pair, composite_level);
+    //     if (ret  < 0) {
+    // #ifdef WOLFSSL_SMALL_STACK
+    //         XFREE(key_pair, NULL, DYNAMIC_TYPE_KEY);
+    // #endif
+    //         return ret;
+    //     }
         if ((ret = wc_MlDsaComposite_PrivateKeyDecode(privKey, &keyIdx, key_pair,
                                              privKeySz, 0)) == 0) {
             WOLFSSL_MSG("Checking ML-DSA Composite key pair");
             keyIdx = 0;
             if ((ret = wc_mldsa_composite_import_public(pubKey, pubKeySz,
-                                               key_pair, type)) == 0) {
+                                               key_pair, composite_level)) == 0) {
                 /* Public and private extracted successfully. Sanity check. */
                 if ((ret = wc_mldsa_composite_check_key(key_pair)) == 0) {
                     ret = 1;
@@ -8871,15 +8874,15 @@ int wc_GetKeyOID(byte* key, word32 keySz, const byte** curveOID, word32* oidSz,
         if (wc_mldsa_composite_init(mldsa_comp) != 0) {
             tmpIdx = 0;
             for (int i = MLDSA_COMPOSITE_TYPE_MIN; i <= MLDSA_COMPOSITE_TYPE_MAX; i++) {
-                if (wc_mldsa_composite_key_set_level(mldsa_comp, i) == 0) {
+                // if (wc_mldsa_composite_set_level(mldsa_comp, i) == 0) {
                     tmpIdx = keySz;
                     if (wc_MlDsaComposite_PrivateKeyDecode(key, &tmpIdx, mldsa_comp, keySz, i) == 0) {
                         int type = 0;
-                        if ((type = wc_mldsa_composite_key_get_level(mldsa_comp)) < 0) {
+                        if ((type = wc_mldsa_composite_level(mldsa_comp)) < 0) {
                             WOLFSSL_MSG("GetKeyOID mldsa_composite_get_type failed");
                             break;
                         }
-                        if ((*algoID = wc_mldsa_composite_key_get_keySum(mldsa_comp)) < 0) {
+                        if ((*algoID = wc_mldsa_composite_key_sum(mldsa_comp)) < 0) {
                             WOLFSSL_ERROR_MSG("GetKeyOID mldsa_composite_get_keytype failed");   
                         } else { WOLFSSL_ERROR_MSG("Found MlDsaComposite DER key");
                             break;
@@ -8888,7 +8891,7 @@ int wc_GetKeyOID(byte* key, word32 keySz, const byte** curveOID, word32* oidSz,
                     else {
                         WOLFSSL_MSG("Not MlDsaComposite DER key");
                     }
-                }
+                // }
             }
             wc_mldsa_composite_free(mldsa_comp);
         }
@@ -31630,97 +31633,97 @@ static int MakeAnyCert(Cert* cert, byte* derBuffer, word32 derSz,
 #endif /* HAVE_SPHINCS */
 #ifdef HAVE_MLDSA_COMPOSITE
         else if ((mldsaCompKey != NULL) &&
-                    (mldsaCompKey->compType == WC_MLDSA44_RSAPSS2048_SHA256)) {
+                    (mldsaCompKey->type == MLDSA44_RSAPSS2048_TYPE)) {
             cert->keyType = MLDSA44_RSAPSS2048_KEY;
         }
         else if ((mldsaCompKey != NULL) &&
-                    (mldsaCompKey->compType == WC_MLDSA44_RSA2048_SHA256)) {
+                    (mldsaCompKey->type == MLDSA44_RSA2048_TYPE)) {
             cert->keyType = MLDSA44_RSA2048_KEY;
         }
         else if ((mldsaCompKey != NULL) &&
-                    (mldsaCompKey->compType == WC_MLDSA44_NISTP256_SHA256)) {
+                    (mldsaCompKey->type == MLDSA44_NISTP256_TYPE)) {
             cert->keyType = MLDSA44_NISTP256_KEY;
         }
         else if ((mldsaCompKey != NULL) &&
-                    (mldsaCompKey->compType == WC_MLDSA44_ED25519_SHA256)) {
+                    (mldsaCompKey->type == MLDSA44_ED25519_TYPE)) {
             cert->keyType = MLDSA44_ED25519_KEY;
         }
         else if ((mldsaCompKey != NULL) &&
-                    (mldsaCompKey->compType == WC_MLDSA65_RSAPSS3072_SHA384)) {
+                    (mldsaCompKey->type == MLDSA65_RSAPSS3072_TYPE)) {
             cert->keyType = MLDSA65_RSAPSS3072_KEY;
         }
         else if ((mldsaCompKey != NULL) &&
-                    (mldsaCompKey->compType == WC_MLDSA65_RSA3072_SHA384)) {
+                    (mldsaCompKey->type == MLDSA65_RSA3072_TYPE)) {
             cert->keyType = MLDSA65_RSA3072_KEY;
         }
         else if ((mldsaCompKey != NULL) &&
-                    (mldsaCompKey->compType == WC_MLDSA65_RSAPSS4096_SHA384)) {
+                    (mldsaCompKey->type == MLDSA65_RSAPSS4096_TYPE)) {
             cert->keyType = MLDSA65_RSAPSS4096_KEY;
         }
         else if ((mldsaCompKey != NULL) &&
-                    (mldsaCompKey->compType == WC_MLDSA65_RSA4096_SHA384)) {
+                    (mldsaCompKey->type == MLDSA65_RSA4096_TYPE)) {
             cert->keyType = MLDSA65_RSA4096_KEY;
         }
         else if ((mldsaCompKey != NULL) &&
-                    (mldsaCompKey->compType == WC_MLDSA65_ED25519_SHA384)) {
+                    (mldsaCompKey->type == MLDSA65_ED25519_TYPE)) {
             cert->keyType = MLDSA65_ED25519_KEY;
         }
         else if ((mldsaCompKey != NULL) &&
-                    (mldsaCompKey->compType == WC_MLDSA65_BPOOL256_SHA384
-                     || mldsaCompKey->compType == D2_WC_MLDSA65_BPOOL256_SHA512)) {
+                    (mldsaCompKey->type == MLDSA65_BPOOL256_TYPE
+                     || mldsaCompKey->type == D2_MLDSA65_BPOOL256_SHA512_TYPE)) {
             cert->keyType = MLDSA65_BPOOL256_KEY;
         }
         else if ((mldsaCompKey != NULL) &&
-                    (mldsaCompKey->compType == WC_MLDSA87_NISTP384_SHA384)) {
+                    (mldsaCompKey->type == MLDSA87_NISTP384_TYPE)) {
             cert->keyType = MLDSA87_NISTP384_KEY;
         }
         else if ((mldsaCompKey != NULL) &&
-                    (mldsaCompKey->compType == WC_MLDSA87_ED448_SHA384)) {
+                    (mldsaCompKey->type == MLDSA87_ED448_TYPE)) {
             cert->keyType = MLDSA87_ED448_KEY;
         }
         // ------------  Draft 2 --------------- //
         else if ((mldsaCompKey != NULL) &&
-                    (mldsaCompKey->compType == D2_WC_MLDSA44_RSAPSS2048_SHA256)) {
+                    (mldsaCompKey->type == D2_MLDSA44_RSAPSS2048_SHA256_TYPE)) {
             cert->keyType = D2_MLDSA44_RSAPSS2048_KEY;
         }
         else if ((mldsaCompKey != NULL) &&
-                    (mldsaCompKey->compType == D2_WC_MLDSA44_RSA2048_SHA256)) {
+                    (mldsaCompKey->type == D2_MLDSA44_RSA2048_SHA256_TYPE)) {
             cert->keyType = D2_MLDSA44_RSA2048_KEY;
         }
         else if ((mldsaCompKey != NULL) &&
-                    (mldsaCompKey->compType == D2_WC_MLDSA44_NISTP256_SHA256)) {
+                    (mldsaCompKey->type == D2_MLDSA44_NISTP256_SHA256_TYPE)) {
             cert->keyType = D2_MLDSA44_NISTP256_KEY;
         }
         else if ((mldsaCompKey != NULL) &&
-                    (mldsaCompKey->compType == D2_WC_MLDSA44_ED25519_SHA256)) {
+                    (mldsaCompKey->type == D2_MLDSA44_ED25519_SHA256_TYPE)) {
             cert->keyType = D2_MLDSA44_ED25519_KEY;
         }
         else if ((mldsaCompKey != NULL) &&
-                    (mldsaCompKey->compType == D2_WC_MLDSA65_RSAPSS3072_SHA512)) {
+                    (mldsaCompKey->type == D2_MLDSA65_RSAPSS3072_SHA512_TYPE)) {
             cert->keyType = D2_MLDSA65_RSAPSS3072_KEY;
         }
         else if ((mldsaCompKey != NULL) &&
-                    (mldsaCompKey->compType == D2_WC_MLDSA65_RSA3072_SHA512)) {
+                    (mldsaCompKey->type == D2_MLDSA65_RSA3072_SHA512_TYPE)) {
             cert->keyType = D2_MLDSA65_RSA3072_KEY;
         }
         else if ((mldsaCompKey != NULL) &&
-                    (mldsaCompKey->compType == D2_WC_MLDSA65_ED25519_SHA512)) {
+                    (mldsaCompKey->type == D2_MLDSA65_ED25519_SHA512_TYPE)) {
             cert->keyType = D2_MLDSA65_ED25519_KEY;
         }
         else if ((mldsaCompKey != NULL) &&
-                    (mldsaCompKey->compType == D2_WC_MLDSA65_BPOOL256_SHA512)) {
+                    (mldsaCompKey->type == D2_MLDSA65_BPOOL256_SHA512_TYPE)) {
             cert->keyType = D2_MLDSA65_BPOOL256_KEY;
         }
         else if ((mldsaCompKey != NULL) &&
-                    (mldsaCompKey->compType == D2_WC_MLDSA87_NISTP384_SHA512)) {
+                    (mldsaCompKey->type == D2_MLDSA87_NISTP384_SHA512_TYPE)) {
             cert->keyType = D2_MLDSA87_NISTP384_KEY;
         }
         else if ((mldsaCompKey != NULL) &&
-                    (mldsaCompKey->compType == D2_WC_MLDSA87_BPOOL384_SHA512)) {
+                    (mldsaCompKey->type == D2_MLDSA87_BPOOL384_SHA512_TYPE)) {
             cert->keyType = D2_MLDSA87_BPOOL384_KEY;
         }
         else if ((mldsaCompKey != NULL) &&
-                    (mldsaCompKey->compType == D2_WC_MLDSA87_ED448_SHA512)) {
+                    (mldsaCompKey->type == D2_MLDSA87_ED448_SHA512_TYPE)) {
             cert->keyType = D2_MLDSA87_ED448_KEY;
         }
 
@@ -32854,100 +32857,100 @@ static int MakeCertReq(Cert* cert, byte* derBuffer, word32 derSz,
 #endif /* HAVE_DILITHIUM */
 #ifdef HAVE_MLDSA_COMPOSITE
         else if ((mldsaCompKey != NULL) &&
-                    (mldsaCompKey->compType == WC_MLDSA44_RSAPSS2048_SHA256)) {
+                    (mldsaCompKey->type == MLDSA44_RSAPSS2048_TYPE)) {
             cert->keyType = MLDSA44_RSAPSS2048_KEY;
         }
         else if ((mldsaCompKey != NULL) &&
-                    (mldsaCompKey->compType == WC_MLDSA44_RSA2048_SHA256)) {
+                    (mldsaCompKey->type == MLDSA44_RSA2048_TYPE)) {
             cert->keyType = MLDSA44_RSA2048_KEY;
         }
         else if ((mldsaCompKey != NULL) &&
-                    (mldsaCompKey->compType == WC_MLDSA44_NISTP256_SHA256)) {
+                    (mldsaCompKey->type == MLDSA44_NISTP256_TYPE)) {
             cert->keyType = MLDSA44_NISTP256_KEY;
         }
         else if ((mldsaCompKey != NULL) &&
-                    (mldsaCompKey->compType == WC_MLDSA44_ED25519_SHA256)) {
+                    (mldsaCompKey->type == MLDSA44_ED25519_TYPE)) {
             cert->keyType = MLDSA44_ED25519_KEY;
         }
         else if ((mldsaCompKey != NULL) &&
-                    (mldsaCompKey->compType == WC_MLDSA65_RSAPSS3072_SHA384)) {
+                    (mldsaCompKey->type == MLDSA65_RSAPSS3072_TYPE)) {
             cert->keyType = MLDSA65_RSAPSS3072_KEY;
         }
         else if ((mldsaCompKey != NULL) &&
-                    (mldsaCompKey->compType == WC_MLDSA65_RSA3072_SHA384)) {
+                    (mldsaCompKey->type == MLDSA65_RSA3072_TYPE)) {
             cert->keyType = MLDSA65_RSA3072_KEY;
         }
         else if ((mldsaCompKey != NULL) &&
-                    (mldsaCompKey->compType == WC_MLDSA65_RSAPSS4096_SHA384)) {
+                    (mldsaCompKey->type == MLDSA65_RSAPSS4096_TYPE)) {
             cert->keyType = MLDSA65_RSAPSS4096_KEY;
         }
         else if ((mldsaCompKey != NULL) &&
-                    (mldsaCompKey->compType == WC_MLDSA65_RSA4096_SHA384)) {
+                    (mldsaCompKey->type == MLDSA65_RSA4096_TYPE)) {
             cert->keyType = MLDSA65_RSA4096_KEY;
         }
         else if ((mldsaCompKey != NULL) &&
-                    (mldsaCompKey->compType == WC_MLDSA65_ED25519_SHA384)) {
+                    (mldsaCompKey->type == MLDSA65_ED25519_TYPE)) {
             cert->keyType = MLDSA65_ED25519_KEY;
         }
         else if ((mldsaCompKey != NULL) &&
-                    (mldsaCompKey->compType == WC_MLDSA65_BPOOL256_SHA384)) {
+                    (mldsaCompKey->type == MLDSA65_BPOOL256_TYPE)) {
             cert->keyType = MLDSA65_BPOOL256_KEY;
         }
         else if ((mldsaCompKey != NULL) &&
-                    (mldsaCompKey->compType == WC_MLDSA65_NISTP256_SHA384)) {
+                    (mldsaCompKey->type == MLDSA65_NISTP256_TYPE)) {
             cert->keyType = MLDSA65_NISTP384_KEY;
         }
         else if ((mldsaCompKey != NULL) &&
-                    (mldsaCompKey->compType == WC_MLDSA87_NISTP384_SHA384)) {
+                    (mldsaCompKey->type == MLDSA87_NISTP384_TYPE)) {
             cert->keyType = MLDSA87_NISTP384_KEY;
         }
         else if ((mldsaCompKey != NULL) &&
-                    (mldsaCompKey->compType == WC_MLDSA87_ED448_SHA384)) {
+                    (mldsaCompKey->type == MLDSA87_ED448_TYPE)) {
             cert->keyType = MLDSA87_ED448_KEY;
         }
         // --------------- Draft 2 ------------------- //
         else if ((mldsaCompKey != NULL) &&
-                    (mldsaCompKey->compType == D2_WC_MLDSA44_RSAPSS2048_SHA256)) {
+                    (mldsaCompKey->type == D2_MLDSA44_RSAPSS2048_SHA256_TYPE)) {
             cert->keyType = D2_MLDSA44_RSAPSS2048_KEY;
         }
         else if ((mldsaCompKey != NULL) &&
-                    (mldsaCompKey->compType == D2_WC_MLDSA44_RSAPSS2048_SHA256)) {
+                    (mldsaCompKey->type == D2_MLDSA44_RSAPSS2048_SHA256_TYPE)) {
             cert->keyType = D2_MLDSA44_RSA2048_KEY;
         }
         else if ((mldsaCompKey != NULL) &&
-                    (mldsaCompKey->compType == D2_WC_MLDSA44_NISTP256_SHA256)) {
+                    (mldsaCompKey->type == D2_MLDSA44_NISTP256_SHA256_TYPE)) {
             cert->keyType = D2_MLDSA44_NISTP256_KEY;
         }
         else if ((mldsaCompKey != NULL) &&
-                    (mldsaCompKey->compType == D2_WC_MLDSA44_ED25519_SHA256)) {
+                    (mldsaCompKey->type == D2_MLDSA44_ED25519_SHA256_TYPE)) {
             cert->keyType = D2_MLDSA44_ED25519_KEY;
         }
         else if ((mldsaCompKey != NULL) &&
-                    (mldsaCompKey->compType == D2_WC_MLDSA65_RSAPSS3072_SHA512)) {
+                    (mldsaCompKey->type == D2_MLDSA65_RSAPSS3072_SHA512_TYPE)) {
             cert->keyType = D2_MLDSA65_RSAPSS3072_KEY;
         }
         else if ((mldsaCompKey != NULL) &&
-                    (mldsaCompKey->compType == D2_WC_MLDSA65_RSA3072_SHA512)) {
+                    (mldsaCompKey->type == D2_MLDSA65_RSA3072_SHA512_TYPE)) {
             cert->keyType = D2_MLDSA65_RSA3072_KEY;
         }
         else if ((mldsaCompKey != NULL) &&
-                    (mldsaCompKey->compType == D2_WC_MLDSA65_ED25519_SHA512)) {
+                    (mldsaCompKey->type == D2_MLDSA65_ED25519_SHA512_TYPE)) {
             cert->keyType = D2_MLDSA65_ED25519_KEY;
         }
         else if ((mldsaCompKey != NULL) &&
-                    (mldsaCompKey->compType == D2_WC_MLDSA65_BPOOL256_SHA512)) {
+                    (mldsaCompKey->type == D2_MLDSA65_BPOOL256_SHA512_TYPE)) {
             cert->keyType = D2_MLDSA65_BPOOL256_KEY;
         }
         else if ((mldsaCompKey != NULL) &&
-                    (mldsaCompKey->compType == D2_WC_MLDSA87_BPOOL384_SHA512)) {
+                    (mldsaCompKey->type == D2_MLDSA87_BPOOL384_SHA512_TYPE)) {
             cert->keyType = D2_MLDSA87_BPOOL384_KEY;
         }
         else if ((mldsaCompKey != NULL) &&
-                    (mldsaCompKey->compType == D2_WC_MLDSA87_NISTP384_SHA512)) {
+                    (mldsaCompKey->type == D2_MLDSA87_NISTP384_SHA512_TYPE)) {
             cert->keyType = D2_MLDSA87_NISTP384_KEY;
         }
         else if ((mldsaCompKey != NULL) &&
-                    (mldsaCompKey->compType == D2_WC_MLDSA87_ED448_SHA512)) {
+                    (mldsaCompKey->type == D2_MLDSA87_ED448_SHA512_TYPE)) {
             cert->keyType = D2_MLDSA87_ED448_KEY;
         }
 #endif

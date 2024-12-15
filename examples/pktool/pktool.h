@@ -16,6 +16,7 @@
 #include <wolfssl/wolfcrypt/ed448.h>
 
 #include <wolfssl/wolfcrypt/mldsa_composite.h>
+#include <wolfssl/wolfcrypt/asymkey.h>
 
 #include <wolfssl/ssl.h>
 
@@ -33,4 +34,4 @@ int load_key_p8(void ** key, int type, const char * key_file, int format);
 
 int gen_keypair(void ** key, int type, int param);
 
-int gen_csr(const void * key, const void * altkey, const char * out_filename, int out_format);
+int gen_csr(const AsymKey * key, const void * altkey, const char * out_filename, int out_format);

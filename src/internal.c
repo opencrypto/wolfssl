@@ -92,12 +92,6 @@
  *      pair
  */
 
-
-#ifdef EXTERNAL_OPTS_OPENVPN
-#error EXTERNAL_OPTS_OPENVPN should not be defined\
-    when building wolfSSL
-#endif
-
 #ifndef WOLFCRYPT_ONLY
 
 #include <wolfssl/internal.h>
@@ -29851,11 +29845,9 @@ static int HashSkeData(WOLFSSL* ssl, enum wc_HashType hashType,
         ssl->buffers.digest.length = (unsigned int)digest_sz;
 
         /* buffer for hash */
-        if (!ssl->buffers.digest.buffer) {
-            if (!ssl->options.dontFreeDigest) {
-                XFREE(ssl->buffers.digest.buffer, ssl->heap,
-                    DYNAMIC_TYPE_DIGEST);
-            }
+        if (!ssl->options.dontFreeDigest) {
+            XFREE(ssl->buffers.digest.buffer, ssl->heap,
+                  DYNAMIC_TYPE_DIGEST);
         }
         ssl->options.dontFreeDigest = 0;
 
