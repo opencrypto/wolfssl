@@ -30,8 +30,10 @@ int wc_PKCS8_info(byte * p8_data, word32 p8_dataSz, word32 * oid);
 
 int export_key_p8(void * key, int type, const char * out_file, int format);
 
+int load_file(byte ** data, int *len, const char * filename);
+
 int load_key_p8(void ** key, int type, const char * key_file, int format);
 
 int gen_keypair(void ** key, int type, int param);
 
-int gen_csr(const AsymKey * key, const void * altkey, const char * out_filename, int out_format);
+int gen_csr(const AsymKey * key, const AsymKey * altkey, const char * out_filename, int out_format);

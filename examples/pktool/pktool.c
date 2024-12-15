@@ -407,7 +407,6 @@ int load_key_p8(void ** key, int type, const char * key_file, int format) {
     int ret = 0;
     int keySz = 0;
 
-    FILE * file = NULL;
     byte * keyData = NULL;
 
     word32 idx = 0;
@@ -425,30 +424,12 @@ int load_key_p8(void ** key, int type, const char * key_file, int format) {
         return -1;
     }
 
-    file = fopen(key_file, "rb");
-    if (file == NULL) {
-        printf("[%d] Error opening file (%s)\n", __LINE__, key_file);
+    if (load_file(&keyData, &keySz, key_file) < 0) {
+        printf("Cannot open the key file (%s)", key_file);
         return -1;
     }
 
-    fseek(file, 0, SEEK_END);
-    keySz = ftell(file);
-
-    keyData = (byte *)XMALLOC(keySz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    if (keyData == NULL) {
-        printf("[%d] Error allocating memory for the key\n", __LINE__);
-        fclose(file);
-        return -1;
-    }
-
-    fseek(file, 0, SEEK_SET);
-    ret = (int)fread(keyData, 1, keySz, file);
-    fclose(file);
-
-    if (ret != keySz) {
-        printf("[%d] Error reading key\n", __LINE__);
-        return -1;
-    }
+    printf("******** Loaded File: %s, %d ******** \n", key_file, keySz);
 
     word32 algorSum = 0;
     ret = wc_AsymKey_info(&algorSum, keyData, keySz, format);
@@ -489,7 +470,67 @@ int load_key_p8(void ** key, int type, const char * key_file, int format) {
     return 0;
 }
 
-int gen_csr(const AsymKey* key, const void * altkey, const char * out_filename, int out_format)
+int load_file(byte ** data, int *len, const char * filename) {
+
+    int ret = 0;
+    int alloc = 0;
+    size_t fileSz = 0;
+    FILE * file = NULL;
+
+    if (!filename || len == NULL) {
+        return -1;
+    }
+
+    file = fopen(filename, "rb");
+    if (file == NULL) {
+        return -1;
+    }
+
+    fseek(file, 0, SEEK_END);
+    fileSz = ftell(file);
+    if (fileSz <= 0) {
+        return -1;
+    }
+
+    if (data && *data == NULL) {
+        // allocates the buffer, if needed
+        if ((*data = (byte *)XMALLOC(fileSz, NULL, DYNAMIC_TYPE_TMP_BUFFER)) == NULL) {
+            printf("ERROR: Memory allocation\n");
+            fclose(file);
+            return -1;
+        }
+        if (*data == NULL) {
+            XFREE(*data, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            fclose(file);
+            return -1;
+        }
+        alloc = 1;
+    }
+
+    // If data was provided, let's check the size
+    if (data && *data && !alloc) {
+        // Checks the input size
+        if (*len < (int)fileSz) {
+            return -1;
+        }
+    }
+    *len = fileSz;
+
+    if (data && *data) {
+        // Reads the file and closes it
+        fseek(file, 0, SEEK_SET);
+        if (fread(*data, 1, fileSz, file) != fileSz) {
+            if (alloc) XFREE(*data, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            *len = -1;
+            return -1;
+        }
+    }
+    fclose(file);
+
+    return ret;
+}
+
+int gen_csr(const AsymKey * keyPair, const AsymKey * altkey, const char * out_filename, int out_format)
 {
     int ret = NOT_COMPILED_IN;
 #ifdef WOLFSSL_CERT_REQ
@@ -1128,14 +1169,14 @@ int main(int argc, char** argv) {
             }
             if (load_key_p8(&keyPtr, keySum, key_file, in_format) < 0) {
                 printf("Error loading keypair\n");
-                return 1;
+                return -1;
             }
             // // Extracts the type of key
             //  printf(">>>>>>> (main) Key Type: %d\n", ((ecc_key *)keyPtr)->type);
             if (altkey_file) {
                 if (load_key_p8(&altKeyPtr, keySum, altkey_file, in_format) < 0) {
                     printf("Error loading alt keypair\n");
-                    return 1;
+                    return -1;
                 }
             }
             if (gen_csr(keyPtr, altkey_file, out_file, out_format) < 0) {
