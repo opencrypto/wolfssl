@@ -58,6 +58,10 @@
 #include <wolfssl/wolfcrypt/falcon.h>
 #endif
 
+#if defined(HAVE_SPHINCS)
+#include <wolfssl/wolfcrypt/sphincs.h>
+#endif
+
 #ifndef NO_RSA
 #include <wolfssl/wolfcrypt/rsa.h>
 #endif

@@ -554,8 +554,6 @@ int gen_csr(const AsymKey * keyPair, const AsymKey * altkey, const char * out_fi
 
     enum Key_Sum keySum;
 
-    const void * keyPair = key->key.mldsaCompKey;
-
     if (!keyPair) {
         printf("Invalid key\n");
         return BAD_FUNC_ARG;
@@ -1179,7 +1177,7 @@ int main(int argc, char** argv) {
                     return -1;
                 }
             }
-            if (gen_csr(keyPtr, altkey_file, out_file, out_format) < 0) {
+            if (gen_csr(keyPtr, altKeyPtr, out_file, out_format) < 0) {
                 return -1;
             }
             return 0;
