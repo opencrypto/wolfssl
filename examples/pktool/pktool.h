@@ -28,7 +28,7 @@ void usage(void);
 
 int wc_PKCS8_info(byte * p8_data, word32 p8_dataSz, word32 * oid);
 
-int export_key_p8(AsymKey * key, int type, const char * out_file, int format);
+int export_key_p8(AsymKey * key, const char * out_file, int format);
 
 int load_file(byte ** data, int *len, const char * filename);
 

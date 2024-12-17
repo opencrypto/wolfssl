@@ -460,7 +460,7 @@ int wc_AsymKey_gen(AsymKey      ** key,
         case D2_MLDSA87_BPOOL384k:
         case D2_MLDSA87_NISTP384k:
         case D2_MLDSA87_ED448k:
-            int composite_level = wc_mldsa_composite_level_type(Oid);
+            int composite_level = wc_mldsa_composite_key_sum_level(Oid);
             keyPtr = (void *)XMALLOC(sizeof(mldsa_composite_key), NULL, DYNAMIC_TYPE_MLDSA_COMPOSITE);
             if (keyPtr == NULL)
                 return MEMORY_E;
@@ -1279,23 +1279,20 @@ int wc_AsymKey_export_ex(const AsymKey * key,
                 return BAD_STATE_E;
             }
 
-            if (!buff) {
-                XFREE(derPtr, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-                return derPkcsSz;
-            }
-
             derPkcsPtr = (byte *)XMALLOC(derPkcsSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
             if (derPkcsPtr == NULL) {
                 XFREE(derPtr, NULL, DYNAMIC_TYPE_TMP_BUFFER);
                 return MEMORY_E;
             }
 
-            ret = wc_CreatePKCS8Key(derPkcsPtr, &derPkcsSz, derPtr, derSz, keyOid, NULL, 0);
-            if (ret < 0) {
-                MADWOLF_DEBUG("Error creating PKCS8 key (%d)\n", ret);
-                XFREE(derPtr, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-                XFREE(derPkcsPtr, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-                return BAD_STATE_E;
+            if (buff) {
+                ret = wc_CreatePKCS8Key(derPkcsPtr, &derPkcsSz, derPtr, derSz, keyOid, NULL, 0);
+                if (ret < 0) {
+                    MADWOLF_DEBUG("Error creating PKCS8 key (%d)\n", ret);
+                    XFREE(derPtr, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                    XFREE(derPkcsPtr, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                    return BAD_STATE_E;
+                }
             }
 
             // Free the DER buffer
@@ -1435,16 +1432,16 @@ int wc_AsymKey_export_ex(const AsymKey * key,
             dilithium_key * dilithiumKey = key->key.dilithiumKey;
                 // Shortcut to the Dilithium key
 
-            derPkcsSz = ret = wc_Dilithium_KeyToDer(dilithiumKey, NULL, 0);
+            derPkcsSz = ret = wc_Dilithium_PrivateKeyToDer(dilithiumKey, NULL, 0);
             if (ret < 0) {
                 return BAD_FUNC_ARG;
             }
             derPkcsPtr = (byte *)XMALLOC(derPkcsSz, NULL, DYNAMIC_TYPE_PRIVATE_KEY);
-            if (derPtr == NULL) {
+            if (derPkcsPtr == NULL) {
                 return MEMORY_E;
             }
             if (buff) {
-                derPkcsSz = ret = wc_Dilithium_KeyToDer(dilithiumKey, derPkcsPtr, derPkcsSz);
+                derPkcsSz = ret = wc_Dilithium_PrivateKeyToDer(dilithiumKey, derPkcsPtr, derPkcsSz);
                 if (ret < 0) {
                     XFREE(derPkcsPtr, NULL, DYNAMIC_TYPE_PRIVATE_KEY);
                     return ret;
@@ -1458,7 +1455,7 @@ int wc_AsymKey_export_ex(const AsymKey * key,
             falcon_key * falconKey = key->key.falconKey;
                 // Shortcut to the Falcon key
 
-            derPkcsSz = ret = wc_FalconKeyToDer(falconKey, NULL, 0);
+            derPkcsSz = ret = wc_Falcon_PrivateKeyToDer(falconKey, NULL, 0);
             if (ret < 0) {
                 return BAD_FUNC_ARG;
             }
@@ -1466,7 +1463,7 @@ int wc_AsymKey_export_ex(const AsymKey * key,
                 return MEMORY_E;
             }
             if (buff) {
-                derPkcsSz = ret = wc_FalconKeyToDer(falconKey, derPkcsPtr, derPkcsSz);
+                derPkcsSz = ret = wc_Falcon_PrivateKeyToDer(falconKey, derPkcsPtr, derPkcsSz);
                 if (ret < 0) {
                     XFREE(derPkcsPtr, NULL, DYNAMIC_TYPE_TMP_BUFFER);
                     return ret;
@@ -1583,35 +1580,37 @@ int wc_AsymKey_export_ex(const AsymKey * key,
             XFREE(derPkcsPtr, NULL, DYNAMIC_TYPE_TMP_BUFFER);
             return ret;
         }
-        pem_data = (byte *)XMALLOC(pem_dataSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        if (pem_data == NULL) {
+
+        if (buff) {
+            pem_data = (byte *)XMALLOC(pem_dataSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            if (pem_data == NULL) {
+                XFREE(derPkcsPtr, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                return MEMORY_E;
+            }
+            ret = wc_DerToPem(derPkcsPtr, derPkcsSz, pem_data, pem_dataSz, PKCS8_PRIVATEKEY_TYPE);
+            if (ret <= 0) {
+                XFREE(derPkcsPtr, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                XFREE(pem_data, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                return ret;
+            }
             XFREE(derPkcsPtr, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-            return MEMORY_E;
+            derPkcsPtr = pem_data;
+            derPkcsSz = pem_dataSz;
         }
-        ret = wc_DerToPem(derPkcsPtr, derPkcsSz, pem_data, pem_dataSz, PKCS8_PRIVATEKEY_TYPE);
-        if (ret <= 0) {
-            XFREE(derPkcsPtr, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-            XFREE(pem_data, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-            return ret;
-        }
-        XFREE(derPkcsPtr, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        derPkcsPtr = pem_data;
-        derPkcsSz = pem_dataSz;
     }
 #endif
 
-    if (buffLen < derPkcsSz) {
-        MADWOLF_DEBUG("Buffer too small (%d < %d)\n", buffLen, derPkcsSz);
-        XFREE(derPkcsPtr, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        return BUFFER_E;
-    }
-
     if (buff) {
+        if (buffLen < derPkcsSz) {
+            MADWOLF_DEBUG("Buffer too small (%d < %d)\n", buffLen, derPkcsSz);
+            XFREE(derPkcsPtr, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            return BUFFER_E;
+        }
         XMEMCPY(buff, derPkcsPtr, derPkcsSz);
+        ret = derPkcsSz;
     } else {
         XFREE(derPkcsPtr, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     }
-    ret = derPkcsSz;
 
     (void)passwd;
     (void)passwdSz;

@@ -26,74 +26,25 @@ void usage(void) {
     printf("\n");
 }
 
-// int wc_PKCS8_info(byte * p8_data, word32 p8_dataSz, word32 * oid) {
-
-//     int ret = 0;
-//     word32 algorSum = 0;
-
-//     if (!p8_data || !p8_dataSz) {
-//         printf("Invalid input (p8: %p, sz: %d\n", p8_data, p8_dataSz);
-//         return BAD_FUNC_ARG;
-//     }
-
-//     // Creates a copy of the data
-//     byte * buff = XMALLOC(p8_dataSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-//     if (buff == NULL) {
-//         printf("Memory allocation error\n");
-//         ret = MEMORY_E;
-//         goto err;
-//     }
-
-//     // Copies the data
-//     XMEMCPY(buff, p8_data, p8_dataSz);
-
-// #if defined(HAVE_PKCS8) || defined(HAVE_PKCS12)
-
-//     // Removes the PKCS8 header
-//     ret = ToTraditional_ex(buff, p8_dataSz, &algorSum);
-//     *oid = algorSum;
-// #else
-//     ret = NOT_COMPILED_IN;
-// #endif // HAVE_PKCS8 || HAVE_PKCS12
-//     if (ret < 0) {
-//         printf("[%d] Error loading key (err: %d, alg: %d)\n", __LINE__, ret, algorSum);
-//     }
-
-// err:
-
-//     // Frees the buffer
-//     if (buff) XFREE(buff, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-
-//     return ret;
-// }
-
-int export_key_p8(AsymKey * key, int keySum, const char * out_file, int format) {
+int export_key_p8(AsymKey * key, const char * out_file, int format) {
     int ret = 0;
-    int outSz = 0;
 
     FILE* file = NULL;
     
-    byte * keyData = NULL;
-        // pointer to the key data
-
-    // byte * derPtr = NULL;
-    // int    derSz = 0;
-    //     // buffer to hold the key in DER format
-
-    byte * pem_data = NULL;
-    word32 pem_dataSz = 0;
-        // size of the PEM data
-
-    // byte * p8_data = NULL;
-    // int    p8_outSz = 0;
-    //     // size of the PKCS8 key
-
-    word32 buffSz = 12000;
-    byte buff[buffSz];
+    word32 buffSz = 0;
+    byte * buff = NULL;
         // buffer to hold the exported key
 
-    // Input checks
-    if (!key || keySum < 0) {
+    buffSz = ret = wc_AsymKey_export(key, NULL, 0, format);
+    if (ret < 0) {
+        printf("Error exporting key %d\n", ret);
+        return ret;
+    }
+    printf("Getting the Size of the exported key: %d\n", buffSz);
+
+    buff = (byte *)XMALLOC(buffSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (buff == NULL) {
+        printf("Error allocating memory for the key\n");
         return -1;
     }
 
@@ -103,302 +54,6 @@ int export_key_p8(AsymKey * key, int keySum, const char * out_file, int format) 
         return ret;
     }
 
-    printf("Exported key (%d bytes)\n", buffSz);
-
-    keyData = buff;
-    outSz = buffSz;
-
-    (void)pem_data;
-    (void)pem_dataSz;
-    (void)format;
-
-//     switch (keySum) {
-// #ifndef NO_RSA
-//     case RSAk:
-//     case RSAPSSk:
-
-//     #if defined(WOLFSSL_KEY_GEN) || defined(OPENSSL_EXTRA) || //
-//         defined(WOLFSSL_KCAPI_RSA) || defined(WOLFSSL_SE050)
-
-//         derSz = wc_RsaKeyToDer((RsaKey *)key, NULL, sizeof(derPtr));
-//         if (derSz < 0) {
-//             printf("Error exporting key (%d)\n", derSz);
-//             return -1;
-//         }
-//         derPtr = (byte *)XMALLOC(derSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-//         if (derPtr == NULL) {
-//             printf("Memory allocation Error exporting key\n");
-//             return -1;
-//         }
-//         ret = wc_RsaKeyToDer((RsaKey *)key, derPtr, derSz);
-//         if (ret < 0) {
-//             printf("RSA: Error exporting key (size: %d, err: %d)\n", derSz, ret);
-//             return -1;
-//         }
-//         // ----------------------
-//         // Export in PKCS8 format
-//         // ----------------------
-
-//         if ((ret = wc_CreatePKCS8Key(NULL, (word32 *)&p8_outSz, derPtr, derSz, keySum, NULL, 0)) < 0 && ret != LENGTH_ONLY_E) {
-//             printf("Error creating PKCS8 key (%d)\n", ret);
-//             return -1;
-//         }
-
-//         p8_data = (byte *)XMALLOC(p8_outSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-//         if (p8_data == NULL) {
-//             printf("Error exporting key\n");
-//             return -1;
-//         }
-//         if ((ret = wc_CreatePKCS8Key(p8_data, (word32 *)&p8_outSz, derPtr, derSz, keySum, NULL, 0)) < 0) {
-//             printf("Error creating PKCS8 key (%d)\n", ret);
-//             return -1;
-//         }
-
-//         if (ret < 0) {
-//             printf("Error exporting key\n");
-//             return -1;
-//         }
-// #else
-//         return -1;
-// #endif // WOLFSSL_KEY_GEN || OPENSSL_EXTRA || WOLFSSL_KCAPI_RSA || WOLFSSL_SE050
-//         break;
-// #endif
-// #ifdef HAVE_ECC
-//     case ECDSAk:
-
-//         // Get the size of the DER key
-//         derSz = wc_EccKeyDerSize((ecc_key *)key, 1);
-//         if (derSz < 0) {
-//             printf("Error exporting key (%d)\n", derSz);
-//             return -1;
-//         }
-
-//         // Allocate memory for the DER key
-//         derPtr = (byte *)XMALLOC(derSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-//         if (derPtr == NULL) {
-//             printf("Memory Error exporting key (%d)\n", derSz);
-//             return -1;
-//         }
-
-//         // Export the key to DER format
-//         ret = wc_EccKeyToDer((ecc_key *)key, derPtr, derSz);
-//         if (ret < 0) {
-//             printf("EC: Error exporting key (derPtr: %p, derSz: %d, ret: %d)\n", derPtr, derSz, ret);
-//             return -1;
-//         }
-
-//         // ----------------------
-//         // Export in PKCS8 format
-//         // ----------------------
-
-//         byte * curveOid = NULL;
-//         word32 curveOidSz = 0;
-//         if ((ret = wc_ecc_get_oid(((ecc_key*)key)->dp->oidSum, (const byte **)&curveOid, &curveOidSz)) < 0){
-//             printf("Error getting curve OID\n");
-//             return -1;
-//         }
-
-//         if ((ret = wc_CreatePKCS8Key(NULL, (word32 *)&p8_outSz, derPtr, derSz, ECDSAk, curveOid, curveOidSz)) < 0 && ret != LENGTH_ONLY_E) {
-//             printf("Error creating PKCS8 key (%d)\n", ret);
-//             return -1;
-//         }
-
-//         p8_data = (byte *)XMALLOC(p8_outSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-//         if (p8_data == NULL) {
-//             printf("Error exporting key\n");
-//             return -1;
-//         }
-//         if ((ret = wc_CreatePKCS8Key(p8_data, (word32 *)&p8_outSz, derPtr, derSz, keySum, curveOid, curveOidSz)) < 0 && ret != LENGTH_ONLY_E) {
-//             printf("Error creating PKCS8 key (%d)\n", ret);
-//             return -1;
-//         }
-
-//         if (ret < 0) {
-//             printf("Error exporting key\n");
-//             return -1;
-//         }
-//         break;
-// #endif
-// #ifdef HAVE_ED25519
-//     case ED25519k:
-
-//         // Get the size of the DER key
-//         derSz = wc_Ed25519KeyToDer((ed25519_key *)key, NULL, sizeof(derPtr));
-//         if (derSz < 0) {
-//             printf("Error exporting key\n");
-//             return -1;
-//         }
-
-//         // Allocate memory for the DER key
-//         derPtr = (byte *)XMALLOC(derSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-//         if (derPtr == NULL) {
-//             printf("Error exporting key\n");
-//             return -1;
-//         }
-
-//         // Export the key to DER format
-//         derSz = wc_Ed25519KeyToDer((ed25519_key *)key, derPtr, derSz);
-//         if (derSz < 0) {
-//             printf("Error exporting key\n");
-//             return -1;
-//         }
-
-//         p8_data = derPtr;
-//         p8_outSz = derSz;
-
-//         break;
-// #endif
-// #ifdef HAVE_ED448
-//     case ED448k:
-//         derSz = wc_Ed448KeyToDer((ed448_key *)key, NULL, sizeof(derPtr));
-//         if (derSz < 0) {
-//             printf("Error exporting key\n");
-//             return -1;
-//         }
-//         derPtr = (byte *)XMALLOC(derSz, NULL, DYNAMIC_TYPE_PRIVATE_KEY);
-//         if (derPtr == NULL) {
-//             printf("Error exporting key\n");
-//             return -1;
-//         }
-//         derSz = wc_Ed448KeyToDer((ed448_key *)key, derPtr, derSz);
-//         if (derSz < 0) {
-//             printf("Error exporting key\n");
-//             return -1;
-//         }
-
-//         // No Need to convert to PKCS8
-//         p8_data = derPtr;
-//         p8_outSz = derSz;
-
-//         break;
-// #endif
-// #ifdef HAVE_DILITHIUM
-//     case ML_DSA_LEVEL5k:
-//     case ML_DSA_LEVEL3k:
-//     case ML_DSA_LEVEL2k:
-//         derSz = wc_Dilithium_KeyToDer((MlDsaKey *)key, NULL, sizeof(derPtr));
-//         if (derSz < 0) {
-//             printf("Error exporting key\n");
-//             return -1;
-//         }
-//         derPtr = (byte *)XMALLOC(derSz, NULL, DYNAMIC_TYPE_PRIVATE_KEY);
-//         if (derPtr == NULL) {
-//             printf("Error exporting key\n");
-//             return -1;
-//         }
-//         derSz = wc_Dilithium_KeyToDer((MlDsaKey *)key, derPtr, derSz);
-//         if (derSz < 0) {
-//             printf("Error exporting key\n");
-//             return -1;
-//         }
-//         p8_data = derPtr;
-//         p8_outSz = derSz;
-//         break;
-// #endif
-// #ifdef HAVE_FALCON
-//     case FALCON_LEVEL1k:
-//     case FALCON_LEVEL5k:
-//         outSz = wc_FalconKeyToDer((falcon_key *)key, NULL, sizeof(derPtr));
-//         if (outSz < 0) {
-//             printf("Error exporting key\n");
-//             return -1;
-//         }
-//         derPtr = (byte *)XMALLOC(outSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-//         if (derPtr == NULL) {
-//             printf("Error exporting key\n");
-//             return -1;
-//         }
-//         derSz = wc_FalconKeyToDer((falcon_key *)key, derPtr, derSz);
-//         if (derSz < 0) {
-//             printf("Error exporting key\n");
-//             return -1;
-//         }
-//         p8_data = derPtr;
-//         p8_outSz = derSz;
-//         break;
-// #endif
-// #ifdef HAVE_MLDSA_COMPOSITE
-//     case MLDSA44_RSAPSS2048k:
-//     case MLDSA44_RSA2048k:
-//     case MLDSA44_NISTP256k:
-//     // case MLDSA44_BPOOL256k:
-//     case MLDSA44_ED25519k:
-
-//     case MLDSA65_RSAPSS3072k:
-//     case MLDSA65_RSA3072k:
-//     case MLDSA65_RSAPSS4096k:
-//     case MLDSA65_RSA4096k:
-//     case MLDSA65_ED25519k:
-//     case MLDSA65_NISTP256k:
-//     case MLDSA65_BPOOL256k:
-
-//     case MLDSA87_BPOOL384k:
-//     case MLDSA87_NISTP384k:
-//     case MLDSA87_ED448k:
-
-//         derSz = wc_MlDsaComposite_KeyToDer((mldsa_composite_key *)key, NULL, 0);
-//         // derSz = wc_MlDsaComposite_PrivateKeyToDer((mldsa_composite_key *)key, NULL, 0);
-//         if (derSz < 0) {
-//             printf("Error exporting key\n");
-//             return -1;
-//         }
-//         derPtr = (byte *)XMALLOC(derSz, ((mldsa_composite_key *)key)->heap, DYNAMIC_TYPE_PRIVATE_KEY);
-//         if (derPtr == NULL) {
-//             printf("Error exporting key\n");
-//             return -1;
-//         }
-//         derSz = wc_MlDsaComposite_KeyToDer((mldsa_composite_key *)key, derPtr, derSz);
-//         // derSz = wc_MlDsaComposite_PrivateKeyToDer((mldsa_composite_key *)key, derPtr, derSz);
-//         if (derSz < 0) {
-//             printf("Error exporting key\n");
-//             return -1;
-//         }
-//         p8_data = derPtr;
-//         p8_outSz = derSz;
-//         break;
-// #endif
-//         default:
-//             printf("Unsupported key type (%d)\n", keySum);
-//             return BAD_FUNC_ARG;
-//     }
-
-//     keyData = p8_data;
-//     outSz = p8_outSz;
-
-//     // --------------------
-//     // Export to PEM format
-//     // --------------------
-
-// #ifdef WOLFSSL_DER_TO_PEM
-
-//     if (format == 1) {
-//         ret = wc_DerToPem(p8_data, p8_outSz, NULL, 0, PKCS8_PRIVATEKEY_TYPE);
-//         if (ret <= 0) {
-//             printf("Key DER to PEM failed: %d\n", ret);
-//             return -1;
-//         }
-//         pem_dataSz = ret;
-//         pem_data = (byte *)XMALLOC(pem_dataSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-//         if (pem_data == NULL) {
-//             printf("Error exporting key\n");
-//             return -1;
-//         }
-//         ret = wc_DerToPem(p8_data, p8_outSz, pem_data, pem_dataSz, PKCS8_PRIVATEKEY_TYPE);
-//         if (ret <= 0) {
-//             printf("Key DER to PEM failed: %d\n", ret);
-//             return -1;
-//         }
-//         outSz = ret;
-//         keyData = pem_data;
-
-//         if (outSz <= 0) {
-//            printf("Error exporting key\n");
-//            return -1;
-//         }
-//     }
-
-// #endif
-
     // -------------
     // Write to file
     // -------------
@@ -406,12 +61,12 @@ int export_key_p8(AsymKey * key, int keySum, const char * out_file, int format) 
     if (out_file) {
         file = fopen(out_file, "wb");
         if (file) {
-            ret = (int)fwrite(keyData, 1, outSz, file);
+            ret = (int)fwrite(buff, 1, buffSz, file);
             fclose(file);
         }
     } else {
         int fd = fileno(stdout);
-        ret = write(fd, keyData, outSz);
+        ret = write(fd, buff, buffSz);
     }
 
     return 0;
@@ -1010,6 +665,8 @@ int main(int argc, char** argv) {
     char * altkey_file = NULL; /* alt key file */
     char * ca_file = NULL; /* ca file */
 
+    int error = 0; /* error flag */
+
     // Gets the CMD
     if (argc < 2) {
         usage();
@@ -1172,10 +829,14 @@ int main(int argc, char** argv) {
             out_file = argv[i];
         } else {
             printf("\n     ERROR: option \"%s\" was not recognized.\n\n", argv[i]);
+            error = 1;
             break;
         }
         i++;
     }
+
+    // Abort if we do not understand any option(s)
+    if (error) exit(error);
 
     switch (cmd) {
         // PKEY
@@ -1185,7 +846,7 @@ int main(int argc, char** argv) {
                 printf("Error generating keypair\n");
                 return 1;
             }
-            if (export_key_p8(keyPtr, keySum, out_file, out_format) < 0) {
+            if (export_key_p8(keyPtr, out_file, out_format) < 0) {
                 printf("export_key_p8() < 0 : Error exporting keypair\n");
                 return 1;
             }
