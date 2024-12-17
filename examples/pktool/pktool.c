@@ -40,7 +40,6 @@ int export_key_p8(AsymKey * key, const char * out_file, int format) {
         printf("Error exporting key %d\n", ret);
         return ret;
     }
-    printf("Getting the Size of the exported key: %d\n", buffSz);
 
     buff = (byte *)XMALLOC(buffSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (buff == NULL) {
@@ -236,8 +235,8 @@ int gen_csr(const AsymKey * keyPair, const AsymKey * altkey, const char * out_fi
     }
 
     // Extracts the type of key
-    keySum = wc_mldsa_composite_key_sum((mldsa_composite_key *)keyPair);
-    certType = wc_mldsa_composite_type((mldsa_composite_key *)keyPair);
+    keySum = wc_AsymKey_Oid(keyPair);
+    certType = wc_AsymKey_CertType(keyPair);
 
     char * algName = (char *)wc_KeySum_name(keySum);
     if (algName == NULL) {
@@ -245,7 +244,7 @@ int gen_csr(const AsymKey * keyPair, const AsymKey * altkey, const char * out_fi
         // goto exit;
     }
 
-    printf("certType: %d, keySum: %d, algName: %s\n", certType, keySum, algName);
+    printf("CertType: %d, keySum: %d, algName: %s\n", certType, keySum, algName);
 
     strncpy(req.subject.country, "US", CTC_NAME_SIZE);
     // strncpy(req.subject.state, "OR", CTC_NAME_SIZE);
@@ -258,7 +257,7 @@ int gen_csr(const AsymKey * keyPair, const AsymKey * altkey, const char * out_fi
 
     // Forcing the type
     // certType = MLDSA44_RSAPSS2048_TYPE;
-    ret = wc_MakeCertReq_ex(&req, der, sizeof(der), certType, (void *)keyPair);
+    ret = wc_MakeCertReq_ex(&req, der, sizeof(der), certType, keyPair->key.ptr);
     if (ret <= 0) {
         printf("Make Cert Req failed: %d\n", ret);
         goto exit;
@@ -371,7 +370,7 @@ int gen_csr(const AsymKey * keyPair, const AsymKey * altkey, const char * out_fi
     }
     ret = wc_SignCert_ex(req.bodySz, req.sigType, 
                          der, sizeof(der), certType,
-                         (void *)keyPair, &rng);
+                         (void *)keyPair->key.ptr, &rng);
     if (ret <= 0) {
         printf("Sign Cert failed: %d\n", ret);
         goto exit;

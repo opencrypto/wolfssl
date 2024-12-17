@@ -461,6 +461,11 @@ int wc_AsymKey_gen(AsymKey      ** key,
         case D2_MLDSA87_NISTP384k:
         case D2_MLDSA87_ED448k:
             int composite_level = wc_mldsa_composite_key_sum_level(Oid);
+            if (composite_level < 0) {
+                ret = composite_level;
+                MADWOLF_DEBUG("Invalid composite level %d (OID: %d)", composite_level, Oid);
+                goto err;
+            }
             keyPtr = (void *)XMALLOC(sizeof(mldsa_composite_key), NULL, DYNAMIC_TYPE_MLDSA_COMPOSITE);
             if (keyPtr == NULL)
                 return MEMORY_E;
@@ -715,7 +720,7 @@ int wc_AsymKey_Oid(const AsymKey * key) {
  * returns a value from enum CertType for the key.
  * returns BAD_FUNC_ARG when key is NULL or type has not been set.
  */
-int wc_AsymKey_type(const AsymKey* key) {
+int wc_AsymKey_CertType(const AsymKey* key) {
 
     int ret = 0;
     if (!key || key->type <= 0)

@@ -2325,6 +2325,7 @@ int wc_mldsa_composite_key_sum_level(const enum Key_Sum keytype_sum) {
             ret = D2_WC_MLDSA87_ED448_SHA512;
         // Error
         } else {
+            MADWOLF_DEBUG("Invalid ML-DSA composite key sum: %d", keytype_sum);
             return BAD_FUNC_ARG;
         }
     }

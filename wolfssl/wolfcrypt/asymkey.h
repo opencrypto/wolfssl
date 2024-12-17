@@ -178,7 +178,7 @@ WOLFSSL_API int wc_AsymKey_Oid(const AsymKey * key);
  * returns a value from enum CertType for the key.
  * returns BAD_FUNC_ARG when key is NULL or type has not been set.
  */
-WOLFSSL_API int wc_AsymKey_type(const AsymKey* key);
+WOLFSSL_API int wc_AsymKey_CertType(const AsymKey* key);
 
 /* Returns the size of a private plus public key.
  *
