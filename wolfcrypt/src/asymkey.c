@@ -375,13 +375,13 @@ int wc_AsymKey_gen(AsymKey      ** key,
                 goto err;
             }
 
-            if (Oid == ML_DSA_LEVEL2k) {
+            if (Oid == ML_DSA_LEVEL2k || Oid == DILITHIUM_LEVEL2k) {
                 ret = wc_dilithium_set_level(keyPtr, WC_ML_DSA_44);
                 keyType = ML_DSA_LEVEL2_TYPE;
-            } else if (Oid == ML_DSA_LEVEL3k) {
+            } else if (Oid == ML_DSA_LEVEL3k || Oid == DILITHIUM_LEVEL3k) {
                 ret = wc_dilithium_set_level(keyPtr, WC_ML_DSA_65);
                 keyType = ML_DSA_LEVEL3_TYPE;
-            } else if (Oid == ML_DSA_LEVEL5k) {
+            } else if (Oid == ML_DSA_LEVEL5k || Oid == DILITHIUM_LEVEL5k) {
                 ret = wc_dilithium_set_level(keyPtr, WC_ML_DSA_87);
                 keyType = ML_DSA_LEVEL5_TYPE;
             } else {
@@ -505,14 +505,20 @@ int wc_AsymKey_gen(AsymKey      ** key,
 
     // Returns the key
     if (ret == 0) {
-        AsymKey * aKey = wc_AsymKey_new();
+        AsymKey * aKey = *key;
+
+        // If the key is NULL, allocate a new one
+        if (!aKey) aKey = wc_AsymKey_new();
         if (aKey == NULL) {
             ret = MEMORY_E;
             goto err;
         }
+
+        // Set the key type and pointer
         aKey->type = keyType;
         aKey->key.ptr = keyPtr;
 
+        // Transfer the ownership (if allocated)
         *key = aKey;
     }
 
