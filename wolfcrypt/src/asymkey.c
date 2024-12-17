@@ -4,6 +4,33 @@
 #include <wolfssl/wolfcrypt/asymkey.h>
 #endif
 
+/* Log a message that has the printf format string.
+ *
+ * @param [in] <va_args>  printf style arguments.
+ */
+#define WOLFSSL_MSG_VSNPRINTF(...)                    \
+    do {                                              \
+      char line[81];                                  \
+      snprintf(line, sizeof(line) - 1, __VA_ARGS__);  \
+      line[sizeof(line) - 1] = '\0';                  \
+      WOLFSSL_MSG(line);                              \
+    }                                                 \
+    while (0)
+
+#define MADWOLF_DEBUG0(a)                         \
+    do {                                              \
+        printf("[%s:%d] %s(): " a "\n", __FILE__, __LINE__, __func__);      \
+        fflush(stdout);                               \
+    } while (0)
+
+
+#define MADWOLF_DEBUG(a, ...)                         \
+    do {                                              \
+        printf("[%s:%d] %s(): " a "\n", __FILE__, __LINE__, __func__, __VA_ARGS__);      \
+        fflush(stdout);                               \
+    } while (0)
+
+
 /* Functions */
 
 /* Allocates the memory associated with a new AsymKey.
@@ -11,7 +38,7 @@
  * @return  MEMORY_E when memory allocation fails.
  * @return  the pointer to the new AsymKey.
  */
-WOLFSSL_API AsymKey * wc_AsymKey_new(void) {
+AsymKey * wc_AsymKey_new(void) {
 
   AsymKey * ret = NULL;
 
@@ -31,7 +58,7 @@ WOLFSSL_API AsymKey * wc_AsymKey_new(void) {
  * @return  0 on success.
  * @return  BAD_FUNC_ARG when key is NULL.
  */
-WOLFSSL_API int wc_AsymKey_free(AsymKey * key) {
+int wc_AsymKey_free(AsymKey * key) {
 
   if (!key)
     return BAD_FUNC_ARG;
@@ -169,415 +196,511 @@ WOLFSSL_API int wc_AsymKey_free(AsymKey * key) {
  * @return  MEMORY_E when memory allocation fails.
  * @return  Other negative when an error occurs.
  */
-WOLFSSL_API int wc_AsymKey_gen(AsymKey ** key,
-                               int        type,
-                               int        param,
-                               byte     * seed,
-                               word32     seedSz,
-                               WC_RNG   * rng) {
+int wc_AsymKey_gen(AsymKey      ** key,
+                   enum Key_Sum    Oid,
+                   int             param,
+                   byte          * seed,
+                   word32          seedSz,
+                   WC_RNG        * rng) {
 
-#ifndef NO_RSA
-  RsaKey rsaKey;
-#endif
+    int ret = 0;
+    void* keyPtr = NULL;
+
+    int keyType = 0;
+    int rngAlloc = 0;
+
+    (void)seed;
+    (void)seedSz;
+
+    if (!key)
+        return BAD_FUNC_ARG;
+
+    if (!rng) {
+        rng = (WC_RNG*)XMALLOC(sizeof(WC_RNG), NULL, DYNAMIC_TYPE_RNG);
+        if (rng == NULL)
+            return MEMORY_E;
+        ret = wc_InitRng(rng);
+        if (ret < 0) {
+            XFREE(rng, NULL, DYNAMIC_TYPE_RNG);
+            return ret;
+        }
+        rngAlloc = 1;
+    }
+
+    switch (Oid) {
+        case DSAk:
 #ifdef HAVE_DSA
-  dsa_key dsaKey;
+            keyPtr = (void*)XMALLOC(sizeof(DsaKey), NULL, DYNAMIC_TYPE_DSA);
+            if (keyPtr == NULL) {
+                ret = MEMORY_E;
+                goto err;
+            }
+            ret = wc_InitDsaKey((DsaKey *)keyPtr, NULL);
+            if (ret < 0) {
+                XFREE(keyPtr, NULL, DYNAMIC_TYPE_DSA);
+                goto err;
+            }
+            ret = wc_MakeDsaKey(rng, (DsaKey *)keyPtr);
+            if (ret < 0) {
+                wc_FreeDsaKey((DsaKey *)keyPtr);
+                XFREE(keyPtr, NULL, DYNAMIC_TYPE_DSA);
+                goto err;
+            }
+            keyType = DSA_TYPE;
 #endif
-#ifdef HAVE_ECC
-  ecc_key ecKey;
-#endif
-#ifdef HAVE_ED25519
-  ed25519_key ed25519Key;
-#endif
-#ifdef HAVE_ED448
-  ed448_key ed448Key;
-#endif
-#ifdef HAVE_DILITHIUM
-  MlDsaKey mldsaKey;
-#endif
-#ifdef HAVE_MLDSA_COMPOSITE
-  mldsa_composite_key mldsa_compositeKey;
-#endif
-
-  int ret = 0;
-  void* keyPtr = NULL;
-
-  (void)seed;
-  (void)seedSz;
-
-  if (!key)
-      return BAD_FUNC_ARG;
-
-    switch (type) {
-#ifdef HAVE_DSA
-    case DSA_TYPE:
-        keyPtr = &dsaKey;
-        ret = wc_InitDsaKey(&dsaKey, NULL);
-        break;
-#endif
+            break;
+        case RSAk:
+        case RSAPSSk:
+        case RSAESOAEPk:
 #ifndef NO_RSA
-    case RSA_TYPE:
-        if (param < 2048) {
-          return BAD_FUNC_ARG;
-        }
-        keyPtr = (void*)XMALLOC(sizeof(RsaKey), NULL, DYNAMIC_TYPE_RSA);
-        if (keyPtr == NULL)
-            return MEMORY_E;
-        ret = wc_InitRsaKey(&rsaKey, rsaKey.heap);
-        if (ret < 0) {
-            XFREE(keyPtr, NULL, DYNAMIC_TYPE_RSA);
-            return ret;
-        }
-        ret = wc_MakeRsaKey(&rsaKey, param, WC_RSA_EXPONENT, rng);
-        if (ret < 0) {
-            wc_FreeRsaKey(&rsaKey);
-            XFREE(keyPtr, NULL, DYNAMIC_TYPE_RSA);
-            return ret;
-        }
-        break;
+            if (param < 2048) {
+                param = 2048;
+            } else if (param > 16384) {
+                param = 16384;
+            }
+            keyPtr = (void*)XMALLOC(sizeof(RsaKey), NULL, DYNAMIC_TYPE_RSA);
+            if (keyPtr == NULL) {
+                ret = MEMORY_E;
+                goto err;
+            }
+            ret = wc_InitRsaKey((RsaKey *)keyPtr, NULL);
+            if (ret < 0) {
+                XFREE(keyPtr, NULL, DYNAMIC_TYPE_RSA);
+                goto err;
+            }
+            ret = wc_MakeRsaKey((RsaKey *)keyPtr, param, WC_RSA_EXPONENT, rng);
+            if (ret < 0) {
+                wc_FreeRsaKey((RsaKey *)keyPtr);
+                XFREE(keyPtr, NULL, DYNAMIC_TYPE_RSA);
+                goto err;
+            }
+            keyType = RSA_TYPE;
 #endif
+            break;
+    case ECDSAk:
 #ifdef HAVE_ECC
-    case ECC_TYPE:
-        int keySz = wc_ecc_get_curve_size_from_id(param);
-        if (keySz < 0)
-                return keySz;
-      
-        if (param <= 0)
-          param = ECC_SECP256R1;
+            int keySz = 0;
+            if (param <= 0) param = ECC_SECP256R1;
 
-        keyPtr = (void*)XMALLOC(sizeof(ecc_key), NULL, DYNAMIC_TYPE_ECC);
-        if (keyPtr == NULL)
-            return MEMORY_E;
+            keySz = wc_ecc_get_curve_size_from_id(param);
+            if (keySz < 0) {
+                ret = keySz;
+                goto err;
+            }
+        
+            if (param <= 0)
+                param = ECC_SECP256R1;
 
-        ret = wc_ecc_init(keyPtr);
-        if (ret < 0) {
-            XFREE(keyPtr, NULL, DYNAMIC_TYPE_ECC);
-            return ret;
-        }
-        ret = wc_ecc_make_key_ex(rng, keySz, keyPtr, param);
-        if (ret < 0) {
-            wc_ecc_free(keyPtr);
-            XFREE(keyPtr, NULL, DYNAMIC_TYPE_ECC);
-            return ret;
-        }
-        break;
+            keyPtr = (void*)XMALLOC(sizeof(ecc_key), NULL, DYNAMIC_TYPE_ECC);
+            if (keyPtr == NULL) {
+                ret = MEMORY_E;
+                goto err;
+            }
 
+            ret = wc_ecc_init(keyPtr);
+            if (ret < 0) {
+                XFREE(keyPtr, NULL, DYNAMIC_TYPE_ECC);
+                goto err;
+            }
+            ret = wc_ecc_make_key_ex(rng, keySz, keyPtr, param);
+            if (ret < 0) {
+                wc_ecc_free(keyPtr);
+                XFREE(keyPtr, NULL, DYNAMIC_TYPE_ECC);
+                goto err;
+            }
+            keyType = ECC_TYPE;
 #endif
+            break;
+
+        case ED25519k:
 #ifdef HAVE_ED25519
-    case ED25519_TYPE:
-        keyPtr = (void *)XMALLOC(sizeof(ed25519_key), NULL, DYNAMIC_TYPE_ED25519);
-        if (keyPtr == NULL)
-            return MEMORY_E;
-        ret = wc_ed25519_init(&ed25519Key);
-        if (ret < 0)
-            return ret;
-        ret = wc_ed25519_make_key(rng, ED25519_KEY_SIZE, keyPtr);
-        if (ret < 0) {
-            wc_ed25519_free(keyPtr);
-            XFREE(keyPtr, NULL, DYNAMIC_TYPE_ED25519);
-            return ret;
-        }
-        break;
+            keyPtr = (void *)XMALLOC(sizeof(ed25519_key), NULL, DYNAMIC_TYPE_ED25519);
+            if (keyPtr == NULL) {
+                ret = MEMORY_E;
+                goto err;
+            }
+            ret = wc_ed25519_init((ed25519_key *)keyPtr);
+            if (ret < 0) {
+                XFREE(keyPtr, NULL, DYNAMIC_TYPE_ED25519);
+                return ret;
+            }
+            ret = wc_ed25519_make_key(rng, ED25519_KEY_SIZE, (ed25519_key *)keyPtr);
+            if (ret < 0) {
+                wc_ed25519_free(keyPtr);
+                XFREE(keyPtr, NULL, DYNAMIC_TYPE_ED25519);
+                goto err;
+            }
+            keyType = ED25519_TYPE;
 #endif
+            break;
+
+        case ED448k:
 #ifdef HAVE_ED448
-    case ED448_TYPE:
-        keyPtr = (void *)XMALLOC(sizeof(ed448_key), NULL, DYNAMIC_TYPE_ED448);
+            keyPtr = (void *)XMALLOC(sizeof(ed448_key), NULL, DYNAMIC_TYPE_ED448);
+            if (keyPtr == NULL) {
+                ret = MEMORY_E;
+                goto err;
+            }
+            ret = wc_ed448_init((ed448_key *)keyPtr);
+            if (ret < 0) {
+                XFREE(keyPtr, NULL, DYNAMIC_TYPE_ED448);
+                return ret;
+            }
+            ret = wc_ed448_make_key(rng, ED448_KEY_SIZE, keyPtr);
+            if (ret < 0) {
+                wc_ed448_free(keyPtr);
+                XFREE(keyPtr, NULL, DYNAMIC_TYPE_ED448);
+                goto err;
+            }
+            keyType = ED448_TYPE;
+#endif
+            break;
+
+        case DILITHIUM_LEVEL2k:
+        case DILITHIUM_LEVEL3k:
+        case DILITHIUM_LEVEL5k:
+        case ML_DSA_LEVEL2k:
+        case ML_DSA_LEVEL3k:
+        case ML_DSA_LEVEL5k:
+#ifdef HAVE_DILITHIUM
+            keyPtr = (void *)XMALLOC(sizeof(dilithium_key), NULL, DYNAMIC_TYPE_DILITHIUM);
+            if (keyPtr == NULL) {
+                ret = MEMORY_E;
+                goto err;
+            }
+
+            ret = wc_dilithium_init((dilithium_key *)keyPtr);
+            if (ret < 0) {
+                XFREE(keyPtr, NULL, DYNAMIC_TYPE_DILITHIUM);
+                goto err;
+            }
+
+            if (Oid == ML_DSA_LEVEL2k) {
+                ret = wc_dilithium_set_level(keyPtr, WC_ML_DSA_44);
+                keyType = ML_DSA_LEVEL2_TYPE;
+            } else if (Oid == ML_DSA_LEVEL3k) {
+                ret = wc_dilithium_set_level(keyPtr, WC_ML_DSA_65);
+                keyType = ML_DSA_LEVEL3_TYPE;
+            } else if (Oid == ML_DSA_LEVEL5k) {
+                ret = wc_dilithium_set_level(keyPtr, WC_ML_DSA_87);
+                keyType = ML_DSA_LEVEL5_TYPE;
+            } else {
+                XFREE(keyPtr, NULL, DYNAMIC_TYPE_DILITHIUM);
+                ret = BAD_FUNC_ARG;
+                goto err;
+            }
+
+            ret = wc_dilithium_make_key((dilithium_key *)keyPtr, rng);
+            if (ret < 0) {
+                wc_dilithium_free(keyPtr);
+                XFREE(keyPtr, NULL, DYNAMIC_TYPE_DILITHIUM);
+                goto err;
+            }
+#endif
+            break;
+
+    case FALCON_LEVEL1k:
+    case FALCON_LEVEL5k:
+#ifdef HAVE_FALCON
+        keyPtr = (void *)XMALLOC(sizeof(falcon_key), NULL, DYNAMIC_TYPE_FALCON);
         if (keyPtr == NULL)
             return MEMORY_E;
-        ret = wc_ed448_init(&ed448Key);
-        if (ret < 0)
-            return ret;
-        ret = wc_ed448_make_key(rng, ED448_KEY_SIZE, keyPtr);
+        ret = wc_falcon_init(keyPtr);
         if (ret < 0) {
-            wc_ed448_free(keyPtr);
-            XFREE(keyPtr, NULL, DYNAMIC_TYPE_ED448);
+            XFREE(keyPtr, NULL, DYNAMIC_TYPE_FALCON);
             return ret;
         }
-        break;
+        if (Oid == FALCON_LEVEL1k) {
+            ret = wc_falcon_set_level(keyPtr, 1);
+            keyType = FALCON_LEVEL1_TYPE;
+        } else if (Oid == FALCON_LEVEL5k) {
+            ret = wc_falcon_set_level(keyPtr, 5);
+            keyType = FALCON_LEVEL5_TYPE;
+        } else {
+            XFREE(keyPtr, NULL, DYNAMIC_TYPE_FALCON);
+            return BAD_FUNC_ARG;
+        }
+        if (ret == 0) {
+            // ret = wc_falcon_make_key(keyPtr, rng);
+            MADWOLF_DEBUG0("Falcon key generation not implemented");
+            XFREE(keyPtr, NULL, DYNAMIC_TYPE_FALCON);
+            return NOT_COMPILED_IN;
+        }
 #endif
-#ifdef HAVE_DILITHIUM
-    case ML_DSA_LEVEL2_TYPE:
-    case ML_DSA_LEVEL3_TYPE:
-    case ML_DSA_LEVEL5_TYPE:
-        keyPtr = (void *)XMALLOC(sizeof(dilithium_key), NULL, DYNAMIC_TYPE_DILITHIUM);
-        if (keyPtr == NULL)
-          return MEMORY_E;
-
-        ret = wc_dilithium_init(keyPtr);
-        if (ret < 0) {
-          XFREE(keyPtr, NULL, DYNAMIC_TYPE_DILITHIUM);
-          return ret;
-        }
-
-        if (type == ML_DSA_LEVEL2k)
-          ret = wc_dilithium_set_level(keyPtr, WC_ML_DSA_44);
-        else if (type == ML_DSA_LEVEL3k)
-          ret = wc_dilithium_set_level(keyPtr, WC_ML_DSA_65);
-        else if (type == ML_DSA_LEVEL5k)
-          ret = wc_dilithium_set_level(keyPtr, WC_ML_DSA_87);
-        else {
-          XFREE(keyPtr, NULL, DYNAMIC_TYPE_DILITHIUM);
-          return BAD_FUNC_ARG;
-        }
-
-        ret = wc_dilithium_make_key(&mldsaKey, rng);
-        if (ret < 0) {
-          wc_dilithium_free(keyPtr);
-          XFREE(keyPtr, NULL, DYNAMIC_TYPE_DILITHIUM);
-          return ret;
-        }
         break;
-#endif
+
 
 #ifdef HAVE_MLDSA_COMPOSITE
-    case MLDSA44_RSAPSS2048_TYPE:
-    case MLDSA44_RSA2048_TYPE:
-    case MLDSA44_NISTP256_TYPE:
-    // case MLDSA44_BPOOL256k:
-    case MLDSA44_ED25519_TYPE:
-    case MLDSA65_ED25519_TYPE:
-    case MLDSA65_RSAPSS4096_TYPE:
-    case MLDSA65_RSA4096_TYPE:
-    case MLDSA65_RSAPSS3072_TYPE:
-    case MLDSA65_RSA3072_TYPE:
-    case MLDSA65_NISTP256_TYPE:
-    case MLDSA65_BPOOL256_TYPE:
-    case MLDSA87_BPOOL384_TYPE:
-    case MLDSA87_NISTP384_TYPE:
-    case MLDSA87_ED448_TYPE:
-        int composite_level = wc_mldsa_composite_level_type(type);
-        keyPtr = (void *)XMALLOC(sizeof(mldsa_composite_key), NULL, DYNAMIC_TYPE_MLDSA_COMPOSITE);
-        if (keyPtr == NULL)
-            return MEMORY_E;
-        ret = wc_mldsa_composite_init(keyPtr);
-        if (ret < 0) {
-            wc_mldsa_composite_free(keyPtr);
-            XFREE(keyPtr, NULL, DYNAMIC_TYPE_MLDSA_COMPOSITE);
-            return ret;
-        }
-        if (ret == 0)
-            ret = wc_mldsa_composite_make_key(&mldsa_compositeKey, composite_level, rng);
+        case MLDSA44_RSAPSS2048k:
+        case MLDSA44_RSA2048k:
+        case MLDSA44_NISTP256k:
+        // case MLDSA44_BPOOL256k:
+        case MLDSA44_ED25519k:
+        case MLDSA65_ED25519k:
+        case MLDSA65_RSAPSS4096k:
+        case MLDSA65_RSA4096k:
+        case MLDSA65_RSAPSS3072k:
+        case MLDSA65_RSA3072k:
+        case MLDSA65_NISTP256k:
+        case MLDSA65_BPOOL256k:
+        case MLDSA87_BPOOL384k:
+        case MLDSA87_NISTP384k:
+        case MLDSA87_ED448k:
+        // ------- Draft 2 ---------- //
+        case D2_MLDSA44_RSAPSS2048k:
+        case D2_MLDSA44_RSA2048k:
+        case D2_MLDSA44_ED25519k:
+        case D2_MLDSA44_NISTP256k:
+        case D2_MLDSA44_BPOOL256k:
+        case D2_MLDSA65_RSAPSS3072k:
+        case D2_MLDSA65_RSA3072k:
+        case D2_MLDSA65_ED25519k:
+        case D2_MLDSA65_NISTP256k:
+        case D2_MLDSA65_BPOOL256k:
+        case D2_MLDSA87_BPOOL384k:
+        case D2_MLDSA87_NISTP384k:
+        case D2_MLDSA87_ED448k:
+            int composite_level = wc_mldsa_composite_level_type(Oid);
+            keyPtr = (void *)XMALLOC(sizeof(mldsa_composite_key), NULL, DYNAMIC_TYPE_MLDSA_COMPOSITE);
+            if (keyPtr == NULL)
+                return MEMORY_E;
+            ret = wc_mldsa_composite_init(keyPtr);
+            if (ret < 0) {
+                wc_mldsa_composite_free(keyPtr);
+                XFREE(keyPtr, NULL, DYNAMIC_TYPE_MLDSA_COMPOSITE);
+                return ret;
+            }
+            if (ret == 0)
+                ret = wc_mldsa_composite_make_key((mldsa_composite_key *)keyPtr, composite_level, rng);
 
-        break;
+            keyType = wc_mldsa_composite_type(keyPtr);
+            break;
 #endif
+
+        case SPHINCS_FAST_LEVEL1k:
+        case SPHINCS_FAST_LEVEL3k:
+        case SPHINCS_FAST_LEVEL5k:
+        case SPHINCS_SMALL_LEVEL1k:
+        case SPHINCS_SMALL_LEVEL3k:
+        case SPHINCS_SMALL_LEVEL5k:
+#ifdef HAVE_SPHINCS
+            MADWOLF_DEBUG("Key type %d not implemented", Oid);
+            ret = NOT_COMPILED_IN;
+#endif
+            break;
+
+        case DHk:
+        case SM2k:
+        case X25519k:
+        case X448k:
+        case ANONk:
+            MADWOLF_DEBUG("Key type %d not implemented", Oid);
+            ret = NOT_COMPILED_IN;
+            break;
 
         default:
-            printf("ERROR: Invalid key type (%d)\n", type);
-            return BAD_FUNC_ARG;
+            ret = BAD_FUNC_ARG;
+            goto err;
     }
 
     // Returns the key
     if (ret == 0) {
-        *key = keyPtr;
-        (*key)->type = type;
+        AsymKey * aKey = wc_AsymKey_new();
+        if (aKey == NULL) {
+            ret = MEMORY_E;
+            goto err;
+        }
+        aKey->type = keyType;
+        aKey->key.ptr = keyPtr;
+
+        *key = aKey;
     }
 
-#ifdef HAVE_MLDSA_COMPOSITE
-    (void)mldsa_compositeKey;
-#endif
-#ifdef HAVE_MLDSA
-    (void)mldsaKey;
-#endif
-#ifdef HAVE_ED448
-    (void)ed448Key;
-#endif
-#ifdef HAVE_ED25519
-    (void)ed25519Key;
-#endif
-#ifdef HAVE_ECC
-    (void)ecKey;
-#endif
-#ifndef NO_RSA
-    (void)rsaKey;
-#endif
-#ifdef HAVE_DSA
-    (void)dsaKey;
-#endif
+err:
+    if (rngAlloc) {
+        wc_FreeRng(rng);
+        XFREE(rng, NULL, DYNAMIC_TYPE_RNG);
+    }
 
-    return 0;
+    return ret;
 }
 #endif /* ! WOLFSSL_NO_MAKE_KEY */
 
-/* Get the KeySum of a private/public key.
- *
- * key   [in]  The public/private keypair to query.
- * returns enum Key_Sum value of the key.
- * returns BAD_FUNC_ARG when key is NULL or not initialized.
- */
-WOLFSSL_API int wc_AsymKey_Oid(const AsymKey * key) {
+int wc_AsymKey_Oid(const AsymKey * key) {
 
-  if (!key)
-    return BAD_FUNC_ARG;
+    if (!key)
+        return BAD_FUNC_ARG;
 
-  switch (key->type) {
+    switch (key->type) {
 #ifdef HAVE_DSA
-    case DSA_TYPE:
-        return DSAk;
-        break;
+        case DSA_TYPE:
+            return DSAk;
+            break;
 #endif
 #ifndef NO_RSA
-    case RSA_TYPE:
-        return RSAk;
-        break;
+        case RSA_TYPE:
+            return RSAk;
+            break;
 #endif
 #ifdef HAVE_ECC
-    case ECC_TYPE:
-        return ECDSAk;
-        break;
+        case ECC_TYPE:
+            return ECDSAk;
+            break;
 #endif
 #ifdef HAVE_ED25519
-    case ED25519_TYPE:
-        return ED25519k;
-        break;
+        case ED25519_TYPE:
+            return ED25519k;
+            break;
 #endif
 #ifdef HAVE_ED448
-    case ED448_TYPE:
-        return ED448k;
-        break;
+        case ED448_TYPE:
+            return ED448k;
+            break;
 #endif
 #ifdef HAVE_DILITHIUM
-    case ML_DSA_LEVEL2_TYPE:
-        return ML_DSA_LEVEL2k;
-        break;
-    case ML_DSA_LEVEL3_TYPE:
-        return ML_DSA_LEVEL3k;
-        break;
-    case ML_DSA_LEVEL5_TYPE:
-        return ML_DSA_LEVEL5k;
-        break;
+        case ML_DSA_LEVEL2_TYPE:
+            return ML_DSA_LEVEL2k;
+            break;
+        case ML_DSA_LEVEL3_TYPE:
+            return ML_DSA_LEVEL3k;
+            break;
+        case ML_DSA_LEVEL5_TYPE:
+            return ML_DSA_LEVEL5k;
+            break;
 #endif
 #ifdef HAVE_FALCON
-    case FALCON_LEVEL1_TYPE:
-        return FALCON_LEVEL1k;
-        break;
-    case FALCON_LEVEL5_TYPE:
-        return FALCON_LEVEL5k;
-        break;
+        case FALCON_LEVEL1_TYPE:
+            return FALCON_LEVEL1k;
+            break;
+        case FALCON_LEVEL5_TYPE:
+            return FALCON_LEVEL5k;
+            break;
 #endif
 #ifdef HAVE_MLDSA_COMPOSITE
-    case MLDSA44_RSAPSS2048_TYPE:
-        return MLDSA44_RSAPSS2048k;
+        case MLDSA44_RSAPSS2048_TYPE:
+            return MLDSA44_RSAPSS2048k;
+            break;
+        case MLDSA44_RSA2048_TYPE:
+            return MLDSA44_RSA2048k;
+            break;
+        case MLDSA44_NISTP256_TYPE:
+            return MLDSA44_NISTP256k;
+            break;
+        case MLDSA44_ED25519_TYPE:
+            return MLDSA44_ED25519k;
+            break;
+        case MLDSA65_ED25519_TYPE:
+            return MLDSA65_ED25519k;
+            break;
+        case MLDSA65_RSAPSS4096_TYPE:
+            return MLDSA65_RSAPSS4096k;
+            break;
+        case MLDSA65_RSA4096_TYPE:
+            return MLDSA65_RSA4096k;
+            break;
+        case MLDSA65_RSAPSS3072_TYPE:
+            return MLDSA65_RSAPSS3072k;
+            break;
+        case MLDSA65_RSA3072_TYPE:
+            return MLDSA65_RSA3072k;
+            break;
+        case MLDSA65_NISTP256_TYPE:
+            return MLDSA65_NISTP256k;
+            break;
+        case MLDSA65_BPOOL256_TYPE:
+            return MLDSA65_BPOOL256k;
+            break;
+        case MLDSA87_BPOOL384_TYPE:
+            return MLDSA87_BPOOL384k;
+            break;
+        case MLDSA87_NISTP384_TYPE:
+            return MLDSA87_NISTP384k;
+            break;
+        case MLDSA87_ED448_TYPE:
+            return MLDSA87_ED448k;
+            break;
+        // ------- Draft 2 ------
+        case D2_MLDSA44_RSAPSS2048_SHA256_TYPE:
+            return D2_MLDSA44_RSAPSS2048k;
+            break;
+        case D2_MLDSA44_RSA2048_SHA256_TYPE:
+            return D2_MLDSA44_RSA2048k;
+            break;
+        case D2_MLDSA44_NISTP256_SHA256_TYPE:
+            return D2_MLDSA44_NISTP256k;
+            break;
+        case D2_MLDSA44_ED25519_SHA256_TYPE:
+            return D2_MLDSA44_ED25519k;
+            break;
+        case D2_MLDSA65_ED25519_SHA512_TYPE:
+            return D2_MLDSA65_ED25519k;
+            break;
+        case D2_MLDSA65_BPOOL256_SHA512_TYPE:
+            return D2_MLDSA65_BPOOL256k;
+            break;
+        case D2_MLDSA65_NISTP256_SHA512_TYPE:
+        return D2_MLDSA65_NISTP256k;
         break;
-    case MLDSA44_RSA2048_TYPE:
-        return MLDSA44_RSA2048k;
+        case D2_MLDSA65_RSAPSS3072_SHA512_TYPE:
+        return D2_MLDSA65_RSAPSS3072k;
         break;
-    case MLDSA44_NISTP256_TYPE:
-        return MLDSA44_NISTP256k;
+        case D2_MLDSA65_RSA3072_SHA512_TYPE:
+        return D2_MLDSA65_RSA3072k;
         break;
-    case MLDSA44_ED25519_TYPE:
-        return MLDSA44_ED25519k;
+        case D2_MLDSA87_BPOOL384_SHA512_TYPE:
+        return D2_MLDSA87_BPOOL384k;
         break;
-    case MLDSA65_ED25519_TYPE:
-        return MLDSA65_ED25519k;
+        case D2_MLDSA87_NISTP384_SHA512_TYPE:
+        return D2_MLDSA87_NISTP384k;
         break;
-    case MLDSA65_RSAPSS4096_TYPE:
-        return MLDSA65_RSAPSS4096k;
+        case D2_MLDSA87_ED448_SHA512_TYPE:
+        return D2_MLDSA87_ED448k;
         break;
-    case MLDSA65_RSA4096_TYPE:
-        return MLDSA65_RSA4096k;
-        break;
-    case MLDSA65_RSAPSS3072_TYPE:
-        return MLDSA65_RSAPSS3072k;
-        break;
-    case MLDSA65_RSA3072_TYPE:
-        return MLDSA65_RSA3072k;
-        break;
-    case MLDSA65_NISTP256_TYPE:
-        return MLDSA65_NISTP256k;
-        break;
-    case MLDSA65_BPOOL256_TYPE:
-        return MLDSA65_BPOOL256k;
-        break;
-    case MLDSA87_BPOOL384_TYPE:
-        return MLDSA87_BPOOL384k;
-        break;
-    case MLDSA87_NISTP384_TYPE:
-        return MLDSA87_NISTP384k;
-        break;
-    case MLDSA87_ED448_TYPE:
-        return MLDSA87_ED448k;
-        break;
-    // ------- Draft 2 ------
-    case D2_MLDSA44_RSAPSS2048_SHA256_TYPE:
-        return D2_MLDSA44_RSAPSS2048k;
-        break;
-    case D2_MLDSA44_RSA2048_SHA256_TYPE:
-        return D2_MLDSA44_RSA2048k;
-        break;
-    case D2_MLDSA44_NISTP256_SHA256_TYPE:
-        return D2_MLDSA44_NISTP256k;
-        break;
-    case D2_MLDSA44_ED25519_SHA256_TYPE:
-        return D2_MLDSA44_ED25519k;
-        break;
-    case D2_MLDSA65_ED25519_SHA512_TYPE:
-        return D2_MLDSA65_ED25519k;
-        break;
-    case D2_MLDSA65_BPOOL256_SHA512_TYPE:
-        return D2_MLDSA65_BPOOL256k;
-        break;
-    case D2_MLDSA65_NISTP256_SHA512_TYPE:
-      return D2_MLDSA65_NISTP256k;
-      break;
-    case D2_MLDSA65_RSAPSS3072_SHA512_TYPE:
-      return D2_MLDSA65_RSAPSS3072k;
-      break;
-    case D2_MLDSA65_RSA3072_SHA512_TYPE:
-      return D2_MLDSA65_RSA3072k;
-      break;
-    case D2_MLDSA87_BPOOL384_SHA512_TYPE:
-      return D2_MLDSA87_BPOOL384k;
-      break;
-    case D2_MLDSA87_NISTP384_SHA512_TYPE:
-      return D2_MLDSA87_NISTP384k;
-      break;
-    case D2_MLDSA87_ED448_SHA512_TYPE:
-      return D2_MLDSA87_ED448k;
-      break;
 #endif
 #ifdef HAVE_SPHINCS
-    case SPHINCS_HARAKA_128S_ROBUST_TYPE:
-        return SPHINCS_HARAKA_128S_ROBUSTk;
-        break;
-    case SPHINCS_HARAKA_128S_SIMPLE_TYPE:
-        return SPHINCS_HARAKA_128S_SIMPLEk;
-        break;
-    case SPHINCS_HARAKA_192S_ROBUST_TYPE:
-        return SPHINCS_HARAKA_192S_ROBUSTk;
-        break;
-    case SPHINCS_HARAKA_192S_SIMPLE_TYPE:
-        return SPHINCS_HARAKA_192S_SIMPLEk;
-        break;
-    case SPHINCS_HARAKA_256S_ROBUST_TYPE:
-        return SPHINCS_HARAKA_256S_ROBUSTk;
-        break;
-    case SPHINCS_HARAKA_256S_SIMPLE_TYPE:
-        return SPHINCS_HARAKA_256S_SIMPLEk;
-        break;
-    case SPHINCS_SHAKE_128S_ROBUST_TYPE:
-        return SPHINCS_SHAKE_128S_ROBUSTk;
-        break;
-    case SPHINCS_SHAKE_128S_SIMPLE_TYPE:
-        return SPHINCS_SHAKE_128S_SIMPLEk;
-        break;
-    case SPHINCS_SHAKE_192S_ROBUST_TYPE:
-        return SPHINCS_SHAKE_192S_ROBUSTk;
-        break;
-    case SPHINCS_SHAKE_192S_SIMPLE_TYPE:
-        return SPHINCS_SHAKE_192S_SIMPLEk;
-        break;
-    case SPHINCS_SHAKE_256S_ROBUST_TYPE:
-        return SPHINCS_SHAKE_256S_ROBUSTk;
-        break;
-    case SPHINCS_SHAKE_256S_SIMPLE_TYPE:
-        return SPHINCS_SHAKE_256S_SIMPLEk;
-        break;
+        case SPHINCS_HARAKA_128S_ROBUST_TYPE:
+            return SPHINCS_HARAKA_128S_ROBUSTk;
+            break;
+        case SPHINCS_HARAKA_128S_SIMPLE_TYPE:
+            return SPHINCS_HARAKA_128S_SIMPLEk;
+            break;
+        case SPHINCS_HARAKA_192S_ROBUST_TYPE:
+            return SPHINCS_HARAKA_192S_ROBUSTk;
+            break;
+        case SPHINCS_HARAKA_192S_SIMPLE_TYPE:
+            return SPHINCS_HARAKA_192S_SIMPLEk;
+            break;
+        case SPHINCS_HARAKA_256S_ROBUST_TYPE:
+            return SPHINCS_HARAKA_256S_ROBUSTk;
+            break;
+        case SPHINCS_HARAKA_256S_SIMPLE_TYPE:
+            return SPHINCS_HARAKA_256S_SIMPLEk;
+            break;
+        case SPHINCS_SHAKE_128S_ROBUST_TYPE:
+            return SPHINCS_SHAKE_128S_ROBUSTk;
+            break;
+        case SPHINCS_SHAKE_128S_SIMPLE_TYPE:
+            return SPHINCS_SHAKE_128S_SIMPLEk;
+            break;
+        case SPHINCS_SHAKE_192S_ROBUST_TYPE:
+            return SPHINCS_SHAKE_192S_ROBUSTk;
+            break;
+        case SPHINCS_SHAKE_192S_SIMPLE_TYPE:
+            return SPHINCS_SHAKE_192S_SIMPLEk;
+            break;
+        case SPHINCS_SHAKE_256S_ROBUST_TYPE:
+            return SPHINCS_SHAKE_256S_ROBUSTk;
+            break;
+        case SPHINCS_SHAKE_256S_SIMPLE_TYPE:
+            return SPHINCS_SHAKE_256S_SIMPLEk;
+            break;
 #endif
 
-    default:
-        return BAD_FUNC_ARG;
-  }
+        default:
+            return BAD_FUNC_ARG;
+    }
   
-  return 0;
+    return 0;
 }
 
 /* Get the type of certificate associated with the key.
@@ -586,21 +709,92 @@ WOLFSSL_API int wc_AsymKey_Oid(const AsymKey * key) {
  * returns a value from enum CertType for the key.
  * returns BAD_FUNC_ARG when key is NULL or type has not been set.
  */
-WOLFSSL_API int wc_AsymKey_type(const AsymKey* key) {
+int wc_AsymKey_type(const AsymKey* key) {
 
-  if (!key || key->type <= 0)
-    return BAD_FUNC_ARG;
+    int ret = 0;
+    if (!key || key->type <= 0)
+        return BAD_FUNC_ARG;
 
-  return key->type;
+    switch (key->type) {
+
+#ifdef HAVE_DSA
+        case DSA_TYPE:
+#endif
+#ifndef NO_RSA
+        case RSA_TYPE:
+#endif
+#ifdef HAVE_ECC
+        case ECC_TYPE:
+#endif
+#ifdef HAVE_ED25519
+        case ED25519_TYPE:
+#endif
+#ifdef HAVE_ED448
+        case ED448_TYPE:
+#endif
+#ifdef HAVE_DILITHIUM
+        case ML_DSA_LEVEL2_TYPE:
+        case ML_DSA_LEVEL3_TYPE:
+        case ML_DSA_LEVEL5_TYPE:
+#endif
+#ifdef HAVE_FALCON
+        case FALCON_LEVEL1_TYPE:
+        case FALCON_LEVEL5_TYPE:
+#endif
+#ifdef HAVE_MLDSA_COMPOSITE
+        case MLDSA44_RSAPSS2048_TYPE:
+        case MLDSA44_RSA2048_TYPE:
+        case MLDSA44_NISTP256_TYPE:
+        case MLDSA44_ED25519_TYPE:
+        case MLDSA65_ED25519_TYPE:
+        case MLDSA65_RSAPSS4096_TYPE:
+        case MLDSA65_RSA4096_TYPE:
+        case MLDSA65_RSAPSS3072_TYPE:
+        case MLDSA65_RSA3072_TYPE:
+        case MLDSA65_NISTP256_TYPE:
+        case MLDSA65_BPOOL256_TYPE:
+        case MLDSA87_BPOOL384_TYPE:
+        case MLDSA87_NISTP384_TYPE:
+        case MLDSA87_ED448_TYPE:
+        // ------- Draft 2 ------
+        case D2_MLDSA44_RSAPSS2048_SHA256_TYPE:
+        case D2_MLDSA44_RSA2048_SHA256_TYPE:
+        case D2_MLDSA44_NISTP256_SHA256_TYPE:
+        case D2_MLDSA44_ED25519_SHA256_TYPE:
+        case D2_MLDSA65_ED25519_SHA512_TYPE:
+        case D2_MLDSA65_BPOOL256_SHA512_TYPE:
+        case D2_MLDSA65_NISTP256_SHA512_TYPE:
+        case D2_MLDSA65_RSAPSS3072_SHA512_TYPE:
+        case D2_MLDSA65_RSA3072_SHA512_TYPE:
+        case D2_MLDSA87_BPOOL384_SHA512_TYPE:
+        case D2_MLDSA87_NISTP384_SHA512_TYPE:
+        case D2_MLDSA87_ED448_SHA512_TYPE:
+#endif
+#ifdef HAVE_SPHINCS
+        case SPHINCS_HARAKA_128S_ROBUST_TYPE:
+        case SPHINCS_HARAKA_128S_SIMPLE_TYPE:
+        case SPHINCS_HARAKA_192S_ROBUST_TYPE:
+        case SPHINCS_HARAKA_192S_SIMPLE_TYPE:
+        case SPHINCS_HARAKA_256S_ROBUST_TYPE:
+        case SPHINCS_HARAKA_256S_SIMPLE_TYPE:
+        case SPHINCS_SHAKE_128S_ROBUST_TYPE:
+        case SPHINCS_SHAKE_128S_SIMPLE_TYPE:
+        case SPHINCS_SHAKE_192S_ROBUST_TYPE:
+        case SPHINCS_SHAKE_192S_SIMPLE_TYPE:
+        case SPHINCS_SHAKE_256S_ROBUST_TYPE:
+        case SPHINCS_SHAKE_256S_SIMPLE_TYPE:
+#endif
+        ret = key->type;
+        break;
+
+        default:
+            ret = BAD_FUNC_ARG;
+    }
+
+  return ret;
 }
 
-/* Returns the size of a private plus public key.
- *
- * @param [in] key  The public/private keypair to query.
- * @return  Private key size on success.
- * @return  BAD_FUNC_ARG when key is NULL or level not set,
- */
-WOLFSSL_API int wc_AsymKey_size(const AsymKey* key) {
+int wc_AsymKey_size(const AsymKey* key) {
 
   int ret = 0;
 
@@ -621,7 +815,7 @@ WOLFSSL_API int wc_AsymKey_size(const AsymKey* key) {
 #ifdef HAVE_ECC
         case ECC_TYPE:
             byte eccBuff[512];
-            word32 * eccSz = sizeof(eccBuff);
+            word32 eccSz = sizeof(eccBuff);
             if ((wc_ecc_export_x963(key->key.eccKey, eccBuff, &eccSz) < 0)) {
                 ret = BAD_STATE_E;
             } else {
@@ -643,7 +837,7 @@ WOLFSSL_API int wc_AsymKey_size(const AsymKey* key) {
     case ML_DSA_LEVEL2_TYPE:
     case ML_DSA_LEVEL3_TYPE:
     case ML_DSA_LEVEL5_TYPE:
-        ret = wc_DilithiumKeyToDer(key->key.dilithiumKey, NULL, 0);
+        ret = wc_Dilithium_KeyToDer(key->key.dilithiumKey, NULL, 0);
         break;
 #endif
 #ifdef HAVE_MLDSA_COMPOSITE
@@ -661,13 +855,13 @@ WOLFSSL_API int wc_AsymKey_size(const AsymKey* key) {
     case MLDSA87_BPOOL384_TYPE:
     case MLDSA87_NISTP384_TYPE:
     case MLDSA87_ED448_TYPE:
-        ret = wc_MlDsaCompositeKeyToDer(key->key.mldsaCompKey, NULL, 0);
+        ret = wc_MlDsaComposite_PrivateKeyToDer(key->key.mldsaCompKey, NULL, 0);
         break;
 #endif
 #ifdef HAVE_FALCON
     case FALCON_LEVEL1_TYPE:
     case FALCON_LEVEL5_TYPE:
-        ret = wc_FalconKeyToDer(key->key.falcon, NULL, 0);
+        ret = wc_FalconPrivateKeyToDer(key->key.falconKey, NULL, 0);
         break;
 #endif
 #ifdef HAVE_SPHINCS
@@ -677,7 +871,7 @@ WOLFSSL_API int wc_AsymKey_size(const AsymKey* key) {
     case SPHINCS_SMALL_LEVEL1_TYPE:
     case SPHINCS_SMALL_LEVEL3_TYPE:
     case SPHINCS_SMALL_LEVEL5_TYPE:
-        ret = wc_SphincsKeyToDer(key->key.sphincs, NULL, 0);
+        ret = wc_Sphincs_PrivateKeyToDer(key->key.sphincs, NULL, 0);
         break;
 #endif
 
@@ -695,7 +889,7 @@ WOLFSSL_API int wc_AsymKey_size(const AsymKey* key) {
  * @return  Public key size on success for set level.
  * @return  BAD_FUNC_ARG when key is NULL or level not set,
  */
-WOLFSSL_API int wc_AsymKey_pub_size(const AsymKey* key) {
+int wc_AsymKey_pub_size(const AsymKey* key) {
 
   (void)key;
   return NOT_COMPILED_IN;
@@ -768,19 +962,13 @@ WOLFSSL_API int wc_AsymKey_Public_export(byte* buff, word32 buffLen, int format,
   return NOT_COMPILED_IN;
 }
 
-/* Import a keypair from a byte array.
- *
- * @param [out] key     Asymmetric key.
- * @param [in]  data    Key data.
- * @param [in]  dataSz  Size of key data.
- * @param [in]  format  Format of key data (1 = PEM, 0 = DER, -1 = TRY BOTH).
- * @param [in]  passwd  Password for the keypair, NULL if not encrypted.
- * @param [in]  passwdSz  Size of the password in bytes, 0 if not encrypted.
- * @return  0 otherwise.
- * @return  BAD_FUNC_ARG when a parameter is NULL or privSz is less than size
- *          required for level,
- */
-WOLFSSL_API int wc_AsymKey_import(AsymKey* key, const byte* data, word32 dataSz, int format, const char* passwd) {
+int wc_AsymKey_import(AsymKey* key, const byte* data, word32 dataSz, int format) {
+
+    // Calls the extended version with no password
+    return wc_AsymKey_import_ex(key, data, dataSz, format, NULL, 0);
+}
+
+int wc_AsymKey_import_ex(AsymKey* key, const byte* data, word32 dataSz, int format, const char* passwd, int devId) {
 
   byte * buff = NULL;
   word32 buffSz = 0;
@@ -1005,33 +1193,48 @@ WOLFSSL_API int wc_AsymKey_import(AsymKey* key, const byte* data, word32 dataSz,
     return ret;
 }
 
-/* Export a keypair to a byte array.
- *
- * @param [in]  key       The keypair to export.
- * @param [out] buff      Array to hold the exported keypair.
- * @param [in]  buffLen   Number of bytes in the array.
- * @param [in]  standard Use 1 for standard (pkcs8) or 0 for legacy (pkcs1).
- * @param [in]  format  Format of key data (1 = PEM, 0 = DER).
- * @param [in]  passwd    Password for the keypair, NULL if not encrypted.
- * @param [in]  passwdSz  Size of the password in bytes, 0 if not encrypted.
- * @return  Number of bytes written on success.
- * @return  BAD_FUNC_ARG when a parameter is NULL.
- * @return  BUFFER_E when outLen is less than DILITHIUM_LEVEL2_KEY_SIZE.
- */
-WOLFSSL_API int wc_AsymKey_export(const AsymKey* key, byte* buff, word32 buffLen, int format, const byte* passwd, word32 passwdSz) {
+int wc_AsymKey_export(const AsymKey * key,
+                      byte          * buff,
+                      word32          buffLen,
+                      int             format) {
 
-    if (!key)
-        return BAD_FUNC_ARG;
+    // Export the key without a password
+    return wc_AsymKey_export_ex(key, buff, buffLen, NULL, 0, format);
+}
+
+int wc_AsymKey_export_ex(const AsymKey * key,
+                         byte          * buff,
+                         word32          buffLen,
+                         const byte    * passwd,
+                         word32          passwdSz,
+                         int             format) {
 
     int ret = 0;
+        // return value
+
+    byte * derPkcsPtr = NULL;
+    word32 derPkcsSz = 0;
+        // PEM key buffer and size
+
     byte * derPtr = NULL;
     word32 derSz = 0;
-    word32 p8_outSz = 0;
-    byte * p8_data = NULL;
+        // DER key buffer and size
 
-    word32 keySum = wc_AsymKey_Oid(key);
+    word32 keyOid = 0;
+        // Key OID (enum Key_Sum)
 
-    switch (keySum) {
+    if (!key) {
+        MADWOLF_DEBUG0("Invalid key\n");
+        return BAD_FUNC_ARG;
+    }
+
+    keyOid = ret = wc_AsymKey_Oid(key);
+    if (ret < 0) {
+        MADWOLF_DEBUG("Invalid key Oid (Sum: %d)\n", keyOid);
+        return BAD_FUNC_ARG;
+    }
+
+    switch (keyOid) {
 #ifndef NO_RSA
         case RSAk:
         case RSAPSSk:
@@ -1039,45 +1242,60 @@ WOLFSSL_API int wc_AsymKey_export(const AsymKey* key, byte* buff, word32 buffLen
 #if defined(WOLFSSL_KEY_GEN) || defined(OPENSSL_EXTRA) || \
     defined(WOLFSSL_KCAPI_RSA) || defined(WOLFSSL_SE050)
 
-            ret = wc_RsaKeyToDer((RsaKey *)key, NULL, sizeof(derPtr));
+            RsaKey * rsaKey = key->key.rsaKey;
+                // Shortcut to the RSA key
+
+            derSz = ret = wc_RsaKeyToDer(rsaKey, NULL, sizeof(derPtr));
             if (ret < 0) {
-                printf("Error exporting key (%d)\n", ret);
-                return -1;
+                return BAD_FUNC_ARG;
             }
-            derSz = ret;
             derPtr = (byte *)XMALLOC(derSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
             if (derPtr == NULL) {
-                printf("Memory allocation Error exporting key\n");
-                return -1;
+                XFREE(derPtr, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                return MEMORY_E;
             }
-            ret = wc_RsaKeyToDer((RsaKey *)key, derPtr, derSz);
-            if (ret < 0) {
-                printf("RSA: Error exporting key (size: %d, err: %d)\n", derSz, ret);
-                return -1;
+            if (buff) {
+                ret = wc_RsaKeyToDer(rsaKey, derPtr, derSz);
+                if (ret < 0) {
+                    XFREE(derPtr, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                    return ret;
+                }
             }
+            
             // ----------------------
             // Export in PKCS8 format
             // ----------------------
 
-            if ((ret = wc_CreatePKCS8Key(NULL, (word32 *)&p8_outSz, derPtr, derSz, keySum, NULL, 0)) < 0 && ret != LENGTH_ONLY_E) {
-                printf("Error creating PKCS8 key (%d)\n", ret);
-                return -1;
+            ret = wc_CreatePKCS8Key(NULL, &derPkcsSz, derPtr, derSz, keyOid, NULL, 0);
+            if (ret != LENGTH_ONLY_E) {
+                MADWOLF_DEBUG("Error creating PKCS8 key (%d)\n", ret);
+                XFREE(derPtr, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                return BAD_STATE_E;
             }
 
-            p8_data = (byte *)XMALLOC(p8_outSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-            if (p8_data == NULL) {
-                printf("Error exporting key\n");
-                return -1;
-            }
-            if ((ret = wc_CreatePKCS8Key(p8_data, (word32 *)&p8_outSz, derPtr, derSz, keySum, NULL, 0)) < 0) {
-                printf("Error creating PKCS8 key (%d)\n", ret);
-                return -1;
+            if (!buff) {
+                XFREE(derPtr, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                return derPkcsSz;
             }
 
+            derPkcsPtr = (byte *)XMALLOC(derPkcsSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            if (derPkcsPtr == NULL) {
+                XFREE(derPtr, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                return MEMORY_E;
+            }
+
+            ret = wc_CreatePKCS8Key(derPkcsPtr, &derPkcsSz, derPtr, derSz, keyOid, NULL, 0);
             if (ret < 0) {
-                printf("Error exporting key\n");
-                return -1;
+                MADWOLF_DEBUG("Error creating PKCS8 key (%d)\n", ret);
+                XFREE(derPtr, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                XFREE(derPkcsPtr, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                return BAD_STATE_E;
             }
+
+            // Free the DER buffer
+            XFREE(derPtr, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            derPtr = NULL;
+            derSz = 0;
 #else
             return -1;
 #endif // WOLFSSL_KEY_GEN || OPENSSL_EXTRA || WOLFSSL_KCAPI_RSA || WOLFSSL_SE050
@@ -1085,26 +1303,28 @@ WOLFSSL_API int wc_AsymKey_export(const AsymKey* key, byte* buff, word32 buffLen
 #endif
 #ifdef HAVE_ECC
         case ECDSAk:
+            ecc_key * eccKey = key->key.eccKey;
+                // Shortcut to the ECC key
 
             // Get the size of the DER key
-            derSz = wc_EccKeyDerSize((ecc_key *)key, 1);
-            if (derSz < 0) {
-                printf("Error exporting key (%d)\n", derSz);
-                return -1;
+            derSz = ret = wc_EccKeyDerSize(eccKey, 1);
+            if (ret < 0) {
+                return BAD_FUNC_ARG;
             }
 
             // Allocate memory for the DER key
             derPtr = (byte *)XMALLOC(derSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
             if (derPtr == NULL) {
-                printf("Memory Error exporting key (%d)\n", derSz);
-                return -1;
+                return MEMORY_E;
             }
 
-            // Export the key to DER format
-            ret = wc_EccKeyToDer((ecc_key *)key, derPtr, derSz);
-            if (ret < 0) {
-                printf("EC: Error exporting key (derPtr: %p, derSz: %d, ret: %d)\n", derPtr, derSz, ret);
-                return -1;
+            if (buff) {
+                // Export the key to DER format
+                ret = wc_EccKeyToDer(eccKey, derPtr, derSz);
+                if (ret < 0) {
+                    XFREE(derPtr, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                    return BAD_STATE_E;
+                }
             }
 
             // ----------------------
@@ -1113,125 +1333,140 @@ WOLFSSL_API int wc_AsymKey_export(const AsymKey* key, byte* buff, word32 buffLen
 
             byte * curveOid = NULL;
             word32 curveOidSz = 0;
-            if ((ret = wc_ecc_get_oid(((ecc_key*)key)->dp->oidSum, (const byte **)&curveOid, &curveOidSz)) < 0){
-                printf("Error getting curve OID\n");
-                return -1;
+            if ((ret = wc_ecc_get_oid(eccKey->dp->oidSum, (const byte **)&curveOid, &curveOidSz)) < 0){
+                XFREE(derPtr, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                return ret;
             }
 
-            if ((ret = wc_CreatePKCS8Key(NULL, (word32 *)&p8_outSz, derPtr, derSz, ECDSAk, curveOid, curveOidSz)) < 0 && ret != LENGTH_ONLY_E) {
-                printf("Error creating PKCS8 key (%d)\n", ret);
-                return -1;
+            ret = wc_CreatePKCS8Key(NULL, (word32 *)&derPkcsSz, derPtr, derSz, ECDSAk, curveOid, curveOidSz);
+            if (ret != LENGTH_ONLY_E) {
+                MADWOLF_DEBUG("Error creating PKCS8 key (%d)\n", ret);
+                XFREE(derPtr, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                return BAD_FUNC_ARG;
             }
 
-            p8_data = (byte *)XMALLOC(p8_outSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-            if (p8_data == NULL) {
-                printf("Error exporting key\n");
-                return -1;
-            }
-            if ((ret = wc_CreatePKCS8Key(p8_data, (word32 *)&p8_outSz, derPtr, derSz, keySum, curveOid, curveOidSz)) < 0 && ret != LENGTH_ONLY_E) {
-                printf("Error creating PKCS8 key (%d)\n", ret);
-                return -1;
+            if (!buff) {
+                XFREE(derPtr, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                return derPkcsSz;
             }
 
+            derPkcsPtr = (byte *)XMALLOC(derPkcsSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            if (derPkcsPtr == NULL) {
+                XFREE(derPtr, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                return MEMORY_E;
+            }
+
+            ret = wc_CreatePKCS8Key(derPkcsPtr, &derPkcsSz, derPtr, derSz, keyOid, curveOid, curveOidSz);
             if (ret < 0) {
-                printf("Error exporting key\n");
-                return -1;
+                MADWOLF_DEBUG("Error creating PKCS8 key (%d)\n", ret);
+                XFREE(derPtr, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                XFREE(derPkcsPtr, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                return ret;
             }
+            XFREE(derPtr, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            derPtr = NULL;
+            derSz = 0;
+            // No Need to convert to PKCS8
+            // p8_data = derPtr;
+            // p8_outSz = derSz;
             break;
 #endif
 #ifdef HAVE_ED25519
         case ED25519k:
+            ed25519_key * ed25519Key = key->key.ed25519Key;
+                // Shortcut to the ED25519 key
 
             // Get the size of the DER key
-            derSz = wc_Ed25519KeyToDer((ed25519_key *)key, NULL, sizeof(derPtr));
-            if (derSz < 0) {
-                printf("Error exporting key\n");
-                return -1;
+            derPkcsSz = ret = wc_Ed25519PrivateKeyToDer(ed25519Key, NULL, 0);
+            if (ret < 0) {
+                return BAD_FUNC_ARG;
             }
 
             // Allocate memory for the DER key
-            derPtr = (byte *)XMALLOC(derSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-            if (derPtr == NULL) {
-                printf("Error exporting key\n");
-                return -1;
+            derPkcsPtr = (byte *)XMALLOC(derPkcsSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            if (derPkcsPtr == NULL) {
+                return MEMORY_E;
             }
 
-            // Export the key to DER format
-            derSz = wc_Ed25519KeyToDer((ed25519_key *)key, derPtr, derSz);
-            if (derSz < 0) {
-                printf("Error exporting key\n");
-                return -1;
+            if (buff) {
+                // Export the key to DER format
+                ret = wc_Ed25519PrivateKeyToDer(ed25519Key, derPkcsPtr, derPkcsSz);
+                if (ret < 0) {
+                    XFREE(derPkcsPtr, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                    return ret;
+                }
             }
-
-            p8_data = derPtr;
-            p8_outSz = derSz;
 
             break;
 #endif
 #ifdef HAVE_ED448
         case ED448k:
-            derSz = wc_Ed448KeyToDer((ed448_key *)key, NULL, sizeof(derPtr));
-            if (derSz < 0) {
-                printf("Error exporting key\n");
-                return -1;
-            }
-            derPtr = (byte *)XMALLOC(derSz, NULL, DYNAMIC_TYPE_PRIVATE_KEY);
-            if (derPtr == NULL) {
-                printf("Error exporting key\n");
-                return -1;
-            }
-            derSz = wc_Ed448KeyToDer((ed448_key *)key, derPtr, derSz);
-            if (derSz < 0) {
-                printf("Error exporting key\n");
-                return -1;
-            }
+            ed448_key * ed448Key = key->key.ed448Key;
+                // Shortcut to the ED448 key
 
+            derPkcsSz = ret = wc_Ed448PrivateKeyToDer(ed448Key, NULL, 0);
+            if (ret < 0) {
+                return BAD_FUNC_ARG;
+            }
+            derPkcsPtr = (byte *)XMALLOC(derPkcsSz, NULL, DYNAMIC_TYPE_PRIVATE_KEY);
+            if (derPkcsPtr == NULL) {
+                return MEMORY_E;
+            }
+            if (buff) {
+                derPkcsSz = ret = wc_Ed448PrivateKeyToDer(ed448Key, derPkcsPtr, derPkcsSz);
+                if (ret < 0) {
+                    XFREE(derPkcsPtr, NULL, DYNAMIC_TYPE_PRIVATE_KEY);
+                    return ret;
+                }
+            }
             // No Need to convert to PKCS8
-            p8_data = derPtr;
-            p8_outSz = derSz;
-
             break;
 #endif
 #ifdef HAVE_DILITHIUM
         case ML_DSA_LEVEL5k:
         case ML_DSA_LEVEL3k:
         case ML_DSA_LEVEL2k:
-            derSz = wc_Dilithium_KeyToDer((MlDsaKey *)key, NULL, sizeof(derPtr));
-            if (derSz < 0) {
-                printf("Error exporting key\n");
-                return -1;
+            dilithium_key * dilithiumKey = key->key.dilithiumKey;
+                // Shortcut to the Dilithium key
+
+            derPkcsSz = ret = wc_Dilithium_KeyToDer(dilithiumKey, NULL, 0);
+            if (ret < 0) {
+                return BAD_FUNC_ARG;
             }
-            derPtr = (byte *)XMALLOC(derSz, NULL, DYNAMIC_TYPE_PRIVATE_KEY);
+            derPkcsPtr = (byte *)XMALLOC(derPkcsSz, NULL, DYNAMIC_TYPE_PRIVATE_KEY);
             if (derPtr == NULL) {
-                printf("Error exporting key\n");
-                return -1;
+                return MEMORY_E;
             }
-            derSz = wc_Dilithium_KeyToDer((MlDsaKey *)key, derPtr, derSz);
-            if (derSz < 0) {
-                printf("Error exporting key\n");
-                return -1;
+            if (buff) {
+                derPkcsSz = ret = wc_Dilithium_KeyToDer(dilithiumKey, derPkcsPtr, derPkcsSz);
+                if (ret < 0) {
+                    XFREE(derPkcsPtr, NULL, DYNAMIC_TYPE_PRIVATE_KEY);
+                    return ret;
+                }
             }
-            p8_data = derPtr;
-            p8_outSz = derSz;
             break;
 #endif
 #ifdef HAVE_FALCON
         case FALCON_LEVEL1k:
         case FALCON_LEVEL5k:
-            derSz = wc_FalconKeyToDer((falcon_key *)key, NULL, sizeof(derPtr));
-            if (derSz < 0) {
-                printf("Error exporting key\n");
-                return -1;
+            falcon_key * falconKey = key->key.falconKey;
+                // Shortcut to the Falcon key
+
+            derPkcsSz = ret = wc_FalconKeyToDer(falconKey, NULL, 0);
+            if (ret < 0) {
+                return BAD_FUNC_ARG;
             }
-            derPtr = (byte *)XMALLOC(derSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-            if (derPtr == NULL) {
-            return MEMORY_E;
+            if ((derPkcsPtr = (byte *)XMALLOC(derPkcsSz, NULL, DYNAMIC_TYPE_TMP_BUFFER)) == NULL) {
+                return MEMORY_E;
             }
-            derSz = wc_FalconKeyToDer((falcon_key *)key, derPtr, derSz);
-            if (derSz < 0) {
-                XFREE(derPtr, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-                return derSz;
+            if (buff) {
+                derPkcsSz = ret = wc_FalconKeyToDer(falconKey, derPkcsPtr, derPkcsSz);
+                if (ret < 0) {
+                    XFREE(derPkcsPtr, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                    return ret;
+                }
             }
+            // No Need to convert to PKCS8
             break;
 #endif
 #ifdef HAVE_MLDSA_COMPOSITE
@@ -1252,27 +1487,75 @@ WOLFSSL_API int wc_AsymKey_export(const AsymKey* key, byte* buff, word32 buffLen
         case MLDSA87_BPOOL384k:
         case MLDSA87_NISTP384k:
         case MLDSA87_ED448k:
+        // ----- Draft 2 ----- //
+        case D2_MLDSA44_RSAPSS2048k:
+        case D2_MLDSA44_RSA2048k:
+        case D2_MLDSA44_NISTP256k:
+        case D2_MLDSA44_ED25519k:
 
-            derSz = wc_MlDsaComposite_KeyToDer((mldsa_composite_key *)key, NULL, 0);
+        case D2_MLDSA65_RSAPSS3072k:
+        case D2_MLDSA65_RSA3072k:
+        case D2_MLDSA65_NISTP256k:
+        case D2_MLDSA65_ED25519k:
+        case D2_MLDSA65_BPOOL256k:
+
+        case D2_MLDSA87_BPOOL384k:
+        case D2_MLDSA87_NISTP384k:
+        case D2_MLDSA87_ED448k:
+            mldsa_composite_key * mldsaCompKey = key->key.mldsaCompKey;
+                // Shortcut to the MLDSA Composite key
+
+            derPkcsSz = ret = wc_MlDsaComposite_PrivateKeyToDer(mldsaCompKey, NULL, 0);
             // derSz = wc_MlDsaComposite_PrivateKeyToDer((mldsa_composite_key *)key, NULL, 0);
-            if (derSz < 0) {
-                return derSz;
+            if (ret < 0) {
+                return ret;
             }
-            derPtr = (byte *)XMALLOC(derSz, ((mldsa_composite_key *)key)->heap, DYNAMIC_TYPE_PRIVATE_KEY);
+            derPkcsPtr = (byte *)XMALLOC(derPkcsSz, mldsaCompKey->heap, DYNAMIC_TYPE_PRIVATE_KEY);
+            if (derPkcsPtr == NULL) {
+                return MEMORY_E;
+            }
+            if (buff) {
+                ret = wc_MlDsaComposite_PrivateKeyToDer(mldsaCompKey, derPkcsPtr, derPkcsSz);
+                // derSz = wc_MlDsaComposite_PrivateKeyToDer((mldsa_composite_key *)key, derPtr, derSz);
+                if (ret < 0) {
+                    XFREE(derPkcsPtr, mldsaCompKey->heap, DYNAMIC_TYPE_PRIVATE_KEY);
+                    return ret;
+                }
+            }
+            // No Need to convert to PKCS8
+            break;
+#endif
+#ifdef HAVE_SPHINCS
+        case SPHINCS_FAST_LEVEL1k:
+        case SPHINCS_FAST_LEVEL3k:
+        case SPHINCS_FAST_LEVEL5k:
+        case SPHINCS_SMALL_LEVEL1k:
+        case SPHINCS_SMALL_LEVEL3k:
+        case SPHINCS_SMALL_LEVEL5k:
+            sphincs_key * sphincsKey = key->key.sphincs;
+                // Shortcut to the SPHINCS key
+
+            derPkcsSz = ret = wc_Sphincs_PrivateKeyToDer(sphincsKey, NULL, 0);
+            if (ret < 0) {
+                return ret;
+            }
+            derPtr = (byte *)XMALLOC(derPkcsSz, NULL, DYNAMIC_TYPE_PRIVATE_KEY);
             if (derPtr == NULL) {
                 return MEMORY_E;
             }
-            derSz = wc_MlDsaComposite_KeyToDer((mldsa_composite_key *)key, derPtr, derSz);
-            // derSz = wc_MlDsaComposite_PrivateKeyToDer((mldsa_composite_key *)key, derPtr, derSz);
-            if (derSz < 0) {
-                XFREE(derPtr, ((mldsa_composite_key *)key)->heap, DYNAMIC_TYPE_PRIVATE_KEY);
-                return derSz;
+            if (buff) {
+                ret = wc_Sphincs_PrivateKeyToDer(sphincsKey, derPtr, derPkcsSz);
+                if (ret < 0) {
+                    XFREE(derPtr, NULL, DYNAMIC_TYPE_PRIVATE_KEY);
+                    return ret;
+                }
             }
+            derPkcsPtr = derPtr;
             break;
 #endif
 
         default:
-            printf("Unsupported key type (%d)\n", keySum);
+            MADWOLF_DEBUG("Unsupported key type (%d)\n", key->type);
             return BAD_FUNC_ARG;
     }
 
@@ -1289,26 +1572,40 @@ WOLFSSL_API int wc_AsymKey_export(const AsymKey* key, byte* buff, word32 buffLen
         int pem_dataSz = 0;
         byte * pem_data = NULL;
 
-        ret = wc_DerToPem(p8_data, p8_outSz, NULL, 0, PKCS8_PRIVATEKEY_TYPE);
+        pem_dataSz = ret = wc_DerToPem(derPkcsPtr, derPkcsSz, NULL, 0, PKCS8_PRIVATEKEY_TYPE);
         if (ret <= 0) {
+            XFREE(derPkcsPtr, NULL, DYNAMIC_TYPE_TMP_BUFFER);
             return ret;
         }
-        pem_dataSz = ret;
         pem_data = (byte *)XMALLOC(pem_dataSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         if (pem_data == NULL) {
-            return ret;
+            XFREE(derPkcsPtr, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            return MEMORY_E;
         }
-        ret = wc_DerToPem(p8_data, p8_outSz, pem_data, pem_dataSz, PKCS8_PRIVATEKEY_TYPE);
+        ret = wc_DerToPem(derPkcsPtr, derPkcsSz, pem_data, pem_dataSz, PKCS8_PRIVATEKEY_TYPE);
         if (ret <= 0) {
+            XFREE(derPkcsPtr, NULL, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(pem_data, NULL, DYNAMIC_TYPE_TMP_BUFFER);
             return ret;
         }
-        pem_dataSz = ret;
+        XFREE(derPkcsPtr, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        derPkcsPtr = pem_data;
+        derPkcsSz = pem_dataSz;
     }
 #endif
 
-    // Frees the DER buffer
-    if (derPtr) XFREE(derPtr, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (buffLen < derPkcsSz) {
+        MADWOLF_DEBUG("Buffer too small (%d < %d)\n", buffLen, derPkcsSz);
+        XFREE(derPkcsPtr, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        return BUFFER_E;
+    }
+
+    if (buff) {
+        XMEMCPY(buff, derPkcsPtr, derPkcsSz);
+    } else {
+        XFREE(derPkcsPtr, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+    ret = derPkcsSz;
 
     (void)passwd;
     (void)passwdSz;
@@ -1325,7 +1622,7 @@ WOLFSSL_API int wc_AsymKey_export(const AsymKey* key, byte* buff, word32 buffLen
  * @return  0 on success.
  * @return  BAD_FUNC_ARG when p8_data or p8_dataSz is NULL.
  */
-WOLFSSL_API int wc_AsymKey_info(word32 * oid, byte * pkcsData, word32 pkcsDataSz, int format) {
+int wc_AsymKey_info(word32 * oid, byte * pkcsData, word32 pkcsDataSz, int format) {
   int ret = 0;
     word32 algorSum = 0;
 
@@ -1384,7 +1681,7 @@ WOLFSSL_API int wc_AsymKey_info(word32 * oid, byte * pkcsData, word32 pkcsDataSz
     return ret;
 }
 
-WOLFSSL_API int wc_AsymKey_Sign(byte* sig, word32* sigLen, const byte* msg, word32 msgLen, const AsymKey* key,
+int wc_AsymKey_Sign(byte* sig, word32* sigLen, const byte* msg, word32 msgLen, const AsymKey* key,
     WC_RNG* rng) {
 
   (void)sig;

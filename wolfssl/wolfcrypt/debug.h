@@ -1,4 +1,8 @@
 
+
+#ifndef WOLFSSL_DEBUGGING_H
+#define WOLFSSL_DEBUGGING_H
+
 /* Log a message that has the printf format string.
  *
  * @param [in] <va_args>  printf style arguments.
@@ -24,3 +28,5 @@
         printf("[%s:%d] %s(): " a "\n", __FILE__, __LINE__, __func__, __VA_ARGS__);      \
         fflush(stdout);                               \
     } while (0)
+
+#endif /* WOLFSSL_DEBUGGING_H */

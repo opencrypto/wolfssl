@@ -110,12 +110,15 @@ typedef struct AsymKey {
         mldsa_composite_key * mldsaCompKey;
 #endif
 #endif
-        void * pnt;
+#ifdef HAVE_SPHINCS
+        sphincs_key* sphincsKey;
+#endif
+        void * ptr;
     } key;
     /* Key data. */
     word32 secBits;
     /* Useful Security Properties */
-    word8 quantumResistant;
+    word8 isPQC;
 } AsymKey;
 
 /* Functions */
@@ -151,12 +154,12 @@ WOLFSSL_API int wc_AsymKey_free(AsymKey * key);
  * @return  MEMORY_E when memory allocation fails.
  * @return  Other negative when an error occurs.
  */
-WOLFSSL_API int wc_AsymKey_gen(AsymKey ** key,
-                               int        type,
-                               int        param,
-                               byte     * seed,
-                               word32     seedSz,
-                               WC_RNG   * rng);
+WOLFSSL_API int wc_AsymKey_gen(AsymKey      ** key,
+                               enum Key_Sum    type,
+                               int             param,
+                               byte          * seed,
+                               word32          seedSz,
+                               WC_RNG        * rng);
 #endif /* ! WOLFSSL_NO_MAKE_KEY */
 
 #ifndef WOLFSSL_NO_VERIFY
@@ -183,7 +186,7 @@ WOLFSSL_API int wc_AsymKey_type(const AsymKey* key);
  * @return  Private key size on success.
  * @return  BAD_FUNC_ARG when key is NULL or level not set,
  */
-WOLFSSL_API int wc_AsymKey_priv_size(const AsymKey* key);
+WOLFSSL_API int wc_AsymKey_size(const AsymKey* key);
 
 /* Returns the size of a public key.
  *
@@ -243,13 +246,27 @@ WOLFSSL_API int wc_AsymKey_Public_export(byte* buff, word32 buffLen, int format,
  * @param [in]  type    Type of key to make.
  * @param [in]  data    Key data.
  * @param [in]  dataSz  Size of key data.
- * @param [in]  passwd  Password for the keypair, NULL if not encrypted.
- * @param [in]  passwdSz  Size of the password in bytes, 0 if not encrypted.
- * @return  0 otherwise.
- * @return  BAD_FUNC_ARG when a parameter is NULL or privSz is less than size
- *          required for level,
+ * @param [in]  format  Format of key data (1 = PEM, 0 = DER).
+ * @return BAD_FUNC_ARG when a parameter is NULL or buffer is too small.
+ * @return MEMORY_E when memory allocation fails.
+ * @return The number of bytes written to the buffer.
  */
-WOLFSSL_API int wc_AsymKey_import(AsymKey* key, const byte* data, word32 dataSz, int format, const char* passwd);
+WOLFSSL_API int wc_AsymKey_import(AsymKey* key, const byte* data, word32 dataSz, int format);
+
+/* Import a keypair from a byte array.
+ *
+ * @param [out] key     Asymmetric key.
+ * @param [in]  type    Type of key to make.
+ * @param [in]  data    Key data.
+ * @param [in]  dataSz  Size of key data.
+ * @param [in]  format  Format of key data (1 = PEM, 0 = DER).
+ * @param [in]  passwd  Password for the keypair, NULL if not encrypted.
+ * @param [in]  devId   Device ID for hardware acceleration.
+ * @return BAD_FUNC_ARG when a parameter is NULL or buffer is too small.
+ * @return MEMORY_E when memory allocation fails.
+ * @return The number of bytes written to the buffer.
+ */
+WOLFSSL_API int wc_AsymKey_import_ex(AsymKey* key, const byte* data, word32 dataSz, int format, const char* passwd, int devId);
 
 /* Export a keypair to a byte array.
  *
@@ -264,7 +281,22 @@ WOLFSSL_API int wc_AsymKey_import(AsymKey* key, const byte* data, word32 dataSz,
  * @return  BAD_FUNC_ARG when a parameter is NULL.
  * @return  BUFFER_E when outLen is less than DILITHIUM_LEVEL2_KEY_SIZE.
  */
-WOLFSSL_API int wc_AsymKey_export(byte* buff, word32 buffLen, int standard, int format, const byte* passwd, word32 passwdSz, const AsymKey* key);
+WOLFSSL_API int wc_AsymKey_export(const AsymKey* key, byte* buff, word32 buffLen, int format);
+
+/* Export a keypair to a byte array.
+ *
+ * @param [in]  key       The keypair to export.
+ * @param [out] buff      Array to hold the exported keypair.
+ * @param [in]  buffLen   Number of bytes in the array.
+ * @param [in]  standard Use 1 for standard (pkcs8) or 0 for legacy (pkcs1).
+ * @param [in]  format  Format of key data (1 = PEM, 0 = DER).
+ * @param [in]  passwd    Password for the keypair, NULL if not encrypted.
+ * @param [in]  passwdSz  Size of the password in bytes, 0 if not encrypted.
+ * @return  0 on success.
+ * @return  BAD_FUNC_ARG when a parameter is NULL.
+ * @return  BUFFER_E when outLen is less than DILITHIUM_LEVEL2_KEY_SIZE.
+ */
+WOLFSSL_API int wc_AsymKey_export_ex(const AsymKey* key, byte* buff, word32 buffLen, const byte* passwd, word32 passwdSz, int format);
 
 /* Retrieves the OID of the keypair.
  *
