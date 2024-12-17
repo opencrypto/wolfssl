@@ -3901,7 +3901,7 @@ int wc_mldsa_composite_import_private(const byte                * priv,
         // -------- Draft 3 (D3) ML-DSA Private Key - SEQ of OCTET STRING ------- //
         idx = 0;
 
-        MADWOLF_DEBUG0("ML-DSA COMPOSITE: Parsing ASN.1 data");
+        // MADWOLF_DEBUG0("ML-DSA COMPOSITE: Parsing ASN.1 data");
 
         if ((ret = GetASN_Items(compPrivKeyIT, compPrivKeyASN, 3, 1, keyBuffer, &idx, privSz)) < 0) {
             MADWOLF_DEBUG("Error while parsing ASN.1 (%d, privSz: %d, idx: %d, level: %d, type: %d)", ret, privSz, idx, level, key->type);
@@ -4043,9 +4043,6 @@ int wc_mldsa_composite_import_private(const byte                * priv,
             goto err;
         }
     }
-
-
-MADWOLF_DEBUG0("************ ML-DSA COMPOSITE: ML-DSA component imported");
 
     // Resets the index
     idx = other_BufferLen;
@@ -4833,7 +4830,7 @@ int wc_MlDsaComposite_PrivateKeyDecode(const byte* input, word32* inOutIdx,
     /* Remove the PKCS8 outer shell if present. */
     ret = ToTraditional_ex(local_buffer, inSz, (word32 *)&keySum);
     if (ret < 0 || keySum <= 0) {
-        MADWOLF_DEBUG("error cannot get ML-DSA Composite type from PKCS8 or type (%d)", composite_level);
+        // MADWOLF_DEBUG("error cannot get ML-DSA Composite type from PKCS8 or type (%d)", composite_level);
         ret = BAD_FUNC_ARG;
         goto err;
     }
@@ -4842,7 +4839,7 @@ int wc_MlDsaComposite_PrivateKeyDecode(const byte* input, word32* inOutIdx,
     local_buffer_len = ret;
     ret = 0;
 
-    MADWOLF_DEBUG(">>>>> Removed PKCS8 Header (type: %d; inSz: %d, localSz: %d)", keySum, inSz, local_buffer_len);
+    // MADWOLF_DEBUG(">>>>> Removed PKCS8 Header (type: %d; inSz: %d, localSz: %d)", keySum, inSz, local_buffer_len);
 
     if (keySum == D2_MLDSA44_RSAPSS2048k
             || keySum == D2_MLDSA44_RSA2048k
