@@ -37,3 +37,5 @@ int load_key_p8(AsymKey ** key, int type, const char * key_file, int format);
 int gen_keypair(AsymKey ** key, int type, int param);
 
 int gen_csr(const AsymKey * key, const AsymKey * altkey, const char * out_filename, int out_format);
+
+int gen_cert(const AsymKey * key, const AsymKey * altkey, const char * out_filename, int out_format);

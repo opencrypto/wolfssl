@@ -238,10 +238,10 @@ int gen_csr(const AsymKey * keyPair, const AsymKey * altkey, const char * out_fi
     keySum = wc_AsymKey_Oid(keyPair);
     certType = wc_AsymKey_CertType(keyPair);
 
-    char * algName = (char *)wc_KeySum_name(keySum);
+    const char * algName = (char *)wc_KeySum_name(keySum);
     if (algName == NULL) {
         printf("Cannot Retreieve Alg Name for key type: %d\n", keySum);
-        // goto exit;
+        algName = "Unknown";
     }
 
     printf("CertType: %d, keySum: %d, algName: %s\n", certType, keySum, algName);
@@ -393,6 +393,246 @@ int gen_csr(const AsymKey * keyPair, const AsymKey * altkey, const char * out_fi
         goto exit;
     }
     ret = wc_DerToPem(der, derSz, pem_data, pem_dataSz, CERTREQ_TYPE);
+    if (ret <= 0) {
+        printf("CSR DER to PEM failed: %d\n", ret);
+        goto exit;
+    }
+    if (out_filename) {
+        file = fopen(out_filename, "wb");
+        if (file) {
+            ret = (int)fwrite(pem_data, 1, pem_dataSz, file);
+            fclose(file);
+        }
+    } else {
+        int fd = fileno(stdout);
+        ret = write(fd, pem_data, pem_dataSz);
+    }
+#endif
+
+    ret = 0; /* success */
+    
+exit:
+    wc_FreeRng(&rng);
+
+#endif /* WOLFSSL_CERT_REQ */
+
+    (void)altkey;
+    (void)out_format;
+    (void)out_filename;
+    (void)keyPair;
+    (void)ret;
+
+    return ret;
+}
+
+int gen_cert(const AsymKey * keyPair, const AsymKey * altkey, const char * out_filename, int out_format)
+{
+    int ret = NOT_COMPILED_IN;
+#ifdef WOLFSSL_CERT_REQ
+    int certType = MLDSA44_NISTP256_TYPE; // MLDSA87_ED448_TYPE
+    // void* keyPtr = NULL;
+    WC_RNG rng;
+    byte der[12240];
+    int  derSz = 12240;
+#ifdef WOLFSSL_DER_TO_PEM
+    // byte pem[12240];
+    // int  pemSz = 12240;
+    FILE* file = NULL;
+    // char outFile[255];
+#endif
+
+    XMEMSET(der, 0, 12240);
+#ifdef WOLFSSL_DER_TO_PEM
+    // XMEMSET(pem, 0, 12240);
+#endif
+
+    Cert aCert;
+    enum Key_Sum keySum;
+
+    if (!keyPair) {
+        printf("Invalid key\n");
+        return BAD_FUNC_ARG;
+    }
+    
+    ret = wc_InitCert(&aCert);
+    if (ret != 0) {
+        printf("Init Cert failed: %d\n", ret);
+        goto exit;
+    }
+
+    // Extracts the type of key
+    keySum = wc_AsymKey_Oid(keyPair);
+    certType = wc_AsymKey_CertType(keyPair);
+
+    const char * algName = (char *)wc_KeySum_name(keySum);
+    if (algName == NULL) {
+        printf("Cannot Retreieve Alg Name for key type: %d\n", keySum);
+        algName = "Unknown";
+    }
+
+    printf("CertType: %d, keySum: %d, algName: %s\n", certType, keySum, algName);
+
+    strncpy(aCert.subject.country, "US", CTC_NAME_SIZE);
+    // strncpy(req.subject.state, "OR", CTC_NAME_SIZE);
+    // strncpy(req.subject.locality, "Portland", CTC_NAME_SIZE);
+    strncpy(aCert.subject.org, "wolfSSL", CTC_NAME_SIZE);
+    strncpy(aCert.subject.unit, "Test", CTC_NAME_SIZE);
+    strncpy(aCert.subject.commonName, algName, CTC_NAME_SIZE);
+    strncpy(aCert.subject.email, "info@wolfssl.com", CTC_NAME_SIZE);
+    aCert.version = 0;
+
+    byte serial[20] = { 
+        0xBE, 0xEF, 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+        0xBE, 0xEF, 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07 };
+
+    // XMEMCPY(aCert.serial, serial, sizeof(serial));
+    // aCert.serialSz = sizeof(serial);
+    aCert.serialSz = sizeof(serial);
+
+    /* Days before certificate expires */
+    aCert.daysValid = 365;
+
+    XMEMCPY(aCert.serial, serial, sizeof(serial));
+    aCert.serialSz = sizeof(serial);
+
+    // Forcing the type
+    // certType = MLDSA44_RSAPSS2048_TYPE;
+    ret = wc_MakeCert_ex(&aCert, der, sizeof(der), certType, keyPair->key.ptr, &rng);
+    if (ret <= 0) {
+        printf("Make Cert failed: %d\n", ret);
+        goto exit;
+    }
+    derSz = ret;
+
+#ifdef HAVE_ECC
+    if (certType == ECC_TYPE)
+        aCert.sigType = CTC_SHA256wECDSA;
+#endif
+#ifndef NO_RSA
+    if (certType == RSA_TYPE)
+        aCert.sigType = CTC_SHA256wRSA;
+#endif
+#ifdef HAVE_ED25519
+    if (certType == ED25519_TYPE)
+        aCert.sigType = CTC_ED25519;
+#endif
+#ifdef HAVE_ED448
+    if (certType == ED448_TYPE)
+        aCert.sigType = CTC_ED448;
+#endif
+#ifdef HAVE_DILITHIUM
+    if (certType == ML_DSA_LEVEL2_TYPE)
+        aCert.sigType = CTC_DILITHIUM_LEVEL2;
+    if (certType == ML_DSA_LEVEL3_TYPE)
+        aCert.sigType = CTC_DILITHIUM_LEVEL3;
+    if (certType == ML_DSA_LEVEL5_TYPE)
+        aCert.sigType = CTC_DILITHIUM_LEVEL5;
+#endif
+#ifdef HAVE_FALCON
+    if (certType == FALCON_LEVEL1_TYPE)
+        aCert.sigType = CTC_FALCON_LEVEL1;
+    if (certType == FALCON_LEVEL5_TYPE)
+        aCert.sigType = CTC_FALCON_LEVEL5;
+#endif
+#ifdef HAVE_SPHINCS
+    if (certType == SPHINCS_HARAKA_128F_ROBUST_TYPE)
+        aCert.sigType = CTC_SPHINCS_HARAKA_128F_ROBUST;
+    if (certType == SPHINCS_HARAKA_128S_ROBUST_TYPE)
+        aCert.sigType = CTC_SPHINCS_HARAKA_128S_ROBUST;
+    if (certType == SPHINCS_HARAKA_192F_ROBUST_TYPE)
+        aCert.sigType = CTC_SPHINCS_HARAKA_192F_ROBUST;
+    if (certType == SPHINCS_HARAKA_192S_ROBUST_TYPE)
+        aCert.sigType = CTC_SPHINCS_HARAKA_192S_ROBUST;
+    if (certType == SPHINCS_HARAKA_256F_ROBUST_TYPE)
+        aCert.sigType = CTC_SPHINCS_HARAKA_256F_ROBUST;
+    if (certType == SPHINCS_HARAKA_256S_ROBUST_TYPE)
+        aCert.sigType = CTC_SPHINCS_HARAKA_256S_ROBUST;
+#endif
+#ifdef HAVE_MLDSA_COMPOSITE
+    if (certType == MLDSA44_NISTP256_TYPE)
+        aCert.sigType = CTC_MLDSA44_NISTP256_SHA256;
+    if (certType == MLDSA44_RSA2048_TYPE)
+        aCert.sigType = CTC_MLDSA44_RSA2048_SHA256;
+    if (certType == MLDSA44_RSAPSS2048_TYPE)
+        aCert.sigType = CTC_MLDSA44_RSAPSS2048_SHA256;
+    // if (type == MLDSA44_BPOOL256_TYPE)
+    //     aCert.sigType = CTC_MLDSA44_BPOOL256_SHA256;
+    if (certType == MLDSA44_ED25519_TYPE)
+        aCert.sigType = CTC_MLDSA44_ED25519;
+    if (certType == MLDSA65_NISTP256_TYPE)
+        aCert.sigType = CTC_MLDSA65_NISTP256_SHA384;
+    if (certType == MLDSA65_RSA3072_TYPE)
+        aCert.sigType = CTC_MLDSA65_RSA3072_SHA384;
+    if (certType == MLDSA65_RSAPSS3072_TYPE)    
+        aCert.sigType = CTC_MLDSA65_RSAPSS3072_SHA384;
+    if (certType == MLDSA65_RSA4096_TYPE)
+        aCert.sigType = CTC_MLDSA65_RSA4096_SHA384;
+    if (certType == MLDSA65_RSAPSS4096_TYPE)    
+        aCert.sigType = CTC_MLDSA65_RSAPSS4096_SHA384;
+    if (certType == MLDSA65_BPOOL256_TYPE)
+        aCert.sigType = CTC_MLDSA65_BPOOL256_SHA256;
+    if (certType == MLDSA65_ED25519_TYPE)
+        aCert.sigType = CTC_MLDSA65_ED25519_SHA384;
+    if (certType == MLDSA87_NISTP384_TYPE)
+        aCert.sigType = CTC_MLDSA87_NISTP384_SHA384;
+    if (certType == MLDSA87_BPOOL384_TYPE)
+        aCert.sigType = CTC_MLDSA87_BPOOL384_SHA384;
+    if (certType == MLDSA87_ED448_TYPE)
+        aCert.sigType = CTC_MLDSA87_ED448;
+    // -------- Draft 2 -------------//
+    if (certType == D2_MLDSA44_RSAPSS2048_SHA256_TYPE)
+        aCert.sigType = D2_CTC_MLDSA44_RSAPSS2048_SHA256;
+    if (certType == D2_MLDSA44_RSA2048_SHA256_TYPE)
+        aCert.sigType = D2_CTC_MLDSA44_RSA2048_SHA256;
+    if (certType == D2_MLDSA44_NISTP256_SHA256_TYPE)
+        aCert.sigType = D2_CTC_MLDSA44_NISTP256_SHA256;
+    if (certType == D2_MLDSA44_ED25519_SHA256_TYPE)
+        aCert.sigType = D2_CTC_MLDSA44_ED25519;
+    if (certType == D2_MLDSA65_RSAPSS3072_SHA512_TYPE)
+        aCert.sigType = D2_CTC_MLDSA65_RSAPSS3072_SHA512;
+    if (certType == D2_MLDSA65_RSA3072_SHA512_TYPE)
+        aCert.sigType = D2_CTC_MLDSA65_RSA3072_SHA512;
+    if (certType == D2_MLDSA65_NISTP256_SHA512_TYPE)
+        aCert.sigType = D2_CTC_MLDSA65_NISTP256_SHA512;
+    if (certType == D2_MLDSA65_ED25519_SHA512_TYPE)
+        aCert.sigType = D2_CTC_MLDSA65_ED25519_SHA512;
+    if (certType == D2_MLDSA87_BPOOL384_SHA512_TYPE)
+        aCert.sigType = D2_CTC_MLDSA87_BPOOL384_SHA512;
+    if (certType == D2_MLDSA87_NISTP384_SHA512_TYPE)
+        aCert.sigType = D2_CTC_MLDSA87_NISTP384_SHA512;
+    if (certType == D2_MLDSA87_ED448_SHA512_TYPE)
+        aCert.sigType = D2_CTC_MLDSA87_ED448_SHA512;
+#endif
+    ret = wc_InitRng(&rng);
+    if (ret != 0) {
+        printf("RNG initialization failed: %d\n", ret);
+        goto exit;
+    }
+    ret = wc_SignCert_ex(aCert.bodySz, aCert.sigType, 
+                         der, sizeof(der), certType,
+                         (void *)keyPair->key.ptr, &rng);
+    if (ret <= 0) {
+        printf("Sign Cert failed: %d\n", ret);
+        goto exit;
+    }
+    derSz = ret;
+
+#ifdef WOLFSSL_DER_TO_PEM
+    byte * pem_data = NULL;
+    int pem_dataSz = 0;
+
+    ret = wc_DerToPem(der, derSz, NULL, pem_dataSz, CERT_TYPE);
+    if (ret <= 0) {
+        printf("Cannot get the size of the PEM...: %d\n", ret);
+        goto exit;
+    }
+    pem_dataSz = ret;
+    pem_data = (byte *)XMALLOC(pem_dataSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (pem_data == NULL) {
+        printf("Memory Error exporting key\n");
+        goto exit;
+    }
+    ret = wc_DerToPem(der, derSz, pem_data, pem_dataSz, CERT_TYPE);
     if (ret <= 0) {
         printf("CSR DER to PEM failed: %d\n", ret);
         goto exit;
@@ -636,8 +876,11 @@ int gen_keypair(AsymKey ** key, int keySum, int param) {
 
 int main(int argc, char** argv) {
 
-#if !defined(WOLFSSL_CERT_REQ) || !defined(WOLFSSL_CERT_GEN) || !defined(WOLFSSL_KEY_GEN)
-    printf("Please compile wolfSSL with --enable-certreq --enable-certgen --enable-certext --enable-keygen\n");
+#if !defined(WOLFSSL_CERT_REQ) || !defined(WOLFSSL_CERT_GEN) || !defined(WOLFSSL_KEY_GEN) || \
+    !defined(WOLFSSL_CERT_EXT) || !defined(WOLFSSL_HAVE_MLDSA_COMPOSITE)
+    printf("Please compile wolfSSL with --enable-certreq --enable-certgen\n"
+           "  --enable-keygen --enable-certext --enable-experimental --enable-mldsa-composite\n"
+           "  CFLAGS=-DOPENSSL_EXTRA_X509_SMALL\n");
     return 0;
 #else
     enum Key_Sum keySum = ML_DSA_LEVEL2k;
@@ -672,11 +915,11 @@ int main(int argc, char** argv) {
         return 1;
     }
 
-    if (!XSTRNCMP(argv[i], "genpkey", 4)) {
+    if (!XSTRNCMP(argv[i], "genpkey", 7)) {
         cmd = 0;
-    } else if (!XSTRNCMP(argv[i], "genreq", 3)) {
+    } else if (!XSTRNCMP(argv[i], "genreq", 6)) {
         cmd = 1;
-    } else if (!XSTRNCMP(argv[i], "gencert", 4)) {
+    } else if (!XSTRNCMP(argv[i], "gencert", 7)) {
         cmd = 2;
     } else {
         usage();
@@ -857,6 +1100,7 @@ int main(int argc, char** argv) {
 
         // Gen CSR
         case 1: {
+            printf("Generating CSR\n");
             if (in_file == NULL && key_file == NULL) {
                 printf("Missing keypair or request filename\n");
                 return 1;
@@ -867,8 +1111,6 @@ int main(int argc, char** argv) {
                 printf("Error loading keypair\n");
                 return -1;
             }
-            // // Extracts the type of key
-            //  printf(">>>>>>> (main) Key Type: %d\n", ((ecc_key *)keyPtr)->type);
             if (altkey_file) {
                 if (load_key_p8(&altKeyPtr, keySum, altkey_file, in_format) < 0) {
                     printf("Error loading alt keypair\n");
@@ -883,7 +1125,29 @@ int main(int argc, char** argv) {
 
         // Gen CERT
         case 2: {
-            return -1;
+            printf("Generating CERT\n");
+            if (in_file == NULL && key_file == NULL) {
+                printf("Missing keypair or request filename\n");
+                return 1;
+            } else if (key_file == NULL) {
+                key_file = in_file;
+            }
+            if (load_key_p8(&keyPtr, keySum, key_file, in_format) < 0) {
+                printf("Error loading keypair\n");
+                return -1;
+            }
+
+            if (altkey_file) {
+                if (load_key_p8(&altKeyPtr, keySum, altkey_file, in_format) < 0) {
+                    printf("Error loading alt keypair\n");
+                    return -1;
+                }
+            }
+            if (gen_cert(keyPtr, altKeyPtr, out_file, out_format) < 0) {
+                printf("Error generating certificate\n");
+                return -1;
+            }
+            return 0;
         } break;
 
         default:
