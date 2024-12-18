@@ -1064,23 +1064,24 @@ int wc_AsymKey_check(const AsymKey* key) {
 
 int wc_AsymKey_Public_import(AsymKey* key, int type, const byte* in, word32 inLen, int format) {
 
-  (void)key;
-  (void)type;
-  (void)in;
-  (void)inLen;
-  (void)format;
+    (void)key;
+    (void)type;
+    (void)in;
+    (void)inLen;
+    (void)format;
 
-  return NOT_COMPILED_IN;
+    return NOT_COMPILED_IN;
 }
 
-int wc_AsymKey_Public_export(byte* buff, word32 buffLen, int format, const AsymKey* key) {
+int wc_AsymKey_Public_export(byte* buff, word32 buffLen, int withAlg, int format, const AsymKey* key) {
   
-  (void)key;
-  (void)buff;
-  (void)buffLen;
-  (void)format;
+    (void)key;
+    (void)buff;
+    (void)buffLen;
+    (void)withAlg;
+    (void)format;
 
-  return NOT_COMPILED_IN;
+    return NOT_COMPILED_IN;
 }
 
 int wc_AsymKey_import(AsymKey* key, const byte* data, word32 dataSz, int format) {
@@ -2127,7 +2128,7 @@ int wc_AsymKey_MakeCert(const byte * der, word32 derLen, wc_509Cert* req, const 
     return NOT_COMPILED_IN;
 }
 
-int wc_AsymKey_Req_Sign(const byte * der, word32 derLen, wc_509Req * req, enum wc_HashType htype, const AsymKey* key, WC_RNG* rng) {
+int wc_X509_Req_Sign(const byte * der, word32 derLen, wc_509Req * req, enum wc_HashType htype, const AsymKey* key, WC_RNG* rng) {
 
     (void)der;
     (void)derLen;
@@ -2139,7 +2140,7 @@ int wc_AsymKey_Req_Sign(const byte * der, word32 derLen, wc_509Req * req, enum w
     return NOT_COMPILED_IN;
 }
 
-int wc_AsymKey_Req_Sign_ex(const byte * der, word32 derLen, wc_509Req * req, enum wc_HashType htype, const byte* context, byte contextLen, const AsymKey* key, WC_RNG* rng) {
+int wc_X509_Req_Sign_ex(const byte * der, word32 derLen, wc_509Req * req, enum wc_HashType htype, const byte* context, byte contextLen, const AsymKey* key, WC_RNG* rng) {
 
     (void)der;
     (void)derLen;
@@ -2153,7 +2154,7 @@ int wc_AsymKey_Req_Sign_ex(const byte * der, word32 derLen, wc_509Req * req, enu
     return NOT_COMPILED_IN;
 }
 
-int wc_AsymKey_Req_Verify(const byte * der, word32 derLen) {
+int wc_X509_Req_Verify(const byte * der, word32 derLen) {
 
     (void)der;
     (void)derLen;
@@ -2161,7 +2162,7 @@ int wc_AsymKey_Req_Verify(const byte * der, word32 derLen) {
     return NOT_COMPILED_IN;
 }
 
-int wc_AsymKey_Req_Verify_ex(const byte * der, word32 derLen, const byte* context, byte contextLen, const AsymKey* caKey) {
+int wc_X509_Req_Verify_ex(const byte * der, word32 derLen, const byte* context, byte contextLen, const AsymKey* caKey) {
 
     (void)der;
     (void)derLen;
@@ -2172,7 +2173,7 @@ int wc_AsymKey_Req_Verify_ex(const byte * der, word32 derLen, const byte* contex
     return NOT_COMPILED_IN;
 }
 
-int wc_AsymKey_Cert_Sign(const byte * der, word32 derLen, wc_509Req * req, enum wc_HashType htype, const AsymKey* caKey, WC_RNG* rng) {
+int wc_X509_Cert_Sign(const byte * der, word32 derLen, wc_509Req * req, enum wc_HashType htype, const AsymKey* caKey, WC_RNG* rng) {
 
     (void)der;
     (void)derLen;
@@ -2184,7 +2185,7 @@ int wc_AsymKey_Cert_Sign(const byte * der, word32 derLen, wc_509Req * req, enum 
     return NOT_COMPILED_IN;
 }
 
-int wc_AsymKey_Cert_Sign_ex(const byte * der, word32 derLen, wc_509Req * req, enum wc_HashType htype, const byte* context, byte contextLen, const AsymKey* key, WC_RNG* rng) {
+int wc_X509_Cert_Sign_ex(const byte * der, word32 derLen, wc_509Req * req, enum wc_HashType htype, const byte* context, byte contextLen, const AsymKey* key, WC_RNG* rng) {
 
     (void)der;
     (void)derLen;
@@ -2198,7 +2199,7 @@ int wc_AsymKey_Cert_Sign_ex(const byte * der, word32 derLen, wc_509Req * req, en
     return NOT_COMPILED_IN;
 }
 
-int wc_AsymKey_Cert_Verify(const byte * der, word32 derLen, const AsymKey * key) {
+int wc_X509_Cert_Verify(const byte * der, word32 derLen, const AsymKey * key) {
 
     (void)der;
     (void)derLen;
@@ -2207,7 +2208,7 @@ int wc_AsymKey_Cert_Verify(const byte * der, word32 derLen, const AsymKey * key)
     return NOT_COMPILED_IN;
 }
 
-int wc_AsymKey_Cert_Verify_ex(const byte * der, word32 derLen, const byte* context, byte contextLen, const AsymKey * caKey) {
+int wc_X509_Cert_Verify_ex(const byte * der, word32 derLen, const byte* context, byte contextLen, const AsymKey * caKey) {
 
     (void)der;
     (void)derLen;

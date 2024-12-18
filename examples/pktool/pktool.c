@@ -273,8 +273,6 @@ int gen_csr(const AsymKey * keyPair, const AsymKey * altkey, const char * out_fi
         goto exit;
     }
 
-    // Forcing the type
-    // certType = MLDSA44_RSAPSS2048_TYPE;
     ret = wc_MakeCertReq_ex(&req, der, sizeof(der), certType, keyPair->key.ptr);
     if (ret <= 0) {
         printf("Make Cert Req failed: %d\n", ret);

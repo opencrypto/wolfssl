@@ -233,15 +233,17 @@ WOLFSSL_API int wc_AsymKey_Public_import(AsymKey* key, int type, const byte* in,
 
 /* Export the public key.
  *
- * @param [in]      key     The keypair to export the public key from.
- * @param [out]     out     Array to hold public key. Use NULL to get the needed the size for `in`.
- * @param [in, out] outLen  On in, the number of bytes in array.
- *                          On out, the number bytes put into array.
+ * @param [in]      buff   Array to hold public key.
+ * @param [in]      buffLen  Number of bytes in array.
+ * @param [in]      withAlg  Whether to use SubjectPublicKeyInfo format.
+ * @param [in]      format  Format of key data (1 = PEM, 0 = DER).
+ * @param [in]      key     An asymmetric key object (AsymKey *).
  * @return  0 on success.
  * @return  BAD_FUNC_ARG when a parameter is NULL.
- * @return  BUFFER_E when outLen is less than DILITHIUM_LEVEL2_PUB_KEY_SIZE.
+ * @return  BUFFER_E when outLen is less than the required size
  */
-WOLFSSL_API int wc_AsymKey_Public_export(byte* buff, word32 buffLen, int format, const AsymKey* key);
+WOLFSSL_API int wc_AsymKey_Public_export(byte* buff, word32 buffLen, int withAlg, int format, const AsymKey* key);
+
 #endif /* WOLFSSL_PUBLIC_KEY */
 
 /* Import a keypair from a byte array.
@@ -407,17 +409,17 @@ WOLFSSL_API int wc_AsymKey_Verify(const byte* sig, word32 sigLen,
 */
 WOLFSSL_API int wc_AsymKey_Verify_ex(const byte* sig, word32 sigLen, const byte* in, word32 inLen, enum wc_HashType hashType, const AsymKey* key, const byte* context, byte contextLen);
 
-WOLFSSL_API int wc_AsymKey_Req_Sign(const byte * der, word32 derLen, wc_509Req * req, enum wc_HashType htype, const AsymKey* key, WC_RNG* rng);
-WOLFSSL_API int wc_AsymKey_Req_Sign_ex(const byte * der, word32 derLen, wc_509Req * req, enum wc_HashType htype, const byte* context, byte contextLen, const AsymKey* key, WC_RNG* rng);
+WOLFSSL_API int wc_X509_Req_Sign(const byte * der, word32 derLen, wc_509Req * req, enum wc_HashType htype, const AsymKey* key, WC_RNG* rng);
+WOLFSSL_API int wc_X509_Req_Sign_ex(const byte * der, word32 derLen, wc_509Req * req, enum wc_HashType htype, const byte* context, byte contextLen, const AsymKey* key, WC_RNG* rng);
 
-WOLFSSL_API int wc_AsymKey_Req_Verify(const byte * der, word32 derLen);
-WOLFSSL_API int wc_AsymKey_Req_Verify_ex(const byte * der, word32 derLen, const byte* context, byte contextLen, const AsymKey* caKey);
+WOLFSSL_API int wc_X509_Req_Verify(const byte * der, word32 derLen);
+WOLFSSL_API int wc_X509_Req_Verify_ex(const byte * der, word32 derLen, const byte* context, byte contextLen, const AsymKey* caKey);
 
-WOLFSSL_API int wc_AsymKey_Cert_Sign(const byte * der, word32 derLen, wc_509Req * req, enum wc_HashType htype, const AsymKey* caKey, WC_RNG* rng);
-WOLFSSL_API int wc_AsymKey_Cert_Sign_ex(const byte * der, word32 derLen, wc_509Req * req, enum wc_HashType htype, const byte* context, byte contextLen, const AsymKey* key, WC_RNG* rng);
+WOLFSSL_API int wc_X509_Cert_Sign(const byte * der, word32 derLen, wc_509Req * req, enum wc_HashType htype, const AsymKey* caKey, WC_RNG* rng);
+WOLFSSL_API int wc_X509_Cert_Sign_ex(const byte * der, word32 derLen, wc_509Req * req, enum wc_HashType htype, const byte* context, byte contextLen, const AsymKey* key, WC_RNG* rng);
 
-WOLFSSL_API int wc_AsymKey_Cert_Verify(const byte * der, word32 derLen, const AsymKey * key);
-WOLFSSL_API int wc_AsymKey_Cert_Verify_ex(const byte * der, word32 derLen, const byte* context, byte contextLen, const AsymKey * caKey);
+WOLFSSL_API int wc_X509_Cert_Verify(const byte * der, word32 derLen, const AsymKey * key);
+WOLFSSL_API int wc_X509_Cert_Verify_ex(const byte * der, word32 derLen, const byte* context, byte contextLen, const AsymKey * caKey);
 #ifdef __cplusplus
     }    /* extern "C" */
 #endif
