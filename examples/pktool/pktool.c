@@ -225,6 +225,21 @@ int gen_csr(const AsymKey * keyPair, const AsymKey * altkey, const char * out_fi
         printf("Invalid key\n");
         return BAD_FUNC_ARG;
     }
+
+    printf("AsymKey PubSz: %d, Size: %d\n", wc_AsymKey_pub_size(keyPair), wc_AsymKey_size(keyPair));
+
+    wc_InitRng(&rng);
+    ret = wc_AsymKey_Sign_ex(der, (word32 *)&derSz, (const byte *)"1234567890", 10, WC_HASH_TYPE_SHA256, NULL, 0, keyPair, &rng);
+    if (ret != 0) {
+        printf("Error signing data: %d\n", ret);
+        return ret;
+    }
+
+    ret = wc_AsymKey_Verify_ex(der, derSz, (const byte *)"1234567890", 10, WC_HASH_TYPE_SHA256, keyPair, NULL, 0);
+    if (ret != 0) {
+        printf("Error verifying data: %d\n", ret);
+        return ret;
+    }
     
     ret = wc_InitCert(&req);
     if (ret != 0) {

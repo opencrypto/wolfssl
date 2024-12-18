@@ -891,14 +891,169 @@ int wc_AsymKey_size(const AsymKey* key) {
 
 int wc_AsymKey_pub_size(const AsymKey* key) {
 
-  (void)key;
-  return NOT_COMPILED_IN;
+  
+  int ret = 0;
+
+    if (!key)
+        return BAD_FUNC_ARG;
+
+    switch (key->type) {
+#ifdef HAVE_DSA
+        case DSA_TYPE:
+            ret = wc_DsaPublicKeyDerSize(key->key.dsaKey, 0);
+            break;
+#endif
+#ifndef NO_RSA
+        case RSA_TYPE:
+            ret = wc_RsaPublicKeyDerSize(key->key.rsaKey, 0);
+            break;
+#endif
+#ifdef HAVE_ECC
+        case ECC_TYPE:
+            ret = wc_EccPublicKeyToDer(key->key.eccKey, NULL, 0, 0);
+            break;
+#endif
+#ifdef HAVE_ED25519
+    case ED25519_TYPE:
+        ret = wc_Ed25519PublicKeyToDer(key->key.ed25519Key, NULL, 0, 0);
+        break;
+#endif
+#ifdef HAVE_ED448
+    case ED448_TYPE:
+        ret = wc_Ed448PublicKeyToDer(key->key.ed448Key, NULL, 0, 0);
+        break;
+#endif
+#ifdef HAVE_DILITHIUM
+    case ML_DSA_LEVEL2_TYPE:
+    case ML_DSA_LEVEL3_TYPE:
+    case ML_DSA_LEVEL5_TYPE:
+        ret = wc_Dilithium_PublicKeyToDer(key->key.dilithiumKey, NULL, 0, 0);
+        break;
+#endif
+#ifdef HAVE_MLDSA_COMPOSITE
+    case MLDSA44_RSAPSS2048_TYPE:
+    case MLDSA44_RSA2048_TYPE:
+    case MLDSA44_NISTP256_TYPE:
+    case MLDSA44_ED25519_TYPE:
+    case MLDSA65_ED25519_TYPE:
+    case MLDSA65_RSAPSS4096_TYPE:
+    case MLDSA65_RSA4096_TYPE:
+    case MLDSA65_RSAPSS3072_TYPE:
+    case MLDSA65_RSA3072_TYPE:
+    case MLDSA65_NISTP256_TYPE:
+    case MLDSA65_BPOOL256_TYPE:
+    case MLDSA87_BPOOL384_TYPE:
+    case MLDSA87_NISTP384_TYPE:
+    case MLDSA87_ED448_TYPE:
+        ret = wc_MlDsaComposite_PublicKeyToDer(key->key.mldsaCompKey, NULL, 0, 0);
+        break;
+#endif
+#ifdef HAVE_FALCON
+    case FALCON_LEVEL1_TYPE:
+    case FALCON_LEVEL5_TYPE:
+        ret = wc_Falcon_PublicKeyToDer(key->key.falconKey, NULL, 0, 0);
+        break;
+#endif
+#ifdef HAVE_SPHINCS
+    case SPHINCS_FAST_LEVEL1_TYPE:
+    case SPHINCS_FAST_LEVEL3_TYPE:
+    case SPHINCS_FAST_LEVEL5_TYPE:
+    case SPHINCS_SMALL_LEVEL1_TYPE:
+    case SPHINCS_SMALL_LEVEL3_TYPE:
+    case SPHINCS_SMALL_LEVEL5_TYPE:
+        ret = wc_Sphincs_PublicKeyToDer(key->key.sphincs, NULL, 0);
+        break;
+#endif
+
+    default:
+        ret = BAD_FUNC_ARG;
+  }
+
+    return ret;
+
 }
 
 int wc_AsymKey_sig_size(const AsymKey* key) {
 
-  (void)key;
-  return NOT_COMPILED_IN;
+    int ret = 0;
+
+    if (!key)
+        return BAD_FUNC_ARG;
+
+    switch (key->type) {
+#ifdef HAVE_DSA
+        case DSA_TYPE:
+            ret = NOT_COMPILED_IN; // Not Supported ?
+            break;
+#endif
+#ifndef NO_RSA
+        case RSA_TYPE:
+            ret = wc_RsaEncryptSize(key->key.rsaKey);
+            break;
+#endif
+#ifdef HAVE_ECC
+        case ECC_TYPE:
+            ret = wc_ecc_sig_size(key->key.eccKey);
+            break;
+#endif
+#ifdef HAVE_ED25519
+    case ED25519_TYPE:
+        ret = wc_Ed25519PublicKeyToDer(key->key.ed25519Key, NULL, 0, 0);
+        break;
+#endif
+#ifdef HAVE_ED448
+    case ED448_TYPE:
+        ret = wc_Ed448PublicKeyToDer(key->key.ed448Key, NULL, 0, 0);
+        break;
+#endif
+#ifdef HAVE_DILITHIUM
+    case ML_DSA_LEVEL2_TYPE:
+    case ML_DSA_LEVEL3_TYPE:
+    case ML_DSA_LEVEL5_TYPE:
+        ret = wc_Dilithium_PublicKeyToDer(key->key.dilithiumKey, NULL, 0, 0);
+        break;
+#endif
+#ifdef HAVE_MLDSA_COMPOSITE
+    case MLDSA44_RSAPSS2048_TYPE:
+    case MLDSA44_RSA2048_TYPE:
+    case MLDSA44_NISTP256_TYPE:
+    case MLDSA44_ED25519_TYPE:
+    case MLDSA65_ED25519_TYPE:
+    case MLDSA65_RSAPSS4096_TYPE:
+    case MLDSA65_RSA4096_TYPE:
+    case MLDSA65_RSAPSS3072_TYPE:
+    case MLDSA65_RSA3072_TYPE:
+    case MLDSA65_NISTP256_TYPE:
+    case MLDSA65_BPOOL256_TYPE:
+    case MLDSA87_BPOOL384_TYPE:
+    case MLDSA87_NISTP384_TYPE:
+    case MLDSA87_ED448_TYPE:
+        ret = wc_MlDsaComposite_PublicKeyToDer(key->key.mldsaCompKey, NULL, 0, 0);
+        break;
+#endif
+#ifdef HAVE_FALCON
+    case FALCON_LEVEL1_TYPE:
+    case FALCON_LEVEL5_TYPE:
+        ret = wc_Falcon_PublicKeyToDer(key->key.falconKey, NULL, 0, 0);
+        break;
+#endif
+#ifdef HAVE_SPHINCS
+    case SPHINCS_FAST_LEVEL1_TYPE:
+    case SPHINCS_FAST_LEVEL3_TYPE:
+    case SPHINCS_FAST_LEVEL5_TYPE:
+    case SPHINCS_SMALL_LEVEL1_TYPE:
+    case SPHINCS_SMALL_LEVEL3_TYPE:
+    case SPHINCS_SMALL_LEVEL5_TYPE:
+        ret = wc_Sphincs_PublicKeyToDer(key->key.sphincs, NULL, 0);
+        break;
+#endif
+
+    default:
+        ret = BAD_FUNC_ARG;
+  }
+
+    return ret;
+
 }
 
 int wc_AsymKey_check(const AsymKey* key) {
@@ -1640,60 +1795,311 @@ int wc_AsymKey_info(word32 * oid, byte * pkcsData, word32 pkcsDataSz, int format
 int wc_AsymKey_Sign(byte* sig, word32* sigLen, const byte* msg, word32 msgLen,
                     enum wc_HashType hashType, const AsymKey* key, WC_RNG* rng) {
 
-    (void)sig;
-    (void)sigLen;
-    (void)msg;
-    (void)msgLen;
-    (void)hashType;
-    (void)key;
-    (void)rng;
-
-    return NOT_COMPILED_IN;
+    return wc_AsymKey_Sign_ex(sig, sigLen, msg, msgLen, hashType, NULL, 0, key, rng);
 }
 
-int wc_AsymKey_Verify(const AsymKey* key, const byte* sig, word32 sigLen,
-        const byte* msg, word32 msgLen, int* res) {
+int wc_AsymKey_Sign_ex(byte          * out, 
+                       word32        * outLen, 
+                       const byte    * in, 
+                       word32          inLen,
+                       enum wc_HashType hashType,
+                       const byte    * context,
+                       byte            contextLen,
+                       const AsymKey * key,
+                       WC_RNG        * rng) {
 
-  (void)key;
-  (void)sig;
-  (void)sigLen;
-  (void)msg;
-  (void)msgLen;
-  (void)res;
+    int keyType = 0;
+    int ret = 0;
 
-  return NOT_COMPILED_IN;
+    word32 sigLen = 0;
+
+    const byte * tbsData = NULL;
+    word32 tbsDataSz = 0;
+
+    byte hash[MAX_DIGEST_SIZE];
+    word32 hashLen = sizeof(hash);
+
+    if (!out || !outLen || !in || !key || !rng) {
+        return BAD_FUNC_ARG;
+    }
+
+    // Retrieves the key type
+    keyType = wc_AsymKey_Oid(key);
+
+    // If an hashType is specified, the message is hashed before signing
+    if (hashType != WC_HASH_TYPE_NONE) {
+
+        ret = wc_Hash(hashType, in, inLen, hash, hashLen);
+        if (ret != 0) {
+            MADWOLF_DEBUG("Error hashing the message (%d)\n", ret);
+            return ret;
+        }
+
+        // Sets the hash as the data to be signed
+        tbsData = hash;
+        tbsDataSz = wc_HashGetDigestSize(hashType);
+    } else {
+        // Sets the data to be signed
+        tbsData = in;
+        tbsDataSz = inLen;
+    }
+
+    switch (keyType) {
+#ifndef NO_RSA
+        case RSAk:
+        case RSAPSSk:
+            ret = wc_RsaSSL_Sign(tbsData, tbsDataSz, out, *outLen, key->key.rsaKey, rng);
+            if (ret >= 0) {
+                sigLen = ret;
+                ret = 0;
+            }
+            break;
+#endif
+#ifdef HAVE_ECC
+        case ECDSAk:
+            ret = wc_ecc_sign_hash(tbsData, tbsDataSz, out, &sigLen, rng, key->key.eccKey);
+            break;
+#endif
+#ifdef HAVE_ED25519
+        case ED25519k:
+            ret = wc_ed25519_sign_msg(tbsData, tbsDataSz, out, &sigLen, key->key.ed25519Key);
+            break;
+#endif
+#ifdef HAVE_ED448
+        case ED448k:
+            ret = wc_ed448_sign_msg(tbsData, tbsDataSz, out, &sigLen, key->key.ed448Key, context, contextLen);
+            break;
+#endif
+#ifdef HAVE_DILITHIUM
+        case ML_DSA_LEVEL5k:
+        case ML_DSA_LEVEL3k:
+        case ML_DSA_LEVEL2k:
+            ret = wc_dilithium_sign_msg(tbsData, tbsDataSz, out, &sigLen, key->key.dilithiumKey, rng);
+            break;
+#endif
+#ifdef HAVE_FALCON
+        case FALCON_LEVEL1k:
+        case FALCON_LEVEL5k:
+            ret = wc_falcon_sign_msg(tbsData, tbsDataSz, out, &sigLen, key->key.falconKey, rng);
+            break;
+#endif
+#ifdef HAVE_MLDSA_COMPOSITE
+        case MLDSA44_RSAPSS2048k:
+        case MLDSA44_RSA2048k:
+        case MLDSA44_NISTP256k:
+        // case MLDSA44_BPOOL256k:
+        case MLDSA44_ED25519k:
+
+        case MLDSA65_RSAPSS3072k:
+        case MLDSA65_RSA3072k:
+        case MLDSA65_RSAPSS4096k:
+        case MLDSA65_RSA4096k:
+        case MLDSA65_NISTP256k:
+        case MLDSA65_ED25519k:
+        case MLDSA65_BPOOL256k:
+
+        case MLDSA87_BPOOL384k:
+        case MLDSA87_NISTP384k:
+        case MLDSA87_ED448k:
+        // ----- Draft 2 ----- //
+        case D2_MLDSA44_RSAPSS2048k:
+        case D2_MLDSA44_RSA2048k:
+        case D2_MLDSA44_NISTP256k:
+        case D2_MLDSA44_ED25519k:
+
+        case D2_MLDSA65_RSAPSS3072k:
+        case D2_MLDSA65_RSA3072k:
+        case D2_MLDSA65_NISTP256k:
+        case D2_MLDSA65_ED25519k:
+        case D2_MLDSA65_BPOOL256k:
+
+        case D2_MLDSA87_BPOOL384k:
+        case D2_MLDSA87_NISTP384k:
+        case D2_MLDSA87_ED448k:
+            ret = wc_mldsa_composite_sign_msg(tbsData, tbsDataSz, out, &sigLen, key->key.mldsaCompKey, rng);
+            break;
+#endif
+#ifdef HAVE_SPHINCS
+        case SPHINCS_FAST_LEVEL1k:
+        case SPHINCS_FAST_LEVEL3k:
+        case SPHINCS_FAST_LEVEL5k:
+        case SPHINCS_SMALL_LEVEL1k:
+        case SPHINCS_SMALL_LEVEL3k:
+        case SPHINCS_SMALL_LEVEL5k:
+            ret = wc_sphincs_sign_msg(tbsData, tbsDataSz, out, &sigLen, key->key.sphincs, rng);
+            break;
+#endif
+        default:
+            ret = BAD_FUNC_ARG;
+            break;
+    }
+
+    if (ret == 0) {
+        *outLen = sigLen;
+    }
+
+    return ret;
 }
 
-int wc_AsymKey_Sign_ex(byte* out, word32* outLen, 
-        const byte* in, word32 inLen,
-        const byte* context, byte contextLen,
-        const AsymKey* key, WC_RNG* rng) {
+int wc_AsymKey_Verify(const byte* sig, word32 sigLen,
+        const byte* msg, word32 msgLen, enum wc_HashType hashType, const AsymKey* key) {
 
-  (void)key;
-  (void)in;
-  (void)inLen;
-  (void)out;
-  (void)outLen;
-  (void)rng;
-  (void)context;
-  (void)contextLen;
-
-  return NOT_COMPILED_IN;
+    return wc_AsymKey_Verify_ex(sig, sigLen, msg, msgLen, hashType, key, NULL, 0);
 }
 
-int wc_AsymKey_Verify_ex(const AsymKey* key, const byte* sig, word32 sigLen,
-        const byte* in, word32 inLen, int* res, const byte* context, byte contextLen) {
+int wc_AsymKey_Verify_ex(const byte* sig, word32 sigLen,
+        const byte* in, word32 inLen, enum wc_HashType hashType, const AsymKey* key, const byte* context, byte contextLen) {
 
-  (void)key;
-  (void)sig;
-  (void)sigLen;
-  (void)in;
-  (void)inLen;
-  (void)res;
-  (void)context;
-  (void)contextLen;
+    if (!sig || !in || !key) {
+        return BAD_FUNC_ARG;
+    }
 
-  return NOT_COMPILED_IN;
+    int ret = 0;
+    int keyType = 0;
+    int verify = 0;
+
+    const byte* tbsData = NULL;
+    word32 tbsDataSz = 0;
+    byte hash[MAX_DIGEST_SIZE];
+    word32 hashLen = sizeof(hash);
+
+    // Retrieves the key type
+    keyType = wc_AsymKey_Oid(key);
+    if (keyType < 0) {
+        return BAD_FUNC_ARG;
+    }
+
+    // If a hashType is specified, the message is hashed before verification
+    if (hashType != WC_HASH_TYPE_NONE) {
+        ret = wc_Hash(hashType, in, inLen, hash, hashLen);
+        if (ret != 0) {
+            MADWOLF_DEBUG("Error hashing the message (%d)\n", ret);
+            return ret;
+        }
+
+        // Sets the hash as the data to be verified
+        tbsData = hash;
+        tbsDataSz = wc_HashGetDigestSize(hashType);
+    } else {
+        // Sets the data to be verified
+        tbsData = in;
+        tbsDataSz = inLen;
+    }
+
+    switch (keyType) {
+#ifndef NO_RSA
+        case RSAk:
+        case RSAPSSk:
+            ret = wc_RsaSSL_Verify(sig, sigLen, (byte *)tbsData, tbsDataSz, key->key.rsaKey);
+            if (ret < 0) {
+                return SIG_VERIFY_E;
+            }
+            break;
+#endif
+#ifdef HAVE_ECC
+        case ECDSAk:
+            ret = wc_ecc_verify_hash(sig, sigLen, tbsData, tbsDataSz, &verify, key->key.eccKey);
+            if (ret == 0 && verify != 1) {
+                return SIG_VERIFY_E;
+            }
+            break;
+#endif
+#ifdef HAVE_ED25519
+        case ED25519k:
+            ret = wc_ed25519_verify_msg(sig, sigLen, tbsData, tbsDataSz, &verify, key->key.ed25519Key);
+            if (ret == 0 && verify != 1) {
+                return SIG_VERIFY_E;
+            }
+            break;
+#endif
+#ifdef HAVE_ED448
+        case ED448k:
+            ret = wc_ed448_verify_msg(sig, sigLen, tbsData, tbsDataSz, &verify, key->key.ed448Key, context, contextLen);
+            if (ret == 0 && verify != 1) {
+                return SIG_VERIFY_E;
+            }
+            break;
+#endif
+#ifdef HAVE_DILITHIUM
+        case ML_DSA_LEVEL5k:
+        case ML_DSA_LEVEL3k:
+        case ML_DSA_LEVEL2k:
+        case DILITHIUM_LEVEL2k:
+        case DILITHIUM_LEVEL3k:
+        case DILITHIUM_LEVEL5k:
+            ret = wc_dilithium_verify_msg(sig, sigLen, tbsData, tbsDataSz, &verify, key->key.dilithiumKey);
+            if (ret == 0 && verify != 1) {
+                return SIG_VERIFY_E;
+            }
+            break;
+#endif
+#ifdef HAVE_FALCON
+        case FALCON_LEVEL1k:
+        case FALCON_LEVEL5k:
+            ret = wc_falcon_verify_msg(sig, sigLen, tbsData, tbsDataSz, &verify, key->key.falconKey);
+            if (ret == 0 && verify != 1)
+                return SIG_VERIFY_E;
+            break;
+#endif
+#ifdef HAVE_MLDSA_COMPOSITE
+        case MLDSA44_RSAPSS2048k:
+        case MLDSA44_RSA2048k:
+        case MLDSA44_NISTP256k:
+        // case MLDSA44_BPOOL256k:
+        case MLDSA44_ED25519k:
+
+        case MLDSA65_RSAPSS3072k:
+        case MLDSA65_RSA3072k:
+        case MLDSA65_RSAPSS4096k:
+        case MLDSA65_RSA4096k:
+        case MLDSA65_NISTP256k:
+        case MLDSA65_ED25519k:
+        case MLDSA65_BPOOL256k:
+
+        case MLDSA87_BPOOL384k:
+        case MLDSA87_NISTP384k:
+        case MLDSA87_ED448k:
+        // ----- Draft 2 ----- //
+        case D2_MLDSA44_RSAPSS2048k:
+        case D2_MLDSA44_RSA2048k:
+        case D2_MLDSA44_NISTP256k:
+        case D2_MLDSA44_ED25519k:
+
+        case D2_MLDSA65_RSAPSS3072k:
+        case D2_MLDSA65_RSA3072k:
+        case D2_MLDSA65_NISTP256k:
+        case D2_MLDSA65_ED25519k:
+        case D2_MLDSA65_BPOOL256k:
+
+        case D2_MLDSA87_BPOOL384k:
+        case D2_MLDSA87_NISTP384k:
+        case D2_MLDSA87_ED448k:
+            ret = wc_mldsa_composite_verify_msg(sig, sigLen, tbsData, tbsDataSz, &verify, key->key.mldsaCompKey);
+            if (ret == 0 && verify != 1) {
+                return SIG_VERIFY_E;
+            }
+            break;
+#endif
+#ifdef HAVE_SPHINCS
+        case SPHINCS_FAST_LEVEL1k:
+        case SPHINCS_FAST_LEVEL3k:
+        case SPHINCS_FAST_LEVEL5k:
+        case SPHINCS_SMALL_LEVEL1k:
+        case SPHINCS_SMALL_LEVEL3k:
+        case SPHINCS_SMALL_LEVEL5k:
+            ret = wc_sphincs_verify_msg(sig, sigLen, tbsData, tbsDataSz, &verify, key->key.sphincs);
+            if (ret == 0 && verify != 1) {
+                ret = SIG_VERIFY_E;
+            }
+            break;
+#endif
+        default:
+            return BAD_FUNC_ARG;
+            break;
+    }
+
+    return 0;
+
 }
 
 int wc_AsymKey_MakeReq(const byte* der, word32 derSz, wc_509Req* req, const AsymKey* key) {
