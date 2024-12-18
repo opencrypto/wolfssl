@@ -2960,6 +2960,7 @@ WOLFSSL_LOCAL int  ParseX509Acert(DecodedAcert* cert, int verify);
 WOLFSSL_LOCAL int  VerifyX509Acert(const byte* cert, word32 certSz,
                                    const byte* pubKey, word32 pubKeySz,
                                    int pubKeyOID, void * heap);
+WOLFSSL_LOCAL CertName * CertName_new(CertName * certName, const char * strName, void * heap);
 #endif /* WOLFSSL_ACERT */
 
 

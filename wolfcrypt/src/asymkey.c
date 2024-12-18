@@ -714,12 +714,6 @@ int wc_AsymKey_Oid(const AsymKey * key) {
     return 0;
 }
 
-/* Get the type of certificate associated with the key.
- *
- * key   [in]  The public/private keypair to query.
- * returns a value from enum CertType for the key.
- * returns BAD_FUNC_ARG when key is NULL or type has not been set.
- */
 int wc_AsymKey_CertType(const AsymKey* key) {
 
     int ret = 0;
@@ -894,55 +888,26 @@ int wc_AsymKey_size(const AsymKey* key) {
 
 }
 
-/* Returns the size of a public key.
- *
- * @param [in] key  The public/private keypair to query.
- * @return  Public key size on success for set level.
- * @return  BAD_FUNC_ARG when key is NULL or level not set,
- */
+
 int wc_AsymKey_pub_size(const AsymKey* key) {
 
   (void)key;
   return NOT_COMPILED_IN;
 }
 
-/* Returns the size of a private key signature.
- *
- * @param [in] key  The public/private keypair to query.
- * @return  Signature size on success.
- * @return  BAD_FUNC_ARG when key is NULL or level not set,
- */
-WOLFSSL_API int wc_AsymKey_sig_size(const AsymKey* key) {
+int wc_AsymKey_sig_size(const AsymKey* key) {
 
   (void)key;
   return NOT_COMPILED_IN;
 }
 
-/* Check the public key matches the private key.
- *
- * @param [in] key  The public/private keypair to check.
- * @return  0 on success.
- * @return  BAD_FUNC_ARG when key is NULL or no private key available,
- * @return  PUBLIC_KEY_E when the public key is not set or doesn't match,
- * @return  MEMORY_E when dynamic memory allocation fails.
- */
-WOLFSSL_API int wc_AsymKey_check(const AsymKey* key) {
+int wc_AsymKey_check(const AsymKey* key) {
 
   (void)key;
   return NOT_COMPILED_IN;
 }
 
-/* Import a public key from a byte array.
- *
- * @param [out] key     Asymmetric key.
- * @param [in]  type    Type of Public key to import.
- * @param [in]  in      Key data.
- * @param [in]  inLen   Size of key data.
- * @param [in]  format  Format of key data (1 = PEM, 0 = DER).
- * @return  0 on success.
- * @return  BAD_FUNC_ARG when in or key is NULL or key format is not supported.
- */
-WOLFSSL_API int wc_AsymKey_Public_import(AsymKey* key, int type, const byte* in, word32 inLen, int format) {
+int wc_AsymKey_Public_import(AsymKey* key, int type, const byte* in, word32 inLen, int format) {
 
   (void)key;
   (void)type;
@@ -953,17 +918,7 @@ WOLFSSL_API int wc_AsymKey_Public_import(AsymKey* key, int type, const byte* in,
   return NOT_COMPILED_IN;
 }
 
-/* Export a Public key.
- *
- * @param [out]  buff      Array to hold the exported public key.
- * @param [in]   buffLen   Number of bytes in the array.
- * @param [in]   format    Format of key data (1 = PEM, 0 = DER).
- * @param [in]   key       The public key to export.
- * @return  0 on success.
- * @return  BAD_FUNC_ARG when a parameter is NULL.
- * @return  BUFFER_E when outLen is less than DILITHIUM_LEVEL2_PUB_KEY_SIZE.
- */
-WOLFSSL_API int wc_AsymKey_Public_export(byte* buff, word32 buffLen, int format, const AsymKey* key) {
+int wc_AsymKey_Public_export(byte* buff, word32 buffLen, int format, const AsymKey* key) {
   
   (void)key;
   (void)buff;
@@ -1623,15 +1578,6 @@ int wc_AsymKey_export_ex(const AsymKey * key,
     return ret;
 }
 
-
-/* Retrieves the OID of the keypair.
- *
- * @param [in]  p8_data    Array holding the PKCS#8 encoded KeyPair.
- * @param [in]  p8_dataSz  Number of bytes of data in array.
- * @param [out] oid        The OID of the keypair.
- * @return  0 on success.
- * @return  BAD_FUNC_ARG when p8_data or p8_dataSz is NULL.
- */
 int wc_AsymKey_info(word32 * oid, byte * pkcsData, word32 pkcsDataSz, int format) {
   int ret = 0;
     word32 algorSum = 0;
@@ -1691,20 +1637,21 @@ int wc_AsymKey_info(word32 * oid, byte * pkcsData, word32 pkcsDataSz, int format
     return ret;
 }
 
-int wc_AsymKey_Sign(byte* sig, word32* sigLen, const byte* msg, word32 msgLen, const AsymKey* key,
-    WC_RNG* rng) {
+int wc_AsymKey_Sign(byte* sig, word32* sigLen, const byte* msg, word32 msgLen,
+                    enum wc_HashType hashType, const AsymKey* key, WC_RNG* rng) {
 
-  (void)sig;
-  (void)sigLen;
-  (void)msg;
-  (void)msgLen;
-  (void)key;
-  (void)rng;
+    (void)sig;
+    (void)sigLen;
+    (void)msg;
+    (void)msgLen;
+    (void)hashType;
+    (void)key;
+    (void)rng;
 
-  return NOT_COMPILED_IN;
+    return NOT_COMPILED_IN;
 }
 
-WOLFSSL_API int wc_AsymKey_Verify(const AsymKey* key, const byte* sig, word32 sigLen,
+int wc_AsymKey_Verify(const AsymKey* key, const byte* sig, word32 sigLen,
         const byte* msg, word32 msgLen, int* res) {
 
   (void)key;
@@ -1717,8 +1664,10 @@ WOLFSSL_API int wc_AsymKey_Verify(const AsymKey* key, const byte* sig, word32 si
   return NOT_COMPILED_IN;
 }
 
-WOLFSSL_API int wc_AsymKey_Sign_ex(const AsymKey* key, const byte* in, word32 inLen,
-        byte* out, word32* outLen, WC_RNG* rng, const byte* context, byte contextLen) {
+int wc_AsymKey_Sign_ex(byte* out, word32* outLen, 
+        const byte* in, word32 inLen,
+        const byte* context, byte contextLen,
+        const AsymKey* key, WC_RNG* rng) {
 
   (void)key;
   (void)in;
@@ -1732,7 +1681,7 @@ WOLFSSL_API int wc_AsymKey_Sign_ex(const AsymKey* key, const byte* in, word32 in
   return NOT_COMPILED_IN;
 }
 
-WOLFSSL_API int wc_AsymKey_Verify_ex(const AsymKey* key, const byte* sig, word32 sigLen,
+int wc_AsymKey_Verify_ex(const AsymKey* key, const byte* sig, word32 sigLen,
         const byte* in, word32 inLen, int* res, const byte* context, byte contextLen) {
 
   (void)key;
@@ -1747,4 +1696,118 @@ WOLFSSL_API int wc_AsymKey_Verify_ex(const AsymKey* key, const byte* sig, word32
   return NOT_COMPILED_IN;
 }
 
+int wc_AsymKey_MakeReq(const byte* der, word32 derSz, wc_509Req* req, const AsymKey* key) {
 
+    (void)key;
+    (void)req;
+    (void)der;
+    (void)derSz;
+
+    // wc_MakeCertReq_ex(req, der, derSz, keyType, void * key);
+
+    return NOT_COMPILED_IN;
+}
+
+int wc_AsymKey_MakeCert(const byte * der, word32 derLen, wc_509Cert* req, const AsymKey* key, WC_RNG* rng) {
+
+    (void)key;
+    (void)req;
+    (void)der;
+    (void)derLen;
+    (void)rng;
+
+    // wc_MakeCert_ex(cert, der, derSz, keyType, void * key, rng);
+
+    return NOT_COMPILED_IN;
+}
+
+int wc_AsymKey_Req_Sign(const byte * der, word32 derLen, wc_509Req * req, enum wc_HashType htype, const AsymKey* key, WC_RNG* rng) {
+
+    (void)der;
+    (void)derLen;
+    (void)req;
+    (void)htype;
+    (void)key;
+    (void)rng;
+
+    return NOT_COMPILED_IN;
+}
+
+int wc_AsymKey_Req_Sign_ex(const byte * der, word32 derLen, wc_509Req * req, enum wc_HashType htype, const byte* context, byte contextLen, const AsymKey* key, WC_RNG* rng) {
+
+    (void)der;
+    (void)derLen;
+    (void)req;
+    (void)htype;
+    (void)context;
+    (void)contextLen;
+    (void)key;
+    (void)rng;
+
+    return NOT_COMPILED_IN;
+}
+
+int wc_AsymKey_Req_Verify(const byte * der, word32 derLen) {
+
+    (void)der;
+    (void)derLen;
+
+    return NOT_COMPILED_IN;
+}
+
+int wc_AsymKey_Req_Verify_ex(const byte * der, word32 derLen, const byte* context, byte contextLen, const AsymKey* caKey) {
+
+    (void)der;
+    (void)derLen;
+    (void)context;
+    (void)contextLen;
+    (void)caKey;
+
+    return NOT_COMPILED_IN;
+}
+
+int wc_AsymKey_Cert_Sign(const byte * der, word32 derLen, wc_509Req * req, enum wc_HashType htype, const AsymKey* caKey, WC_RNG* rng) {
+
+    (void)der;
+    (void)derLen;
+    (void)req;
+    (void)htype;
+    (void)caKey;
+    (void)rng;
+
+    return NOT_COMPILED_IN;
+}
+
+int wc_AsymKey_Cert_Sign_ex(const byte * der, word32 derLen, wc_509Req * req, enum wc_HashType htype, const byte* context, byte contextLen, const AsymKey* key, WC_RNG* rng) {
+
+    (void)der;
+    (void)derLen;
+    (void)req;
+    (void)htype;
+    (void)context;
+    (void)contextLen;
+    (void)key;
+    (void)rng;
+
+    return NOT_COMPILED_IN;
+}
+
+int wc_AsymKey_Cert_Verify(const byte * der, word32 derLen, const AsymKey * key) {
+
+    (void)der;
+    (void)derLen;
+    (void)key;
+
+    return NOT_COMPILED_IN;
+}
+
+int wc_AsymKey_Cert_Verify_ex(const byte * der, word32 derLen, const byte* context, byte contextLen, const AsymKey * caKey) {
+
+    (void)der;
+    (void)derLen;
+    (void)context;
+    (void)contextLen;
+    (void)caKey;
+
+    return NOT_COMPILED_IN;
+}

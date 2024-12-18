@@ -32243,7 +32243,7 @@ static int EncodeCertReq(Cert* cert, DerCert* der, RsaKey* rsaKey,
                          DsaKey* dsaKey, ecc_key* eccKey,
                          ed25519_key* ed25519Key, ed448_key* ed448Key,
                          falcon_key* falconKey, dilithium_key* dilithiumKey,
-                         sphincs_key* sphincsKey)
+                         sphincs_key* sphincsKey, mldsa_composite_key * mldsaCompKey)
 {
     int ret;
 
@@ -32363,6 +32363,14 @@ static int EncodeCertReq(Cert* cert, DerCert* der, RsaKey* rsaKey,
         if (dilithiumKey == NULL)
             return PUBLIC_KEY_E;
         der->publicKeySz = wc_Dilithium_PublicKeyToDer(dilithiumKey,
+            der->publicKey, (word32)sizeof(der->publicKey), 1);
+    }
+#endif
+#if defined(HAVE_MLDSA_COMPOSITE)
+    if (mldsa_composite_type_level(cert->keyType) > 0) {
+        if (mldsaCompKey == NULL)
+            return PUBLIC_KEY_E;
+        der->publicKeySz = wc_MlDsaComposite_PublicKeyToDer(mldsaCompKey,
             der->publicKey, (word32)sizeof(der->publicKey), 1);
     }
 #endif
@@ -32738,6 +32746,12 @@ static int MakeCertReq(Cert* cert, byte* derBuffer, word32 derSz,
         cert->keyType = ML_DSA_LEVEL5_KEY;
     }
 #endif /* HAVE_DILITHIUM */
+#ifdef HAVE_MLDSA_COMPOSITE
+    else if ((mldsaCompKey != NULL) &&
+                (dilithiumKey->params->level == WC_ML_DSA_87)) {
+        cert->keyType = wc_mldsa_composite_type(mldsaCompKey);
+    }
+#endif
 #ifdef HAVE_SPHINCS
     else if ((sphincsKey != NULL) && (sphincsKey->level == 1)
              && (sphincsKey->optim == FAST_VARIANT))
@@ -32769,7 +32783,7 @@ static int MakeCertReq(Cert* cert, byte* derBuffer, word32 derSz,
 #endif
 
     ret = EncodeCertReq(cert, der, rsaKey, dsaKey, eccKey, ed25519Key, ed448Key,
-                        falconKey, dilithiumKey, sphincsKey);
+                        falconKey, dilithiumKey, sphincsKey, mldsaCompKey);
 
     if (ret == 0) {
         if (der->total + MAX_SEQ_SZ * 2 > (int)derSz)
@@ -43084,6 +43098,151 @@ int wc_VerifyX509Acert(const byte* acert, word32 acertSz,
 {
     return VerifyX509Acert(acert, acertSz, pubKey, pubKeySz,
                            pubKeyOID, heap);
+}
+
+/* Parses the text representation of a X500 name into a CertName.
+*
+* @param [in]      name     The text representation of the name.
+* @param [in]      heap     The heap hint.
+* @return  A pointer to the CertName object.
+* @return  NULL on error.
+*/
+int wc_CertName_set(CertName * certName, const char * strName)
+{
+    if (!certName || !strName)
+        return BAD_FUNC_ARG;
+
+    // Write a loop that can parse X509 Subject names that are
+    // formatted as <NAME>=<VALUE>,<NAME>=<VALUE>,...<NAME>=<VALUE>
+    // For example, "CN=www.wolfssl.com,O=WolfSSL,C=US"
+    // The loop should be able to handle the following:
+    // 1. Ignore leading and trailing white space
+    // 2. Ignore white space between the comma and the next name
+    // 3. Ignore white space between the equal sign and the value
+    // 4. Handle escaping of commas and equal signs in the value
+    // 5. Copy the data from the strName to the CertName fields (e.g., O=<...>, OU=<...>, etc.)
+    // 6. Return an error if the name is not formatted correctly
+    const char *ptr = strName;
+    const char *start;
+    char name[256], value[256];
+    int name_len, value_len;
+
+    while (*ptr) {
+        // Skip leading white space
+        while (*ptr == ' ' || *ptr == '\t') ptr++;
+
+        // Find the start of the name
+        start = ptr;
+        while (*ptr && *ptr != '=') ptr++;
+        if (*ptr != '=') return BAD_FUNC_ARG; // Invalid format
+
+        // Copy the name
+        name_len = ptr - start;
+        if ((long unsigned int)name_len >= sizeof(name)) return BUFFER_E; // Name too long
+        strncpy(name, start, name_len);
+        name[name_len] = '\0';
+
+        // Skip the equal sign and any white space
+        ptr++;
+        while (*ptr == ' ' || *ptr == '\t') ptr++;
+
+        // Find the start of the value
+        start = ptr;
+        while (*ptr && *ptr != ',') {
+            if (*ptr == '\\' && (*(ptr + 1) == ',' || *(ptr + 1) == '=')) {
+                ptr++; // Skip the escape character
+            }
+            ptr++;
+        }
+
+        // Copy the value
+        value_len = ptr - start;
+        if ((long unsigned int)value_len >= sizeof(value)) return BUFFER_E; // Value too long
+        strncpy(value, start, value_len);
+        value[value_len] = '\0';
+
+        // Assign the name and value to the CertName structure
+        if (strcmp(name, "C") == 0
+            || strcmp(name, "countryName") == 0) {
+            strncpy(certName->country, value, sizeof(certName->country));
+        } else if (strcmp(name, "S") == 0
+            || strcmp(name, "stateOrProvinceName") == 0) {
+            strncpy(certName->state, value, sizeof(certName->state));
+        } else if (strcmp(name, "ST") == 0
+            || strcmp(name, "state") == 0) {
+            strncpy(certName->street, value, sizeof(certName->street));
+        } else if (strcmp(name, "L") == 0
+            || strcmp(name, "localityName") == 0) {
+            strncpy(certName->locality, value, sizeof(certName->locality));
+        } else if (strcmp(name, "SUR") == 0
+            || strcmp(name, "surname") == 0) {
+            strncpy(certName->sur, value, sizeof(certName->sur));
+        } else if (strcmp(name, "GN") == 0
+            || strcmp(name, "givenName") == 0) {
+            strncpy(certName->givenName, value, sizeof(certName->givenName));
+        } else if (strcmp(name, "IN") == 0
+            || strcmp(name, "initials") == 0) {
+            strncpy(certName->initials, value, sizeof(certName->initials));
+        } else if (strcmp(name, "DC") == 0
+            || strcmp(name, "domainComponent") == 0) {
+            strncpy(certName->dnName, value, sizeof(certName->dnName));
+        } else if (strcmp(name, "O") == 0
+            || strcmp(name, "organizationName") == 0) {
+            strncpy(certName->org, value, sizeof(certName->org));
+        } else if (strcmp(name, "OU") == 0
+            || strcmp(name, "organizationalUnitName") == 0) {
+            strncpy(certName->unit, value, sizeof(certName->unit));
+        } else if (strcmp(name, "CN") == 0
+            || strcmp(name, "commonName") == 0) {
+            strncpy(certName->commonName, value, sizeof(certName->commonName));
+        } else if (strcmp(name, "SN") == 0
+            || strcmp(name, "serialNumber") == 0) {
+            strncpy(certName->serialDev, value, sizeof(certName->serialDev));
+        } else if (strcmp(name, "UID") == 0
+            || strcmp(name, "userId") == 0) {
+            strncpy(certName->userId, value, sizeof(certName->userId));
+        } else if (strcmp(name, "E") == 0
+            || strcmp(name, "emailAddress") == 0) {
+            strncpy(certName->email, value, sizeof(certName->email));
+        } else {
+            return NOT_COMPILED_IN;
+        }
+
+        // Skip the comma and any white space
+        if (*ptr == ',') ptr++;
+        while (*ptr == ' ' || *ptr == '\t') ptr++;
+    }
+
+    return 0; // Success
+}
+
+/* Allocates a new CertName structure */
+CertName * wc_CertName_new(void * heap)
+{
+    CertName * ret = XMALLOC(sizeof(CertName), heap, DYNAMIC_TYPE_TMP_BUFFER);
+    if (ret) {
+        XMEMSET(ret, 0, sizeof(CertName));
+    }
+
+    return ret;
+}
+
+/* Initializes a CertName (zeroize)*/
+int wc_CertName_init(CertName * certName)
+{
+    if (!certName)
+        return BAD_FUNC_ARG;
+    
+    XMEMSET(certName, 0, sizeof(CertName));
+
+    return 0;
+}
+
+/* Frees the CertName object. */
+void wc_CertName_free(CertName * certName)
+{
+    if (!certName) return;
+    XFREE(certName, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 }
 
 #endif /* WOLFSSL_ACERT && WOLFSSL_ASN_TEMPLATE */

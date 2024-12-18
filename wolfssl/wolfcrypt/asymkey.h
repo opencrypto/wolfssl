@@ -121,6 +121,10 @@ typedef struct AsymKey {
     word8 isPQC;
 } AsymKey;
 
+/* Type Defs for More Expressive Names */
+typedef struct Cert wc_509Cert;
+typedef struct Cert wc_509Req;
+
 /* Functions */
 
 /* Allocates the memory associated with a new AsymKey.
@@ -309,6 +313,30 @@ WOLFSSL_API int wc_AsymKey_export_ex(const AsymKey* key, byte* buff, word32 buff
  */
 WOLFSSL_API int wc_AsymKey_info(word32 * oid, byte * pkcsData, word32 pkcsDataSz, int format);
 
+/* Make a new certificate request (PKCS#10).
+ *
+ * @param [in]  der     The DER encoded certificate request.
+ * @param [in]  derSz   The size of the DER encoded certificate request.
+ * @param [out] req     The certificate request.
+ * @param [in]  key     The key to make the request with.
+ * @return  0 on success.
+ * @return  BAD_FUNC_ARG when a parameter is NULL.
+ * @return  NOT_COMPILED_IN when the function is not compiled in.
+ */
+WOLFSSL_API int wc_AsymKey_MakeReq(const byte* der, word32 derSz, wc_509Req* req, const AsymKey* key);
+
+/* Make a new certificate (X509).
+ *
+ * @param [in]  req     The certificate request.
+ * @param [in]  dn      Distinguished Name.
+ * @param [in]  key     The key to make the certificate with.
+ * @param [in]  rng     Random number generator.
+ * @return  0 on success.
+ * @return  BAD_FUNC_ARG when a parameter is NULL.
+ * @return  NOT_COMPILED_IN when the function is not compiled in.
+ */
+WOLFSSL_API int wc_AsymKey_MakeCert(const byte * der, word32 derLen, wc_509Cert* req, const AsymKey* key, WC_RNG* rng);
+
 /* Sign a message with the key.
  *
  * @param [out] sig    Array to hold the signature.
@@ -322,23 +350,8 @@ WOLFSSL_API int wc_AsymKey_info(word32 * oid, byte * pkcsData, word32 pkcsDataSz
  * @return  BAD_FUNC_ARG when a parameter is NULL.
  * @return  NOT_COMPILED_IN when the function is not compiled in.
  */
-WOLFSSL_API int wc_AsymKey_Sign(byte* sig, word32* sigLen, const byte* msg, word32 msgLen, const AsymKey* key,
-    WC_RNG* rng);
-
-/* Verify a message with the key.
-*
-* @param [in] key     The key to verify with.
-* @param [in] sig     Signature to verify.
-* @param [in] sigLen  Number of bytes in signature.
-* @param [in] msg     Message to verify.
-* @param [in] msgLen  Number of bytes in message.
-* @param [out] res    Result of the verification.
-* @return  0 on success.
-* @return  BAD_FUNC_ARG when a parameter is NULL.
-* @return  NOT_COMPILED_IN when the function is not compiled in.
-*/
-WOLFSSL_API int wc_AsymKey_Verify(const AsymKey* key, const byte* sig, word32 sigLen,
-        const byte* msg, word32 msgLen, int* res);
+WOLFSSL_API int wc_AsymKey_Sign(byte* sig, word32* sigLen, const byte* msg, word32 msgLen,
+                                enum wc_HashType hashType, const AsymKey* key, WC_RNG* rng);
 
 /*
 * Sign a message with the key.
@@ -356,8 +369,25 @@ WOLFSSL_API int wc_AsymKey_Verify(const AsymKey* key, const byte* sig, word32 si
 * @return  BAD_FUNC_ARG when a parameter is NULL.
 * @return  NOT_COMPILED_IN when the function is not compiled in.
 */
-WOLFSSL_API int wc_AsymKey_Sign_ex(const AsymKey* key, const byte* in, word32 inLen,
-        byte* out, word32* outLen, WC_RNG* rng, const byte* context, byte contextLen);
+WOLFSSL_API int wc_AsymKey_Sign_ex(byte* out, word32* outLen, 
+        const byte* in, word32 inLen,
+        const byte* context, byte contextLen,
+        const AsymKey* key, WC_RNG* rng);
+
+/* Verify a message with the key.
+*
+* @param [in] key     The key to verify with.
+* @param [in] sig     Signature to verify.
+* @param [in] sigLen  Number of bytes in signature.
+* @param [in] msg     Message to verify.
+* @param [in] msgLen  Number of bytes in message.
+* @param [out] res    Result of the verification.
+* @return  0 on success.
+* @return  BAD_FUNC_ARG when a parameter is NULL.
+* @return  NOT_COMPILED_IN when the function is not compiled in.
+*/
+WOLFSSL_API int wc_AsymKey_Verify(const AsymKey* key, const byte* sig, word32 sigLen,
+        const byte* msg, word32 msgLen, int* res);
 
 /*
 * Verify a message with the key.
@@ -374,10 +404,20 @@ WOLFSSL_API int wc_AsymKey_Sign_ex(const AsymKey* key, const byte* in, word32 in
 * @return  BAD_FUNC_ARG when a parameter is NULL.
 * @return  NOT_COMPILED_IN when the function is not compiled in.
 */
-
 WOLFSSL_API int wc_AsymKey_Verify_ex(const AsymKey* key, const byte* sig, word32 sigLen,
         const byte* in, word32 inLen, int* res, const byte* context, byte contextLen);
 
+WOLFSSL_API int wc_AsymKey_Req_Sign(const byte * der, word32 derLen, wc_509Req * req, enum wc_HashType htype, const AsymKey* key, WC_RNG* rng);
+WOLFSSL_API int wc_AsymKey_Req_Sign_ex(const byte * der, word32 derLen, wc_509Req * req, enum wc_HashType htype, const byte* context, byte contextLen, const AsymKey* key, WC_RNG* rng);
+
+WOLFSSL_API int wc_AsymKey_Req_Verify(const byte * der, word32 derLen);
+WOLFSSL_API int wc_AsymKey_Req_Verify_ex(const byte * der, word32 derLen, const byte* context, byte contextLen, const AsymKey* caKey);
+
+WOLFSSL_API int wc_AsymKey_Cert_Sign(const byte * der, word32 derLen, wc_509Req * req, enum wc_HashType htype, const AsymKey* caKey, WC_RNG* rng);
+WOLFSSL_API int wc_AsymKey_Cert_Sign_ex(const byte * der, word32 derLen, wc_509Req * req, enum wc_HashType htype, const byte* context, byte contextLen, const AsymKey* key, WC_RNG* rng);
+
+WOLFSSL_API int wc_AsymKey_Cert_Verify(const byte * der, word32 derLen, const AsymKey * key);
+WOLFSSL_API int wc_AsymKey_Cert_Verify_ex(const byte * der, word32 derLen, const byte* context, byte contextLen, const AsymKey * caKey);
 #ifdef __cplusplus
     }    /* extern "C" */
 #endif

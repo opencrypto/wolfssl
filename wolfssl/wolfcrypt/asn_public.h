@@ -1070,6 +1070,12 @@ WOLFSSL_API int  wc_ParseX509Acert(struct DecodedAcert* acert, int verify);
 WOLFSSL_API int  wc_VerifyX509Acert(const byte* acert, word32 acertSz,
                                     const byte* pubKey, word32 pubKeySz,
                                     int pubKeyOID, void * heap);
+
+/* Generic Functions for AsymKey and PKI operations */
+WOLFSSL_API CertName * wc_CertName_new(void * heap);
+WOLFSSL_API int wc_CertName_init(CertName * certName);
+WOLFSSL_API int wc_CertName_set(CertName * certName, const char * strName);
+WOLFSSL_API void wc_CertName_free(CertName * certName);
 #endif /* WOLFSSL_ACERT */
 
 #if !defined(XFPRINTF) || defined(NO_FILESYSTEM) || \

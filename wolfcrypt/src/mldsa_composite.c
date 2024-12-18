@@ -1827,7 +1827,6 @@ int wc_mldsa_composite_type_level(int type) {
 
         case WC_MLDSA_COMPOSITE_UNDEF:
         default:
-            MADWOLF_DEBUG("Invalid ML-DSA composite type: %d", type);
             ret = BAD_FUNC_ARG;
     }
 

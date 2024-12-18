@@ -107,8 +107,6 @@ int load_key_p8(AsymKey ** key, int type, const char * key_file, int format) {
         return -1;
     }
 
-    printf(">>>> Key Algorithm: %d\n", algorSum);
-
     // Allocates memory for the key
     asymKeyPtr = wc_AsymKey_new();
     if (asymKeyPtr == NULL) {
@@ -244,16 +242,21 @@ int gen_csr(const AsymKey * keyPair, const AsymKey * altkey, const char * out_fi
         algName = "Unknown";
     }
 
-    printf("CertType: %d, keySum: %d, algName: %s\n", certType, keySum, algName);
+    // strncpy(req.subject.country, "US", CTC_NAME_SIZE);
+    // // strncpy(req.subject.state, "OR", CTC_NAME_SIZE);
+    // // strncpy(req.subject.locality, "Portland", CTC_NAME_SIZE);
+    // strncpy(req.subject.org, "wolfSSL", CTC_NAME_SIZE);
+    // strncpy(req.subject.unit, "Test", CTC_NAME_SIZE);
+    // strncpy(req.subject.commonName, algName, CTC_NAME_SIZE);
+    // strncpy(req.subject.email, "info@wolfssl.com", CTC_NAME_SIZE);
 
-    strncpy(req.subject.country, "US", CTC_NAME_SIZE);
-    // strncpy(req.subject.state, "OR", CTC_NAME_SIZE);
-    // strncpy(req.subject.locality, "Portland", CTC_NAME_SIZE);
-    strncpy(req.subject.org, "wolfSSL", CTC_NAME_SIZE);
-    strncpy(req.subject.unit, "Test", CTC_NAME_SIZE);
-    strncpy(req.subject.commonName, algName, CTC_NAME_SIZE);
-    strncpy(req.subject.email, "info@wolfssl.com", CTC_NAME_SIZE);
+    // Sets Request Version
     req.version = 0;
+
+    if (wc_CertName_set(&req.subject, "C=US, O=wolfSSL, OU=Test, CN=Test") < 0) {
+        printf("Error parsing subject\n");
+        goto exit;
+    }
 
     // Forcing the type
     // certType = MLDSA44_RSAPSS2048_TYPE;
