@@ -287,9 +287,8 @@ int wc_AsymKey_gen(AsymKey      ** key,
                 ret = keySz;
                 goto err;
             }
-        
-            if (param <= 0)
-                param = ECC_SECP256R1;
+
+            MADWOLF_DEBUG("Generating ECC key - keySz: %d, eccCurve: %d", keySz, param);
 
             keyPtr = (void*)XMALLOC(sizeof(ecc_key), NULL, DYNAMIC_TYPE_ECC);
             if (keyPtr == NULL) {
@@ -308,6 +307,10 @@ int wc_AsymKey_gen(AsymKey      ** key,
                 XFREE(keyPtr, NULL, DYNAMIC_TYPE_ECC);
                 goto err;
             }
+            int test = 0;
+            test = wc_ecc_get_curve_id(((ecc_key *)keyPtr)->idx);
+            MADWOLF_DEBUG("Generated ECC key - keySz: %d, eccCurve: %d", keySz, test);
+
             keyType = ECC_TYPE;
 #endif
             break;
@@ -1346,13 +1349,11 @@ int wc_AsymKey_export_ex(const AsymKey * key,
         // Key OID (enum Key_Sum)
 
     if (!key) {
-        MADWOLF_DEBUG0("Invalid key\n");
         return BAD_FUNC_ARG;
     }
 
     keyOid = ret = wc_AsymKey_Oid(key);
     if (ret < 0) {
-        MADWOLF_DEBUG("Invalid key Oid (Sum: %d)\n", keyOid);
         return BAD_FUNC_ARG;
     }
 
@@ -1461,12 +1462,7 @@ int wc_AsymKey_export_ex(const AsymKey * key,
             if (ret != LENGTH_ONLY_E) {
                 MADWOLF_DEBUG("Error creating PKCS8 key (%d)\n", ret);
                 XFREE(derPtr, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-                return BAD_FUNC_ARG;
-            }
-
-            if (!buff) {
-                XFREE(derPtr, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-                return derPkcsSz;
+                return ret;
             }
 
             derPkcsPtr = (byte *)XMALLOC(derPkcsSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -1475,19 +1471,19 @@ int wc_AsymKey_export_ex(const AsymKey * key,
                 return MEMORY_E;
             }
 
-            ret = wc_CreatePKCS8Key(derPkcsPtr, &derPkcsSz, derPtr, derSz, keyOid, curveOid, curveOidSz);
-            if (ret < 0) {
-                MADWOLF_DEBUG("Error creating PKCS8 key (%d)\n", ret);
-                XFREE(derPtr, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-                XFREE(derPkcsPtr, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-                return ret;
+            if (buff) {
+                ret = wc_CreatePKCS8Key(derPkcsPtr, &derPkcsSz, derPtr, derSz, keyOid, curveOid, curveOidSz);
+                if (ret < 0) {
+                    MADWOLF_DEBUG("Error creating PKCS8 key (%d)\n", ret);
+                    XFREE(derPtr, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                    XFREE(derPkcsPtr, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                    return ret;
+                }
             }
             XFREE(derPtr, NULL, DYNAMIC_TYPE_TMP_BUFFER);
             derPtr = NULL;
             derSz = 0;
             // No Need to convert to PKCS8
-            // p8_data = derPtr;
-            // p8_outSz = derSz;
             break;
 #endif
 #ifdef HAVE_ED25519
@@ -1678,9 +1674,6 @@ int wc_AsymKey_export_ex(const AsymKey * key,
             return BAD_FUNC_ARG;
     }
 
-    // keyData = p8_data;
-    // outSz = p8_outSz;
-
     // --------------------
     // Export to PEM format
     // --------------------
@@ -1716,9 +1709,9 @@ int wc_AsymKey_export_ex(const AsymKey * key,
     }
 #endif
 
+
     if (buff) {
         if (buffLen < derPkcsSz) {
-            MADWOLF_DEBUG("Buffer too small (%d < %d)\n", buffLen, derPkcsSz);
             XFREE(derPkcsPtr, NULL, DYNAMIC_TYPE_TMP_BUFFER);
             return BUFFER_E;
         }

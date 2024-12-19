@@ -892,11 +892,9 @@ int gen_keypair(AsymKey ** key, int keySum, int param) {
 
 int main(int argc, char** argv) {
 
-#if !defined(WOLFSSL_CERT_REQ) || !defined(WOLFSSL_CERT_GEN) || !defined(WOLFSSL_KEY_GEN) || \
-    !defined(WOLFSSL_CERT_EXT) || !defined(WOLFSSL_HAVE_MLDSA_COMPOSITE)
+#if !defined(WOLFSSL_CERT_REQ) || !defined(WOLFSSL_CERT_GEN) || !defined(WOLFSSL_KEY_GEN) || !defined(WOLFSSL_CERT_EXT) 
     printf("Please compile wolfSSL with --enable-certreq --enable-certgen\n"
-           "  --enable-keygen --enable-certext --enable-experimental --enable-mldsa-composite\n"
-           "  CFLAGS=-DOPENSSL_EXTRA_X509_SMALL\n");
+           "  --enable-keygen --enable-certext\n");
     return 0;
 #else
     enum Key_Sum keySum = ML_DSA_LEVEL2k;
@@ -990,22 +988,48 @@ int main(int argc, char** argv) {
         } else if (XSTRNCMP(argv[i], "-curve", 6) == 0) {
             i++;
                    if (!XSTRNCMP(argv[i], "nistp256", 8) ||
-                       !XSTRNCMP(argv[i], "NISTP256", 8)) {
+                       !XSTRNCMP(argv[i], "NISTP256", 8) ||
+                       !XSTRNCMP(argv[i], "prime256v1", 10) ||
+                       !XSTRNCMP(argv[i], "PRIME256V1", 10) ||
+                       !XSTRNCMP(argv[i], "secp256r1", 9) ||
+                       !XSTRNCMP(argv[i], "SECP256R1", 9) ||
+                       !XSTRNCMP(argv[i], "p256", 4) ||
+                       !XSTRNCMP(argv[i], "P256", 4)) {
                 param = ECC_SECP256R1;
             } else if (!XSTRNCMP(argv[i], "nistp384", 8) ||
-                       !XSTRNCMP(argv[i], "NISTP384", 8)) {
+                       !XSTRNCMP(argv[i], "NISTP384", 8) ||
+                       !XSTRNCMP(argv[i], "secp384r1", 9) ||
+                       !XSTRNCMP(argv[i], "SECP384R1", 9) ||
+                       !XSTRNCMP(argv[i], "P384", 4) ||
+                       !XSTRNCMP(argv[i], "p384", 4)) {
                 param = ECC_SECP384R1;
             } else if (!XSTRNCMP(argv[i], "nistp521", 8) ||
-                       !XSTRNCMP(argv[i], "NISTP521", 8)) {
+                       !XSTRNCMP(argv[i], "NISTP521", 8) ||
+                       !XSTRNCMP(argv[i], "secp521r1", 9) ||
+                       !XSTRNCMP(argv[i], "SECP521R1", 9) ||
+                       !XSTRNCMP(argv[i], "P521", 4) ||
+                       !XSTRNCMP(argv[i], "p521", 4)) {
                 param = ECC_SECP521R1;
             } else if (!XSTRNCMP(argv[i], "bpool256", 8) ||
-                       !XSTRNCMP(argv[i], "BPOOL256", 8)) {
+                       !XSTRNCMP(argv[i], "BPOOL256", 8) ||
+                       !XSTRNCMP(argv[i], "brainpool256", 11) ||
+                       !XSTRNCMP(argv[i], "BRAINPOOL256", 11) ||
+                       !XSTRNCMP(argv[i], "bp256", 5) ||
+                       !XSTRNCMP(argv[i], "BP256", 5)) {
                 param = ECC_BRAINPOOLP256R1;
-            } else if (XSTRNCMP(argv[i], "bpool384", 8) ||
-                       !XSTRNCMP(argv[i], "BPOOL384", 8)) {
+            } else if (!XSTRNCMP(argv[i], "bpool384", 8) ||
+                       !XSTRNCMP(argv[i], "BPOOL384", 8) ||
+                       !XSTRNCMP(argv[i], "brainpool384", 11) ||
+                       !XSTRNCMP(argv[i], "BRAINPOOL384", 11) ||
+                       !XSTRNCMP(argv[i], "bp384", 5) ||
+                       !XSTRNCMP(argv[i], "BP384", 5)) {
                 param = ECC_BRAINPOOLP384R1;
-            } else if (XSTRNCMP(argv[i], "bpool512", 8) ||
-                       !XSTRNCMP(argv[i], "BPOOL512", 8)) {
+            } else if (!XSTRNCMP(argv[i], "bpool512", 8) ||
+                       !XSTRNCMP(argv[i], "BPOOL512", 8) ||
+                       !XSTRNCMP(argv[i], "brainpool512", 11) ||
+                       !XSTRNCMP(argv[i], "BRAINPOOL512", 11) ||
+                       !XSTRNCMP(argv[i], "bp512", 5) ||
+                       !XSTRNCMP(argv[i], "BP512", 5)) {
                 param = ECC_BRAINPOOLP512R1;
             } else {
                 printf("Invalid curve type\n");
