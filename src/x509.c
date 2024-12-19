@@ -1478,9 +1478,14 @@ int wolfSSL_X509_add_ext(WOLFSSL_X509 *x509, WOLFSSL_X509_EXTENSION *ext,
             return WOLFSSL_FAILURE;
         }
 
+        /* ext->crit is WOLFSSL_ASN1_BOOLEAN */
+        if (ext->crit != 0 && ext->crit != -1) {
+            return WOLFSSL_FAILURE;
+        }
+
         /* x509->custom_exts now owns the buffers and they must be managed. */
         x509->custom_exts[x509->customExtCount].oid = oid;
-        x509->custom_exts[x509->customExtCount].crit = ext->crit;
+        x509->custom_exts[x509->customExtCount].crit = (byte)ext->crit;
         x509->custom_exts[x509->customExtCount].val = val;
         x509->custom_exts[x509->customExtCount].valSz = ext->value.length;
         x509->customExtCount++;
@@ -11562,6 +11567,7 @@ static int ConvertNIDToWolfSSL(int nid)
         case WC_NID_businessCategory: return ASN_BUS_CAT;
         case WC_NID_domainComponent: return ASN_DOMAIN_COMPONENT;
         case WC_NID_postalCode: return ASN_POSTAL_CODE;
+        case WC_NID_rfc822Mailbox: return ASN_RFC822_MAILBOX;
         case WC_NID_favouriteDrink: return ASN_FAVOURITE_DRINK;
         default:
             WOLFSSL_MSG("Attribute NID not found");
@@ -13796,6 +13802,10 @@ static int get_dn_attr_by_nid(int n, const char** buf)
         case WC_NID_title:
             str = "title";
             len = 5;
+            break;
+        case WC_NID_rfc822Mailbox:
+            str = "mail";
+            len = 4;
             break;
         default:
             WOLFSSL_MSG("Attribute type not found");

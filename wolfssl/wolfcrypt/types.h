@@ -370,6 +370,7 @@ typedef struct w64wrapper {
         WOLFSSL_WORD_BITS  = WOLFSSL_WORD_SIZE * WOLFSSL_BIT_SIZE
     };
 
+    #define WOLFSSL_MAX_8BIT  0xffU
     #define WOLFSSL_MAX_16BIT 0xffffU
     #define WOLFSSL_MAX_32BIT 0xffffffffU
 
@@ -1143,8 +1144,9 @@ typedef struct w64wrapper {
         WC_ALGO_TYPE_SEED = 5,
         WC_ALGO_TYPE_HMAC = 6,
         WC_ALGO_TYPE_CMAC = 7,
+        WC_ALGO_TYPE_CERT = 8,
 
-        WC_ALGO_TYPE_MAX = WC_ALGO_TYPE_CMAC
+        WC_ALGO_TYPE_MAX = WC_ALGO_TYPE_CERT
     };
 
     /* hash types */
@@ -1473,7 +1475,7 @@ typedef struct w64wrapper {
     #endif
 
     #ifdef SINGLE_THREADED
-        #if defined(WC_32BIT_CPU)
+        #if defined(WC_32BIT_CPU) || defined(HAVE_STACK_SIZE)
             typedef void*        THREAD_RETURN;
         #else
             typedef unsigned int THREAD_RETURN;

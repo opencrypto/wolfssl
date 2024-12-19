@@ -1278,8 +1278,8 @@ static int GetASN_StoreData(const ASNItem* asn, ASNGetData* data,
             /* Fill number with all of data. */
             *data->data.u16 = 0;
             for (i = 0; i < len; i++) {
-                *data->data.u16 <<= 8;
-                *data->data.u16 |= input[idx + (word32)i] ;
+                *data->data.u16 = (word16)(*data->data.u16 << 8U);
+                *data->data.u16 = (word16)(*data->data.u16 | input[idx + (word32)i]);
             }
             break;
         case ASN_DATA_TYPE_WORD32:
@@ -4741,6 +4741,7 @@ static const byte dnsSRVOid[] = {43, 6, 1, 5, 5, 7, 8, 7};
 /* Pilot attribute types (0.9.2342.19200300.100.1.*) */
 #define PLT_ATTR_TYPE_OID_BASE(num) {9, 146, 38, 137, 147, 242, 44, 100, 1, num}
 static const byte uidOid[] = PLT_ATTR_TYPE_OID_BASE(1); /* user id */
+static const byte rfc822Mlbx[] = PLT_ATTR_TYPE_OID_BASE(3); /* RFC822 mailbox */
 static const byte fvrtDrk[] = PLT_ATTR_TYPE_OID_BASE(5);/* favourite drink*/
 #endif
 
@@ -9182,12 +9183,12 @@ int wc_EncryptPKCS8Key(byte* key, word32 keySz, byte* out, word32* outSz,
             pbeOidBuf = pbes2;
             pbeOidBufSz = sizeof(pbes2);
             /* kdf = OBJ pbkdf2 [ SEQ innerLen ] */
-            kdfLen = 2 + sizeof(pbkdf2Oid) + 2 + innerLen;
+            kdfLen = 2U + (word32)sizeof(pbkdf2Oid) + 2U + innerLen;
             /* enc = OBJ enc_alg OCT iv */
-            encLen = 2 + (word32)encOidSz + 2 + (word32)blockSz;
+            encLen = 2U + (word32)encOidSz + 2U + (word32)blockSz;
             /* pbe = OBJ pbse2 SEQ [ SEQ [ kdf ] SEQ [ enc ] ] */
-            pbeLen = (word32)(2 + sizeof(pbes2) + 2 + 2 + (size_t)kdfLen + 2 +
-                              (size_t)encLen);
+            pbeLen = 2U + (word32)sizeof(pbes2) + 2U + 2U + kdfLen + 2U +
+                encLen;
 
             ret = wc_RNG_GenerateBlock(rng, cbcIv, (word32)blockSz);
         }
@@ -9257,7 +9258,7 @@ int wc_EncryptPKCS8Key(byte* key, word32 keySz, byte* out, word32* outSz,
             idx += SetSequence(kdfLen, out + idx);
             idx += (word32)SetObjectId((int)sizeof(pbkdf2Oid), out + idx);
             XMEMCPY(out + idx, pbkdf2Oid, sizeof(pbkdf2Oid));
-            idx += sizeof(pbkdf2Oid);
+            idx += (word32)sizeof(pbkdf2Oid);
         }
         idx += SetSequence(innerLen, out + idx);
         idx += SetOctetString(saltSz, out + idx);
@@ -14090,7 +14091,7 @@ static int GenerateDNSEntryIPString(DNS_entry* entry, void* heap)
 static int GenerateDNSEntryRIDString(DNS_entry* entry, void* heap)
 {
     int i, j, ret   = 0;
-    int nameSz      = 0;
+    word16 nameSz   = 0;
 #if !defined(WOLFCRYPT_ONLY) && defined(OPENSSL_EXTRA)
     int nid         = 0;
 #endif
@@ -14099,7 +14100,7 @@ static int GenerateDNSEntryRIDString(DNS_entry* entry, void* heap)
     word32 idx      = 0;
     word16 tmpName[MAX_OID_SZ];
     char   oidName[MAX_OID_SZ];
-    char*  finalName;
+    char*  finalName = NULL;
 
     if (entry == NULL || entry->type != ASN_RID_TYPE) {
         return BAD_FUNC_ARG;
@@ -14157,7 +14158,10 @@ static int GenerateDNSEntryRIDString(DNS_entry* entry, void* heap)
     }
 
     if (ret == 0) {
-        nameSz = (int)XSTRLEN((const char*)finalName);
+        nameSz = (word16)XSTRLEN((const char*)finalName);
+        if (nameSz > MAX_OID_SZ) {
+            return BUFFER_E;
+        }
 
         entry->ridString = (char*)XMALLOC((word32)(nameSz + 1), heap,
                 DYNAMIC_TYPE_ALTNAME);
@@ -14428,6 +14432,15 @@ static int GetRDN(DecodedCert* cert, char* full, word32* idx, int* nid,
         typeStrLen = sizeof(WOLFSSL_DOMAIN_COMPONENT) - 1;
     #ifdef WOLFSSL_X509_NAME_AVAILABLE
         *nid = WC_NID_domainComponent;
+    #endif
+    }
+    else if (oidSz == sizeof(rfc822Mlbx) && XMEMCMP(oid, rfc822Mlbx, oidSz) == 0) {
+        /* Set the RFC822 mailbox, type string, length and NID. */
+        id = ASN_RFC822_MAILBOX;
+        typeStr = WOLFSSL_RFC822_MAILBOX;
+        typeStrLen = sizeof(WOLFSSL_RFC822_MAILBOX) - 1;
+    #ifdef WOLFSSL_X509_NAME_AVAILABLE
+        *nid = WC_NID_rfc822Mailbox;
     #endif
     }
     else if (oidSz == sizeof(fvrtDrk) && XMEMCMP(oid, fvrtDrk, oidSz) == 0) {
@@ -15132,6 +15145,15 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
                         defined(OPENSSL_EXTRA_X509_SMALL)) \
                         && !defined(WOLFCRYPT_ONLY)
                         nid = WC_NID_domainComponent;
+                    #endif /* OPENSSL_EXTRA */
+                        break;
+                    case ASN_RFC822_MAILBOX:
+                        copy = WOLFSSL_RFC822_MAILBOX;
+                        copyLen = sizeof(WOLFSSL_RFC822_MAILBOX) - 1;
+                    #if (defined(OPENSSL_EXTRA) || \
+                        defined(OPENSSL_EXTRA_X509_SMALL)) \
+                        && !defined(WOLFCRYPT_ONLY)
+                        nid = WC_NID_rfc822Mailbox;
                     #endif /* OPENSSL_EXTRA */
                         break;
                     case ASN_FAVOURITE_DRINK:
@@ -24627,7 +24649,7 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm, Signer 
                     }
                 }
                 else {
-                    cert->maxPathLen = (byte)min(cert->ca->maxPathLen - 1,
+                    cert->maxPathLen = (byte)min(cert->ca->maxPathLen - 1U,
                                            cert->maxPathLen);
                 }
             }
@@ -27890,7 +27912,7 @@ static int wc_SetCert_LoadDer(Cert* cert, const byte* der, word32 derSz,
 #ifndef NO_ASN_TIME
 static WC_INLINE byte itob(int number)
 {
-    return (byte)number + 0x30;
+    return (byte)(number + 0x30);
 }
 
 
@@ -28986,6 +29008,10 @@ static int EncodeName(EncodedName* name, const char* nameStr,
             thisLen += (int)sizeof(uidOid);
             firstSz  = (int)sizeof(uidOid);
             break;
+        case ASN_RFC822_MAILBOX:
+            thisLen += (int)sizeof(rfc822Mlbx);
+            firstSz  = (int)sizeof(rfc822Mlbx);
+            break;
         case ASN_FAVOURITE_DRINK:
             thisLen += (int)sizeof(fvrtDrk);
             firstSz  = (int)sizeof(fvrtDrk);
@@ -29048,6 +29074,12 @@ static int EncodeName(EncodedName* name, const char* nameStr,
         case ASN_USER_ID:
             XMEMCPY(name->encoded + idx, uidOid, sizeof(uidOid));
             idx += (int)sizeof(uidOid);
+            /* str type */
+            name->encoded[idx++] = nameTag;
+            break;
+        case ASN_RFC822_MAILBOX:
+            XMEMCPY(name->encoded + idx, rfc822Mlbx, sizeof(rfc822Mlbx));
+            idx += (int)sizeof(rfc822Mlbx);
             /* str type */
             name->encoded[idx++] = nameTag;
             break;
@@ -29146,6 +29178,10 @@ static int EncodeName(EncodedName* name, const char* nameStr,
                 /* Domain component OID different to standard types. */
                 oid = uidOid;
                 oidSz = sizeof(uidOid);
+                break;
+            case ASN_RFC822_MAILBOX:
+                oid = rfc822Mlbx;
+                oidSz = sizeof(rfc822Mlbx);
                 break;
             case ASN_FAVOURITE_DRINK:
                 oid = fvrtDrk;
@@ -29468,6 +29504,12 @@ static int SetNameRdnItems(ASNSetData* dataASN, ASNItem* namesASN,
                     /* Copy userID data into dynamic vars. */
                     SetRdnItems(namesASN + idx, dataASN + idx, uidOid,
                                 sizeof(uidOid), (byte)GetNameType(name, i),
+                        (const byte*)GetOneCertName(name, i), nameLen[i]);
+                }
+                else if (type == ASN_RFC822_MAILBOX) {
+                    /* Copy RFC822 mailbox data into dynamic vars. */
+                    SetRdnItems(namesASN + idx, dataASN + idx, rfc822Mlbx,
+                                sizeof(rfc822Mlbx), (byte)GetNameType(name, i),
                         (const byte*)GetOneCertName(name, i), nameLen[i]);
                 }
                 else if (type == ASN_FAVOURITE_DRINK) {
@@ -34748,7 +34790,8 @@ int EncodePolicyOID(byte *out, word32 *outSz, const char *in, void* heap)
                 return BUFFER_E;
             }
 
-            out[idx++] += (byte)val;
+            out[idx] = (byte)(out[idx] + val);
+            ++idx;
         }
         else {
             word32  tb = 0;

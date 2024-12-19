@@ -56,7 +56,8 @@ static const char *wolfsentry_config_path = NULL;
 #include <examples/client/client.h>
 #include <wolfssl/error-ssl.h>
 
-#ifndef NO_WOLFSSL_CLIENT
+#if !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS)
+
 
 #ifdef NO_FILESYSTEM
 #ifdef NO_RSA
@@ -1167,7 +1168,7 @@ static int ClientWriteRead(WOLFSSL* ssl, const char* msg, int msgSz,
 /*  4. add the same message into Japanese section         */
 /*     (will be translated later)                         */
 /*  5. add printf() into suitable position of Usage()     */
-static const char* client_usage_msg[][77] = {
+static const char* client_usage_msg[][78] = {
     /* English */
     {
         " NOTE: All files relative to wolfSSL home dir\n",          /* 0 */
@@ -1403,9 +1404,12 @@ static const char* client_usage_msg[][77] = {
         "--rpk  Use RPK for the defined certificates\n", /* 74 */
 #endif
         "--files-are-der Specified files are in DER, not PEM format\n", /* 75 */
+#ifdef WOLFSSL_SYS_CRYPTO_POLICY
+        "--crypto-policy  <path to crypto policy file>\n", /* 76 */
+#endif
         "\n"
            "For simpler wolfSSL TLS client examples, visit\n"
-           "https://github.com/wolfSSL/wolfssl-examples/tree/master/tls\n", /* 76 */
+           "https://github.com/wolfSSL/wolfssl-examples/tree/master/tls\n", /* 77 */
         NULL,
     },
 #ifndef NO_MULTIBYTE_PRINT
@@ -1648,10 +1652,13 @@ static const char* client_usage_msg[][77] = {
         "--rpk  Use RPK for the defined certificates\n", /* 74 */
 #endif
         "--files-are-der Specified files are in DER, not PEM format\n", /* 75 */
+#ifdef WOLFSSL_SYS_CRYPTO_POLICY
+        "--crypto-policy  <path to crypto policy file>\n", /* 76 */
+#endif
         "\n"
         "より簡単なwolfSSL TLS クライアントの例については"
                                          "下記にアクセスしてください\n"
-        "https://github.com/wolfSSL/wolfssl-examples/tree/master/tls\n", /* 76 */
+        "https://github.com/wolfSSL/wolfssl-examples/tree/master/tls\n", /* 77 */
         NULL,
     },
 #endif
@@ -2068,6 +2075,9 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         { "rpk", 0, 267 },
 #endif /* HAVE_RPK */
         { "files-are-der", 0, 268 },
+#if defined(WOLFSSL_SYS_CRYPTO_POLICY)
+        { "crypto-policy", 1, 269 },
+#endif /* WOLFSSL_SYS_CRYPTO_POLICY */
         { 0, 0, 0 }
     };
 #endif
@@ -2212,6 +2222,10 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     int useRPK = 0;
 #endif /* HAVE_RPK */
     int fileFormat = WOLFSSL_FILETYPE_PEM;
+#if defined(WOLFSSL_SYS_CRYPTO_POLICY)
+    const char * policy = NULL;
+#endif /* WOLFSSL_SYS_CRYPTO_POLICY */
+
 
     char buffer[WOLFSSL_MAX_ERROR_SZ];
 
@@ -2931,6 +2945,12 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
             case 268:
                 fileFormat = WOLFSSL_FILETYPE_ASN1;
                 break;
+            case 269:
+#if defined(WOLFSSL_SYS_CRYPTO_POLICY)
+                policy = myoptarg;
+#endif /* WOLFSSL_SYS_CRYPTO_POLICY */
+                break;
+
             default:
                 Usage();
                 XEXIT_T(MY_EX_USAGE);
@@ -3158,6 +3178,13 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     if (method == NULL)
         err_sys("unable to get method");
 
+#if defined(WOLFSSL_SYS_CRYPTO_POLICY)
+    if (policy != NULL) {
+        if (wolfSSL_crypto_policy_enable(policy) != WOLFSSL_SUCCESS) {
+            err_sys("wolfSSL_crypto_policy_enable failed");
+        }
+    }
+#endif /* WOLFSSL_SYS_CRYPTO_POLICY */
 
 #ifdef WOLFSSL_STATIC_MEMORY
     #if defined(DEBUG_WOLFSSL) && !defined(WOLFSSL_STATIC_MEMORY_LEAN)
@@ -4810,7 +4837,7 @@ exit:
     WOLFSSL_RETURN_FROM_THREAD(0);
 }
 
-#endif /* !NO_WOLFSSL_CLIENT */
+#endif /* !NO_WOLFSSL_CLIENT && !NO_TLS */
 
 
 /* so overall tests can pull in test function */
@@ -4819,7 +4846,6 @@ exit:
     int main(int argc, char** argv)
     {
         func_args args;
-
 
         StartTCP();
 
@@ -4836,7 +4862,7 @@ exit:
         wolfSSL_Init();
         ChangeToWolfRoot();
 
-#ifndef NO_WOLFSSL_CLIENT
+#if !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS)
 #ifdef HAVE_STACK_SIZE
         StackSizeCheck(&args, client_test);
 #else

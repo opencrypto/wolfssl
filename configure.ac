@@ -917,6 +917,50 @@ then
     ENABLED_SP_MATH_ALL="no"
 fi
 
+# wolfCrypt Only Build
+AC_ARG_ENABLE([cryptonly],
+    [AS_HELP_STRING([--enable-cryptonly],[Enable wolfCrypt Only build (default: disabled)])],
+    [ENABLED_CRYPTONLY=$enableval],
+    [ENABLED_CRYPTONLY=no])
+
+AS_IF([test "x$FIPS_VERSION" = "xrand"],[ENABLED_CRYPTONLY="yes"])
+
+# TLS
+AC_ARG_ENABLE([tls],
+    [AS_HELP_STRING([--enable-tls],[Enable TLS support (default: enabled)])],
+    [ ENABLED_TLS=$enableval ],
+    [ ENABLED_TLS=yes ]
+    )
+
+if test "$ENABLED_CRYPTONLY" = "yes"
+then
+    ENABLED_TLS=no
+fi
+if test "$ENABLED_TLS" = "no"
+then
+    AM_CFLAGS="$AM_CFLAGS -DNO_TLS"
+    test "$enable_tls13" = "" && enable_tls13=no
+    test "$enable_tlsv12" = "" && enable_tlsv12=no
+    test "$enable_tlsv10" = "" && enable_tlsv10=no
+    test "$enable_dtls" = "" && enable_dtls=no
+    test "$enable_dtls13" = "" && enable_dtls13=no
+    test "$enable_mcast" = "" && enable_mcast=no
+    test "$enable_srtp" = "" && enable_srtp=no
+    test "$enable_ocsp" = "" && enable_ocsp=no
+    test "$enable_tlsx" = "" && enable_tlsx=no
+    test "$enable_sni" = "" && enable_sni=no
+    test "$enable_sni" = "" && enable_sni=no
+    test "$enable_crl_monitor" = "" && enable_crl_monitor=no
+    test "$enable_alpn" = "" && enable_alpn=no
+    test "$enable_pkcallbacks" = "" && enable_pkcallbacks=no
+    test "$enable_quic" = "" && enable_quic=no
+    test "$enable_ech" = "" && enable_ech=no
+    test "$enable_ocspstapling" = "" && enable_ocspstapling=no
+
+    # Disable all open source compatibility enables that might get set with all
+    test "$enable_all_osp" = "" && enable_all_osp=no
+fi
+
 
 # All features, except conflicting or experimental:
 AC_ARG_ENABLE([all],
@@ -1585,6 +1629,7 @@ then
 fi
 
 # XMSS
+ENABLED_WC_XMSS=no
 AC_ARG_ENABLE([xmss],
     [AS_HELP_STRING([--enable-xmss],[Enable stateful XMSS/XMSS^MT signatures (default: disabled)])],
     [ ENABLED_XMSS=$enableval ],
@@ -1676,6 +1721,7 @@ then
 fi
 
 # LMS
+ENABLED_WC_LMS=no
 AC_ARG_ENABLE([lms],
     [AS_HELP_STRING([--enable-lms],[Enable stateful LMS/HSS signatures (default: disabled)])],
     [ ENABLED_LMS=$enableval ],
@@ -1819,14 +1865,6 @@ if test "$ENABLED_RWLOCK" = "yes"
 then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_USE_RWLOCK"
 fi
-
-# wolfCrypt Only Build
-AC_ARG_ENABLE([cryptonly],
-    [AS_HELP_STRING([--enable-cryptonly],[Enable wolfCrypt Only build (default: disabled)])],
-    [ENABLED_CRYPTONLY=$enableval],
-    [ENABLED_CRYPTONLY=no])
-
-AS_IF([test "x$FIPS_VERSION" = "xrand"],[ENABLED_CRYPTONLY="yes"])
 
 # ECH
 AC_ARG_ENABLE([ech],
@@ -3043,8 +3081,9 @@ then
 fi
 
 
+ENABLED_ARMASM_CRYPTO="unknown"
 ENABLED_ARMASM_INLINE="no"
-ENABLED_ARMASM_SHA3="no"
+ENABLED_ARMASM_SHA3="unknown"
 ENABLED_ARMASM_CRYPTO_SM4="no"
 # ARM Assembly
 # Both SHA3 and SHA512 instructions available with ARMV8.2-a
@@ -3064,6 +3103,9 @@ then
         inline)
             ENABLED_ARMASM_INLINE=yes
             ;;
+        no-crypto)
+            ENABLED_ARMASM_CRYPTO=no
+            ;;
         sha512-crypto | sha3-crypto)
             case $host_cpu in
             *aarch64*)
@@ -3074,6 +3116,16 @@ then
             esac
             ENABLED_ARMASM_SHA3=yes
             ENABLED_ARMASM_PLUS=yes
+            ;;
+        no-sha512-crypto | no-sha3-crypto)
+            case $host_cpu in
+            *aarch64*)
+                ;;
+            *)
+                AC_MSG_ERROR([SHA512/SHA3 instructions only available on Aarch64 CPU.])
+                break;;
+            esac
+            ENABLED_ARMASM_SHA3=no
             ;;
         sm4)
             case $host_cpu in
@@ -3119,8 +3171,10 @@ then
         *aarch64*)
             case $host_os in
             *darwin*)
-                # All known Aarch64 Mac computers support SHA-512 instructions
-                ENABLED_ARMASM_SHA3=yes
+                # Turn it on unless explicitly turned off.
+                if test "$ENABLED_ARMASM_SHA3" = "unknown"; then
+                    ENABLED_ARMASM_SHA3="yes"
+                fi
                 ;;
             *)
                 # +crypto needed for hardware acceleration
@@ -3139,7 +3193,9 @@ then
             esac
             # Include options.h
             AM_CCASFLAGS="$AM_CCASFLAGS -DEXTERNAL_OPTS_OPENVPN"
-            ENABLED_ARMASM_CRYPTO=yes
+            if test "$ENABLED_ARMASM_CRYPTO" = "unknown"; then
+                ENABLED_ARMASM_CRYPTO=yes
+            fi
             ENABLED_ARMASM_NEON=yes
             ENABLED_ARM_64=yes
 
@@ -3234,11 +3290,17 @@ if test "$ENABLED_ARMASM_SHA3" = "yes"; then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ARMASM_CRYPTO_SHA512 -DWOLFSSL_ARMASM_CRYPTO_SHA3"
     AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_ARMASM_CRYPTO_SHA512 -DWOLFSSL_ARMASM_CRYPTO_SHA3"
 fi
+if test "$ENABLED_ARMASM_SHA3" = "unknown"; then
+    ENABLED_ARMASM_SHA3="no"
+fi
 if test "$ENABLED_ARMASM_SM3" = "yes"; then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ARMASM_CRYPTO_SM3"
 fi
 if test "$ENABLED_ARMASM_SM4" = "yes"; then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ARMASM_CRYPTO_SM4"
+fi
+if test "$ENABLED_ARMASM_CRYPTO" = "unknown"; then
+    ENABLED_ARMASM_CRYPTO=no
 fi
 if test "$ENABLED_ARMASM_CRYPTO" = "no"; then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ARMASM_NO_HW_CRYPTO"
@@ -4617,7 +4679,7 @@ fi
 
 if test "$ENABLED_STACKSIZE" = "verbose"
 then
-    if test "$thread_ls_on" != "yes"
+    if test "$thread_ls_on" != "yes" && test "x$ENABLED_SINGLETHREADED" = "xno"
     then
         AC_MSG_ERROR(stacksize-verbose needs thread-local storage.)
     fi
@@ -5089,10 +5151,6 @@ AC_ARG_ENABLE([dtlscid],
     )
 if test "x$ENABLED_DTLS_CID" = "xyes"
 then
-        if test "x$ENABLED_DTLS13" != "xyes"
-        then
-                AC_MSG_ERROR([You need to enable DTLSv1.3 to use DTLS ConnectionID])
-        fi
   AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DTLS_CID"
 fi
 
@@ -5531,7 +5589,7 @@ AS_CASE([$FIPS_VERSION],
         # for armasm on arm-v7 or earlier (see armasm setup above).
         AS_IF([test "$ENABLED_AESGCM_STREAM" != "yes" &&
                (test "$FIPS_VERSION" != "dev" || test "$enable_aesgcm_stream" != "no") &&
-               ! (test "$ENABLED_ARMASM" = "yes" && test "$ENABLED_ARMASM_CRYPTO" = "no")],
+               (test "$ENABLED_ARMASM" = "no" || test "$ENABLED_ARMASM_CRYPTO" = "no")],
             [ENABLED_AESGCM_STREAM="yes"])
 
         AS_IF([test "x$ENABLED_AESOFB" = "xno" &&
@@ -5550,7 +5608,7 @@ AS_CASE([$FIPS_VERSION],
 
         AS_IF([test "x$ENABLED_AESXTS_STREAM" = "xno" &&
                (test "$FIPS_VERSION" != "dev" || test "$enable_aesxts_stream" != "no") &&
-               ! (test "$ENABLED_ARMASM" = "yes" || test "$ENABLED_ARMASM_CRYPTO" = "no")],
+               (test "$ENABLED_ARMASM" = "no" || test "$ENABLED_ARMASM_CRYPTO" = "no")],
             [ENABLED_AESXTS_STREAM="yes"])
 
         AS_IF([(test "$ENABLED_AESCCM" = "yes" && test "$HAVE_AESCCM_PORT" != "yes") ||
@@ -6919,6 +6977,7 @@ then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_EX_DATA"
     AM_CFLAGS="$AM_CFLAGS -DKEEP_PEER_CERT"
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ALWAYS_VERIFY_CB"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ALWAYS_KEEP_SNI"
 
     # Enable prereqs if not already enabled
     if test "x$ENABLED_DTLS" = "xno"
@@ -9005,6 +9064,25 @@ AC_ARG_WITH([libsuffix],
 )
 AC_SUBST(LIBSUFFIX)
 
+# Support system wide crypto-policy file:
+#   - Pass path to your wolfssl.config system crypto-policy file.
+#   - Pass no argument to use default.
+AC_ARG_WITH([sys-crypto-policy],
+    [AS_HELP_STRING([--with-sys-crypto-policy=PATH],[Support for system-wide crypto-policy file. (default: disabled)])],
+    [ SYS_CRYPTO_POLICY=$withval],
+    [ SYS_CRYPTO_POLICY=no ]
+    )
+
+if test "$SYS_CRYPTO_POLICY" != "no"; then
+    if test "$SYS_CRYPTO_POLICY" = "yes"; then
+        # Default to the wolfssl fedora crypto-policy file.
+        SYS_CRYPTO_POLICY="/etc/crypto-policies/back-ends/wolfssl.config"
+    fi
+
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SYS_CRYPTO_POLICY"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CRYPTO_POLICY_FILE=\"$SYS_CRYPTO_POLICY\""
+fi
+
 AC_ARG_ENABLE([context-extra-user-data],
     [AS_HELP_STRING([--enable-context-extra-user-data],[Enables option for storing user-defined data in TLS API contexts, with optional argument the number of slots to allocate (default: disabled)])],
     [ ENABLED_EX_DATA=$enableval ],
@@ -10242,7 +10320,9 @@ echo " *" >> $OPTION_FILE
 echo " */" >> $OPTION_FILE
 
 echo "" >> $OPTION_FILE
-echo "#ifndef WOLFSSL_OPTIONS_H" >> $OPTION_FILE
+echo "#ifdef WOLFSSL_NO_OPTIONS_H" >> $OPTION_FILE
+echo "/* options.h inhibited by configuration */" >> $OPTION_FILE
+echo "#elif !defined(WOLFSSL_OPTIONS_H)" >> $OPTION_FILE
 echo "#define WOLFSSL_OPTIONS_H" >> $OPTION_FILE
 echo "" >> $OPTION_FILE
 echo "" >> $OPTION_FILE

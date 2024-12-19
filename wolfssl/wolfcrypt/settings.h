@@ -47,11 +47,14 @@
     extern "C" {
 #endif
 
-/* This flag allows wolfSSL to include options.h instead of having client
- * projects do it themselves. This should *NEVER* be defined when building
- * wolfSSL as it can cause hard to debug problems. */
-#if defined(EXTERNAL_OPTS_OPENVPN) || defined(WOLFSSL_USE_OPTIONS_H)
-#include <wolfssl/options.h>
+/* WOLFSSL_USE_OPTIONS_H directs wolfSSL to include options.h on behalf of
+ * application code, rather than the application including it directly.  This is
+ * not defined when compiling wolfSSL library objects, which are configured
+ * through CFLAGS.
+ */
+#if (defined(EXTERNAL_OPTS_OPENVPN) || defined(WOLFSSL_USE_OPTIONS_H)) && \
+    !defined(WOLFSSL_NO_OPTIONS_H)
+    #include <wolfssl/options.h>
 #endif
 
 /* Uncomment next line if using IPHONE */
@@ -319,10 +322,11 @@
     #endif
 #endif
 
-#if (defined(BUILDING_WOLFSSL) && defined(WOLFSSL_USE_OPTIONS_H)) || \
-    (defined(BUILDING_WOLFSSL) && defined(WOLFSSL_OPTIONS_H) &&      \
-     !defined(EXTERNAL_OPTS_OPENVPN))
-    #error wolfssl/options.h included in compiled wolfssl library object.
+#if !defined(WOLFSSL_CUSTOM_CONFIG) && \
+    ((defined(BUILDING_WOLFSSL) && defined(WOLFSSL_USE_OPTIONS_H)) || \
+     (defined(BUILDING_WOLFSSL) && defined(WOLFSSL_OPTIONS_H) &&      \
+     !defined(EXTERNAL_OPTS_OPENVPN)))
+    #warning wolfssl/options.h included in compiled wolfssl library object.
 #endif
 
 #ifdef WOLFSSL_USER_SETTINGS
@@ -335,10 +339,13 @@
     #include "nucleus.h"
     #include "os/networking/ssl/lite/cyassl_nucleus_defs.h"
 #elif !defined(BUILDING_WOLFSSL) && !defined(WOLFSSL_OPTIONS_H) && \
-      !defined(WOLFSSL_CUSTOM_CONFIG)
-    /* This warning indicates that the settings header may not be included before
-     * other wolfSSL headers. If you are using a custom configuration method,
-     * define WOLFSSL_CUSTOM_CONFIG to override this error. */
+      !defined(WOLFSSL_NO_OPTIONS_H) && !defined(WOLFSSL_CUSTOM_CONFIG)
+    /* This warning indicates that wolfSSL features may not have been properly
+     * configured before other wolfSSL headers were included. If you are using
+     * an alternative configuration method -- e.g. custom header, or CFLAGS in
+     * an application build -- then your application can avoid this warning by
+     * defining WOLFSSL_NO_OPTIONS_H or WOLFSSL_CUSTOM_CONFIG as appropriate.
+     */
     #warning "No configuration for wolfSSL detected, check header order"
 #endif
 
@@ -3090,6 +3097,13 @@ extern void uITRON4_free(void *p) ;
     #endif
 #endif /* HAVE_ED448 */
 
+/* FIPS does not support CFB1 or CFB8 */
+#if !defined(WOLFSSL_NO_AES_CFB_1_8) && \
+    (defined(HAVE_SELFTEST) || \
+        (defined(HAVE_FIPS) && FIPS_VERSION3_LT(6,0,0)))
+    #define WOLFSSL_NO_AES_CFB_1_8
+#endif
+
 /* AES Config */
 #ifndef NO_AES
     /* By default enable all AES key sizes, decryption and CBC */
@@ -4166,10 +4180,6 @@ extern void uITRON4_free(void *p) ;
 #error "DTLS v1.3 requires both WOLFSSL_TLS13 and WOLFSSL_DTLS"
 #endif
 
-#if defined(WOLFSSL_DTLS_CID) && !defined(WOLFSSL_DTLS13)
-#error "ConnectionID is supported for DTLSv1.3 only"
-#endif
-
 #if defined(WOLFSSL_QUIC) && defined(WOLFSSL_CALLBACKS)
     #error WOLFSSL_QUIC is incompatible with WOLFSSL_CALLBACKS.
 #endif
@@ -4336,6 +4346,16 @@ extern void uITRON4_free(void *p) ;
 #if !defined(NO_DSA) && defined(NO_SHA)
     #error "Please disable DSA if disabling SHA-1"
 #endif
+
+#if defined(WOLFSSL_SYS_CRYPTO_POLICY)
+    #if !defined(WOLFSSL_CRYPTO_POLICY_FILE)
+        #error "WOLFSSL_SYS_CRYPTO_POLICY requires a crypto policy file"
+    #endif /* ! WOLFSSL_CRYPTO_POLICY_FILE */
+
+    #if !defined(OPENSSL_EXTRA)
+        #error "WOLFSSL_SYS_CRYPTO_POLICY requires OPENSSL_EXTRA"
+    #endif /* ! OPENSSL_EXTRA */
+#endif /* WOLFSSL_SYS_CRYPTO_POLICY */
 
 /* if configure.ac turned on this feature, HAVE_ENTROPY_MEMUSE will be set,
  * also define HAVE_WOLFENTROPY */
