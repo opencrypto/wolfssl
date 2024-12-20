@@ -1195,6 +1195,8 @@ int wc_AsymKey_import_ex(AsymKey* key, const byte* data, word32 dataSz, int form
         if ((ret = wc_Ed448PrivateKeyDecode(der, &idx, ed448Key, derSz)) < 0) {
             return ASN_PARSE_E;
         }
+        ed448Key->pubKeySet = 1;
+        ed448Key->privKeySet = 1;
         key->key.ed448Key = ed448Key;
         key->type = ED448_TYPE;
         break;
@@ -1540,7 +1542,7 @@ int wc_AsymKey_export_ex(const AsymKey * key,
             dilithium_key * dilithiumKey = key->key.dilithiumKey;
                 // Shortcut to the Dilithium key
 
-            derPkcsSz = ret = wc_Dilithium_KeyToDer(dilithiumKey, NULL, 0);
+            derPkcsSz = ret = wc_Dilithium_PrivateKeyToDer(dilithiumKey, NULL, 0);
             if (ret < 0) {
                 return BAD_FUNC_ARG;
             }
@@ -1549,7 +1551,7 @@ int wc_AsymKey_export_ex(const AsymKey * key,
                 return MEMORY_E;
             }
             if (buff) {
-                derPkcsSz = ret = wc_Dilithium_KeyToDer(dilithiumKey, derPkcsPtr, derPkcsSz);
+                derPkcsSz = ret = wc_Dilithium_PrivateKeyToDer(dilithiumKey, derPkcsPtr, derPkcsSz);
                 if (ret < 0) {
                     XFREE(derPkcsPtr, NULL, DYNAMIC_TYPE_PRIVATE_KEY);
                     return ret;

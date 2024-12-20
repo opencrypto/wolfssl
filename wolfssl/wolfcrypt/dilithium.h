@@ -621,7 +621,7 @@ struct dilithium_key {
 
     void* heap; /* heap hint */
 
-    byte seed[DILITHIUM_SEEDS_SZ];
+    byte seed[DILITHIUM_SEED_SZ];
 
 #ifdef WOLF_CRYPTO_CB
     void* devCtx;

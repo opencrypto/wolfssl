@@ -36855,6 +36855,7 @@ int DecodeAsymKey_Assign(const byte* input, word32* inOutIdx, word32 inSz,
         /* Import private value. */
         *privKeyLen = dataASN[EDKEYASN_IDX_PKEY_CURVEPKEY].data.ref.length;
         *privKey = dataASN[EDKEYASN_IDX_PKEY_CURVEPKEY].data.ref.data;
+        *inOutKeyType = (int)dataASN[EDKEYASN_IDX_PKEYALGO_OID].data.oid.sum;
     }
     if ((ret == 0) && dataASN[EDKEYASN_IDX_PUBKEY].tag == 0) {
         /* Set public length to 0 as not seen. */
