@@ -5645,6 +5645,7 @@ static int dilithium_make_key_from_seed(dilithium_key* key, const byte* seed)
         /* Public key and private key are available. */
         key->prvKeySet = 1;
         key->pubKeySet = 1;
+        XMEMCPY(key->seed, seed, DILITHIUM_SEED_SZ);
 #ifdef WC_DILITHIUM_CACHE_MATRIX_A
         /* Matrix A is available. */
         key->aSet = 1;
@@ -7968,6 +7969,8 @@ int wc_dilithium_make_key_from_seed(dilithium_key* key, const byte* seed)
         else {
             /* Make the key. */
             ret = dilithium_make_key_from_seed(key, seed);
+            /* Copies the seed for export */
+            XMEMCPY(key->seed, seed, DILITHIUM_SEED_SZ);
         }
 #elif defined(HAVE_LIBOQS)
         /* Make the key. */
