@@ -13455,6 +13455,9 @@ int HashIdAlg(word32 oidSum)
         return WC_SM3;
     }
 #endif
+
+printf("asn.c: OID Sum: %d\n", oidSum);
+
 #if defined(NO_SHA) || (!defined(NO_SHA256) && defined(WC_ASN_HASH_SHA256))
     return WC_SHA256;
 #else

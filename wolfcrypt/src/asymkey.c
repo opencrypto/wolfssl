@@ -288,8 +288,6 @@ int wc_AsymKey_gen(AsymKey      ** key,
                 goto err;
             }
 
-            MADWOLF_DEBUG("Generating ECC key - keySz: %d, eccCurve: %d", keySz, param);
-
             keyPtr = (void*)XMALLOC(sizeof(ecc_key), NULL, DYNAMIC_TYPE_ECC);
             if (keyPtr == NULL) {
                 ret = MEMORY_E;
@@ -307,10 +305,6 @@ int wc_AsymKey_gen(AsymKey      ** key,
                 XFREE(keyPtr, NULL, DYNAMIC_TYPE_ECC);
                 goto err;
             }
-            int test = 0;
-            test = wc_ecc_get_curve_id(((ecc_key *)keyPtr)->idx);
-            MADWOLF_DEBUG("Generated ECC key - keySz: %d, eccCurve: %d", keySz, test);
-
             keyType = ECC_TYPE;
 #endif
             break;
@@ -1187,6 +1181,8 @@ int wc_AsymKey_import_ex(AsymKey* key, const byte* data, word32 dataSz, int form
         if ((ret = wc_Ed25519PrivateKeyDecode(der, &idx, edKey, derSz)) < 0) {
             return ASN_PARSE_E;
         }
+        edKey->pubKeySet = 1;
+        edKey->privKeySet = 1;
         key->key.ed25519Key = edKey;
         key->type = ED25519_TYPE;
         break;
@@ -1315,7 +1311,7 @@ int wc_AsymKey_import_ex(AsymKey* key, const byte* data, word32 dataSz, int form
 
     if (der) XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
-    return ret;
+    return 0;
 }
 
 int wc_AsymKey_export(const AsymKey * key,
@@ -1544,7 +1540,7 @@ int wc_AsymKey_export_ex(const AsymKey * key,
             dilithium_key * dilithiumKey = key->key.dilithiumKey;
                 // Shortcut to the Dilithium key
 
-            derPkcsSz = ret = wc_Dilithium_PrivateKeyToDer(dilithiumKey, NULL, 0);
+            derPkcsSz = ret = wc_Dilithium_KeyToDer(dilithiumKey, NULL, 0);
             if (ret < 0) {
                 return BAD_FUNC_ARG;
             }
@@ -1553,7 +1549,7 @@ int wc_AsymKey_export_ex(const AsymKey * key,
                 return MEMORY_E;
             }
             if (buff) {
-                derPkcsSz = ret = wc_Dilithium_PrivateKeyToDer(dilithiumKey, derPkcsPtr, derPkcsSz);
+                derPkcsSz = ret = wc_Dilithium_KeyToDer(dilithiumKey, derPkcsPtr, derPkcsSz);
                 if (ret < 0) {
                     XFREE(derPkcsPtr, NULL, DYNAMIC_TYPE_PRIVATE_KEY);
                     return ret;
@@ -1813,7 +1809,7 @@ int wc_AsymKey_Sign_ex(byte          * out,
     byte hash[MAX_DIGEST_SIZE];
     word32 hashLen = sizeof(hash);
 
-    if (!out || !outLen || !in || !key || !rng) {
+    if (!outLen || !in || !key || !rng) {
         return BAD_FUNC_ARG;
     }
 
@@ -1842,39 +1838,107 @@ int wc_AsymKey_Sign_ex(byte          * out,
 #ifndef NO_RSA
         case RSAk:
         case RSAPSSk:
-            ret = wc_RsaSSL_Sign(tbsData, tbsDataSz, out, *outLen, key->key.rsaKey, rng);
+            sigLen = ret = wc_RsaEncryptSize(key->key.rsaKey);
+            if (out) {
+                if (*outLen < (word32)ret) {
+                    ret = CRYPTGEN_E;
+                } else {
+                    sigLen = ret = wc_RsaSSL_Sign(tbsData, tbsDataSz, out, *outLen, key->key.rsaKey, rng);
+                    if (ret < 0)
+                        ret = CRYPTGEN_E;
+                }
+            }
             if (ret >= 0) {
-                sigLen = ret;
+                *outLen = ret;
                 ret = 0;
             }
             break;
 #endif
 #ifdef HAVE_ECC
         case ECDSAk:
-            ret = wc_ecc_sign_hash(tbsData, tbsDataSz, out, &sigLen, rng, key->key.eccKey);
+            sigLen = ret = wc_ecc_sig_size(key->key.eccKey);
+            if (out) {
+                if (*outLen < (word32)ret) {
+                    ret = BUFFER_E;
+                } else {
+                    ret = wc_ecc_sign_hash(tbsData, tbsDataSz, out, &sigLen, rng, key->key.eccKey);
+                    if (ret < 0)
+                        ret = CRYPTGEN_E;
+                }
+            }
+            if (ret >= 0)
+                *outLen = ret;
             break;
 #endif
 #ifdef HAVE_ED25519
         case ED25519k:
-            ret = wc_ed25519_sign_msg(tbsData, tbsDataSz, out, &sigLen, key->key.ed25519Key);
+            sigLen = ret = wc_ed25519_sig_size(key->key.ed25519Key);
+            if (out) {
+                if (*outLen < (word32)ret) {
+                    ret = BUFFER_E;
+                } else {
+                    ret = wc_ed25519_sign_msg(tbsData, tbsDataSz, out, &sigLen, key->key.ed25519Key);
+                }
+            }
+            if (ret >= 0) {
+                *outLen = sigLen;
+                ret = 0;
+            }
             break;
 #endif
 #ifdef HAVE_ED448
         case ED448k:
-            ret = wc_ed448_sign_msg(tbsData, tbsDataSz, out, &sigLen, key->key.ed448Key, context, contextLen);
+            sigLen = ret = wc_ed448_sig_size(key->key.ed448Key);
+            if (out) {
+                if (*outLen < (word32)ret) {
+                    ret = BUFFER_E;
+                } else {
+                    ret = wc_ed448_sign_msg(tbsData, tbsDataSz, out, &sigLen, key->key.ed448Key, context, contextLen);
+                }
+            }
+            if (ret >= 0) {
+                *outLen = sigLen;
+                ret = 0;
+            }
             break;
 #endif
 #ifdef HAVE_DILITHIUM
         case ML_DSA_LEVEL5k:
         case ML_DSA_LEVEL3k:
         case ML_DSA_LEVEL2k:
-            ret = wc_dilithium_sign_msg(tbsData, tbsDataSz, out, &sigLen, key->key.dilithiumKey, rng);
+            sigLen = ret = wc_dilithium_sig_size(key->key.dilithiumKey);
+            if (out) {
+                if (*outLen < (word32)ret) {
+                    ret = BUFFER_E;
+                } else {
+                    ret = wc_dilithium_sign_msg(tbsData, tbsDataSz, out, &sigLen, key->key.dilithiumKey, rng);
+                    if (ret < 0)
+                        ret = CRYPTGEN_E;
+                }
+            }
+            if (ret >= 0) {
+                *outLen = sigLen;
+                ret = 0;
+            }
             break;
 #endif
 #ifdef HAVE_FALCON
         case FALCON_LEVEL1k:
         case FALCON_LEVEL5k:
-            ret = wc_falcon_sign_msg(tbsData, tbsDataSz, out, &sigLen, key->key.falconKey, rng);
+            ret = wc_falcon_sig_size(key->key.falconKey);
+            if (out) {
+                if (*outLen < (word32)ret) {
+                    ret = BUFFER_E;
+                } else {
+                    ret = wc_falcon_sign_msg(tbsData, tbsDataSz, out, &sigLen, key->key.falconKey, rng);
+                    if (ret < 0)
+                        ret = CRYPTGEN_E;
+                }
+            }
+            if (ret >= 0) {
+                *outLen = sigLen;
+                ret = 0;
+            }
             break;
 #endif
 #ifdef HAVE_MLDSA_COMPOSITE
@@ -1910,7 +1974,11 @@ int wc_AsymKey_Sign_ex(byte          * out,
         case D2_MLDSA87_BPOOL384k:
         case D2_MLDSA87_NISTP384k:
         case D2_MLDSA87_ED448k:
-            ret = wc_mldsa_composite_sign_msg(tbsData, tbsDataSz, out, &sigLen, key->key.mldsaCompKey, rng);
+            if (!out) {
+                ret = wc_mldsa_composite_sig_size(key->key.mldsaCompKey);
+            } else {
+                ret = wc_mldsa_composite_sign_msg(tbsData, tbsDataSz, out, &sigLen, key->key.mldsaCompKey, rng);
+            }
             break;
 #endif
 #ifdef HAVE_SPHINCS
@@ -1926,10 +1994,6 @@ int wc_AsymKey_Sign_ex(byte          * out,
         default:
             ret = BAD_FUNC_ARG;
             break;
-    }
-
-    if (ret == 0) {
-        *outLen = sigLen;
     }
 
     return ret;
@@ -1965,6 +2029,7 @@ int wc_AsymKey_Verify_ex(const byte* sig, word32 sigLen,
 
     // If a hashType is specified, the message is hashed before verification
     if (hashType != WC_HASH_TYPE_NONE) {
+        
         ret = wc_Hash(hashType, in, inLen, hash, hashLen);
         if (ret != 0) {
             MADWOLF_DEBUG("Error hashing the message (%d)\n", ret);
