@@ -43198,46 +43198,46 @@ int wc_CertName_set(CertName * certName, const char * strName)
         // Assign the name and value to the CertName structure
         if (strcmp(name, "C") == 0
             || strcmp(name, "countryName") == 0) {
-            strncpy(certName->country, value, sizeof(certName->country));
+            memcpy(certName->country, value, sizeof(certName->country));
         } else if (strcmp(name, "S") == 0
             || strcmp(name, "stateOrProvinceName") == 0) {
-            strncpy(certName->state, value, sizeof(certName->state));
+            memcpy(certName->state, value, sizeof(certName->state));
         } else if (strcmp(name, "ST") == 0
             || strcmp(name, "state") == 0) {
-            strncpy(certName->street, value, sizeof(certName->street));
+            memcpy(certName->street, value, sizeof(certName->street));
         } else if (strcmp(name, "L") == 0
             || strcmp(name, "localityName") == 0) {
-            strncpy(certName->locality, value, sizeof(certName->locality));
+            memcpy(certName->locality, value, sizeof(certName->locality));
         } else if (strcmp(name, "SUR") == 0
             || strcmp(name, "surname") == 0) {
-            strncpy(certName->sur, value, sizeof(certName->sur));
+            memcpy(certName->sur, value, sizeof(certName->sur));
         } else if (strcmp(name, "GN") == 0
             || strcmp(name, "givenName") == 0) {
-            strncpy(certName->givenName, value, sizeof(certName->givenName));
+            memcpy(certName->givenName, value, sizeof(certName->givenName));
         } else if (strcmp(name, "IN") == 0
             || strcmp(name, "initials") == 0) {
-            strncpy(certName->initials, value, sizeof(certName->initials));
+            memcpy(certName->initials, value, sizeof(certName->initials));
         } else if (strcmp(name, "DC") == 0
             || strcmp(name, "domainComponent") == 0) {
-            strncpy(certName->dnName, value, sizeof(certName->dnName));
+            memcpy(certName->dnName, value, sizeof(certName->dnName));
         } else if (strcmp(name, "O") == 0
             || strcmp(name, "organizationName") == 0) {
-            strncpy(certName->org, value, sizeof(certName->org));
+            memcpy(certName->org, value, sizeof(certName->org));
         } else if (strcmp(name, "OU") == 0
             || strcmp(name, "organizationalUnitName") == 0) {
-            strncpy(certName->unit, value, sizeof(certName->unit));
+            memcpy(certName->unit, value, sizeof(certName->unit));
         } else if (strcmp(name, "CN") == 0
             || strcmp(name, "commonName") == 0) {
-            strncpy(certName->commonName, value, sizeof(certName->commonName));
+            memcpy(certName->commonName, value, sizeof(certName->commonName));
         } else if (strcmp(name, "SN") == 0
             || strcmp(name, "serialNumber") == 0) {
-            strncpy(certName->serialDev, value, sizeof(certName->serialDev));
+            memcpy(certName->serialDev, value, sizeof(certName->serialDev));
         } else if (strcmp(name, "UID") == 0
             || strcmp(name, "userId") == 0) {
-            strncpy(certName->userId, value, sizeof(certName->userId));
+            memcpy(certName->userId, value, sizeof(certName->userId));
         } else if (strcmp(name, "E") == 0
             || strcmp(name, "emailAddress") == 0) {
-            strncpy(certName->email, value, sizeof(certName->email));
+            memcpy(certName->email, value, sizeof(certName->email));
         } else {
             return NOT_COMPILED_IN;
         }
