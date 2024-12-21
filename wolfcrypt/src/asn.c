@@ -36819,20 +36819,12 @@ int DecodeAsymKey_Assign(const byte* input, word32* inOutIdx, word32 inSz,
     return 0;
 #else
     if (ret == 0) {
-        // /* If user supplies an expected keyType (algorithm OID sum), attempt to
-        //  * process DER accordingly */
-        // if (*inOutKeyType != ANONk) {
-            word32 oidSz;
-            /* Explicit OID check - use expected type */
-            const byte* oidDerBytes = OidFromId((word32)*inOutKeyType,
-                                                oidKeyType, &oidSz);
-            GetASN_ExpBuffer(&dataASN[EDKEYASN_IDX_PKEYALGO_OID], oidDerBytes,
-                            oidSz);
-        // }
-        // else {
-        //     /* Auto-detect OID using template */
-        //     GetASN_OID(&dataASN[EDKEYASN_IDX_PKEYALGO_OID], oidKeyType);
-        // }
+        word32 oidSz;
+        /* Explicit OID check - use expected type */
+        const byte* oidDerBytes = OidFromId((word32)*inOutKeyType,
+                                            oidKeyType, &oidSz);
+        GetASN_ExpBuffer(&dataASN[EDKEYASN_IDX_PKEYALGO_OID], oidDerBytes,
+                        oidSz);
 
         /* Parse full private key. */
         ret = GetASN_Items(edKeyASN, dataASN, edKeyASN_Length, 1, input,
