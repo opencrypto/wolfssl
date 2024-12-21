@@ -9350,8 +9350,13 @@ int wc_dilithium_import_private(const byte* priv, word32 privSz,
     }
 
     if (ret == 0) {
-        /* Set the private key data. */
-        ret = dilithium_set_priv_key(priv, privSz, key);
+        if (privSz == DILITHIUM_SEED_SZ) {
+            /* Import the seed and re-generate the key pair. */
+            ret = wc_dilithium_make_key_from_seed(key, priv);
+        } else {
+            /* Set the private key data. */
+            ret = dilithium_set_priv_key(priv, privSz, key);
+        }
     }
 
     return ret;
@@ -9421,8 +9426,6 @@ int wc_dilithium_export_private(dilithium_key* key, byte* out, word32* outLen) {
     int ret = 0;
     // word32 inLen;
 
-    printf("Exporting private key\n");
-
     /* Validate parameters. */
     if ((key == NULL) || (outLen == NULL)) {
         ret = BAD_FUNC_ARG;
@@ -9482,7 +9485,6 @@ int wc_dilithium_export_private(dilithium_key* key, byte* out, word32* outLen) {
     }
 
     if (ret == 0) {
-        printf("Copying private seed\n");
         /* Copy private key out key. */
         XMEMCPY(out, key->seed, DILITHIUM_SEED_SZ);
         *outLen = DILITHIUM_SEED_SZ;
