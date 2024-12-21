@@ -304,11 +304,11 @@ int gen_csr(const AsymKey * keyPair, const AsymKey * altkey, const char * out_fi
 #endif
 #ifdef HAVE_DILITHIUM
     if (certType == ML_DSA_LEVEL2_TYPE)
-        req.sigType = CTC_DILITHIUM_LEVEL2;
+        req.sigType = CTC_ML_DSA_LEVEL2;
     if (certType == ML_DSA_LEVEL3_TYPE)
-        req.sigType = CTC_DILITHIUM_LEVEL3;
+        req.sigType = CTC_ML_DSA_LEVEL3;
     if (certType == ML_DSA_LEVEL5_TYPE)
-        req.sigType = CTC_DILITHIUM_LEVEL5;
+        req.sigType = CTC_ML_DSA_LEVEL5;
 #endif
 #ifdef HAVE_FALCON
     if (certType == FALCON_LEVEL1_TYPE)

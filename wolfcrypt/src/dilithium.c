@@ -9388,12 +9388,15 @@ int wc_dilithium_import_key(const byte* priv, word32 privSz,
 
     if (ret == 0) {
         if (privSz == DILITHIUM_SEED_SZ) {
+            // Import the seed and generate the key pair.
             ret = wc_dilithium_make_key_from_seed(key, priv);
         } else {
+            // Import the public key first.
             if ((ret == 0) && (pub != NULL)) {
                 /* Import public key. */
                 ret = wc_dilithium_import_public(pub, pubSz, key);
             }
+            // Import the private key second.
             if (ret == 0) {
                 ret = dilithium_set_priv_key(priv, privSz, key);
             }
@@ -9582,6 +9585,7 @@ int wc_Dilithium_PrivateKeyDecode(const byte* input, word32* inOutIdx,
     word32 privKeyLen = 0;
     word32 pubKeyLen = 0;
     int keytype = 0;
+    int isSeed = 0;
 
     /* Validate parameters. */
     if ((input == NULL) || (inOutIdx == NULL) || (key == NULL) || (inSz == 0)) {
@@ -9624,12 +9628,11 @@ int wc_Dilithium_PrivateKeyDecode(const byte* input, word32* inOutIdx,
     printf("[%s:%d] MADWOLF: keytype: %d, ret: %d\n", __FILE__, __LINE__, keytype, ret);
 
     if (ret == 0) {
-        keytype = ANONk;
         /* Decode the asymmetric key and get out private and public key data. */
         ret = DecodeAsymKey_Assign(input, inOutIdx, inSz,
                                    &privKey, &privKeyLen,
                                    &pubKey, &pubKeyLen, &keytype);
-        printf("[%s:%d] MADWOLF: privLen: %d, ret: %d\n", __FILE__, __LINE__, privKeyLen, ret);
+        printf("[%s:%d] MADWOLF: privLen: %d, pubKeyLen: %d, ret: %d\n", __FILE__, __LINE__, privKeyLen, pubKeyLen, ret);
         if (ret == 0
 #ifdef WOLFSSL_WC_DILITHIUM
             && key->params == NULL
@@ -9645,7 +9648,10 @@ int wc_Dilithium_PrivateKeyDecode(const byte* input, word32* inOutIdx,
         }
     }
     printf("[%s:%d] MADWOLF: keytype: %d, ret: %d\n", __FILE__, __LINE__, keytype, ret);
-
+    if ((ret == 0) && (privKey != NULL) && (privKeyLen == DILITHIUM_SEED_SZ)) {
+        /* Set the private key data. */
+        isSeed = 1;
+    }
     if ((ret == 0) && (pubKey == NULL) && (pubKeyLen == 0)) {
         /* Check if the public key is included in the private key. */
     #if defined(WOLFSSL_DILITHIUM_FIPS204_DRAFT)
@@ -9673,19 +9679,19 @@ int wc_Dilithium_PrivateKeyDecode(const byte* input, word32* inOutIdx,
         else
     #endif
         if ((key->level == WC_ML_DSA_44) &&
-            (privKeyLen == ML_DSA_LEVEL2_PRV_KEY_SIZE)) {
+            (privKeyLen == ML_DSA_LEVEL2_PRV_KEY_SIZE || privKeyLen == DILITHIUM_SEED_SZ)) {
             pubKey = privKey + ML_DSA_LEVEL2_KEY_SIZE;
             pubKeyLen = ML_DSA_LEVEL2_PUB_KEY_SIZE;
             privKeyLen -= ML_DSA_LEVEL2_PUB_KEY_SIZE;
         }
         else if ((key->level == WC_ML_DSA_65) &&
-                 (privKeyLen == ML_DSA_LEVEL3_PRV_KEY_SIZE)) {
+                 (privKeyLen == ML_DSA_LEVEL3_PRV_KEY_SIZE || privKeyLen == DILITHIUM_SEED_SZ)) {
             pubKey = privKey + ML_DSA_LEVEL3_KEY_SIZE;
             pubKeyLen = ML_DSA_LEVEL3_PUB_KEY_SIZE;
             privKeyLen -= ML_DSA_LEVEL3_PUB_KEY_SIZE;
         }
         else if ((key->level == WC_ML_DSA_87) &&
-                 (privKeyLen == ML_DSA_LEVEL5_PRV_KEY_SIZE)) {
+                 (privKeyLen == ML_DSA_LEVEL5_PRV_KEY_SIZE || privKeyLen == DILITHIUM_SEED_SZ)) {
             pubKey = privKey + ML_DSA_LEVEL5_KEY_SIZE;
             pubKeyLen = ML_DSA_LEVEL5_PUB_KEY_SIZE;
             privKeyLen -= ML_DSA_LEVEL5_PUB_KEY_SIZE;
@@ -9699,13 +9705,22 @@ int wc_Dilithium_PrivateKeyDecode(const byte* input, word32* inOutIdx,
 #endif
         {
             /* No public key data, only import private key data. */
-            ret = wc_dilithium_import_private(privKey, privKeyLen, key);
+            if (isSeed) {
+                ret = wc_dilithium_import_private(privKey, DILITHIUM_SEED_SZ, key);
+            } else {
+                ret = wc_dilithium_import_private(privKey, privKeyLen, key);
+            }
         }
 #if defined(WOLFSSL_DILITHIUM_PUBLIC_KEY)
         else {
             /* Import private and public key data. */
-            ret = wc_dilithium_import_key(privKey, privKeyLen, pubKey,
-                pubKeyLen, key);
+            if (isSeed) {
+                ret = wc_dilithium_import_key(privKey, DILITHIUM_SEED_SZ, pubKey,
+                    pubKeyLen, key);
+            } else {
+                ret = wc_dilithium_import_key(privKey, privKeyLen, pubKey,
+                    pubKeyLen, key);
+            }
         }
 #endif
     }

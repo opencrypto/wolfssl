@@ -36819,24 +36819,20 @@ int DecodeAsymKey_Assign(const byte* input, word32* inOutIdx, word32 inSz,
     return 0;
 #else
     if (ret == 0) {
-        /* If user supplies an expected keyType (algorithm OID sum), attempt to
-         * process DER accordingly */
-        if (*inOutKeyType != ANONk) {
+        // /* If user supplies an expected keyType (algorithm OID sum), attempt to
+        //  * process DER accordingly */
+        // if (*inOutKeyType != ANONk) {
             word32 oidSz;
             /* Explicit OID check - use expected type */
             const byte* oidDerBytes = OidFromId((word32)*inOutKeyType,
                                                 oidKeyType, &oidSz);
             GetASN_ExpBuffer(&dataASN[EDKEYASN_IDX_PKEYALGO_OID], oidDerBytes,
                             oidSz);
-
-            /* Store detected OID if requested */
-            *inOutKeyType =
-                    (int)dataASN[EDKEYASN_IDX_PKEYALGO_OID].data.oid.sum;
-        }
-        else {
-            /* Auto-detect OID using template */
-            GetASN_OID(&dataASN[EDKEYASN_IDX_PKEYALGO_OID], oidKeyType);
-        }
+        // }
+        // else {
+        //     /* Auto-detect OID using template */
+        //     GetASN_OID(&dataASN[EDKEYASN_IDX_PKEYALGO_OID], oidKeyType);
+        // }
 
         /* Parse full private key. */
         ret = GetASN_Items(edKeyASN, dataASN, edKeyASN_Length, 1, input,
@@ -36855,7 +36851,6 @@ int DecodeAsymKey_Assign(const byte* input, word32* inOutIdx, word32 inSz,
         /* Import private value. */
         *privKeyLen = dataASN[EDKEYASN_IDX_PKEY_CURVEPKEY].data.ref.length;
         *privKey = dataASN[EDKEYASN_IDX_PKEY_CURVEPKEY].data.ref.data;
-        *inOutKeyType = (int)dataASN[EDKEYASN_IDX_PKEYALGO_OID].data.oid.sum;
     }
     if ((ret == 0) && dataASN[EDKEYASN_IDX_PUBKEY].tag == 0) {
         /* Set public length to 0 as not seen. */
