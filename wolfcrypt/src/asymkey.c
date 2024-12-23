@@ -243,14 +243,8 @@ int wc_AsymKey_gen(AsymKey      ** key,
                 param = 16384;
                 aKey.secBits = 256;
             }
-            // keyPtr = (void*)XMALLOC(sizeof(RsaKey), NULL, DYNAMIC_TYPE_RSA);
-            // if (keyPtr == NULL) {
-            //     ret = MEMORY_E;
-            //     goto err;
-            // }
 
             wc_FreeRsaKey(rsaKeyPtr);
-
             ret = wc_InitRsaKey(rsaKeyPtr, NULL);
             if (ret < 0) {
                 goto err;
@@ -279,14 +273,7 @@ int wc_AsymKey_gen(AsymKey      ** key,
                 goto err;
             }
 
-            // keyPtr = (void*)XMALLOC(sizeof(ecc_key), NULL, DYNAMIC_TYPE_ECC);
-            // if (keyPtr == NULL) {
-            //     ret = MEMORY_E;
-            //     goto err;
-            // }
-
             wc_ecc_free(eccKeyPtr);
-
             ret = wc_ecc_init(eccKeyPtr);
             if (ret < 0) {
                 goto err;
@@ -314,11 +301,7 @@ int wc_AsymKey_gen(AsymKey      ** key,
         case ED25519k:
 #ifdef HAVE_ED25519
             ed25519_key * ed25519Key = (ed25519_key *)&aKey.val.ed25519Key;
-            // keyPtr = (void *)XMecc_key ecc_key * eccKeyPtr = (ecc_key *)&aKey.val.eccKey;* eccKeyPtr = (ecc_key *)&aKey.val.eccKey;ALLOC(sizeof(ed25519_key), NULL, DYNAMIC_TYPE_ED25519);
-            // if (keyPtr == NULL) {
-            //     ret = MEMORY_E;
-            //     goto err;
-            // }
+
             wc_ed25519_free(ed25519Key);
             ret = wc_ed25519_init(ed25519Key);
             if (ret < 0) {
@@ -339,11 +322,7 @@ int wc_AsymKey_gen(AsymKey      ** key,
         case ED448k:
 #ifdef HAVE_ED448
             ed448_key * ed448Key = (ed448_key *)&aKey.val.ed448Key;
-            // keyPtr = (void *)XMALLOC(sizeof(ed448_key), NULL, DYNAMIC_TYPE_ED448);
-            // if (keyPtr == NULL) {
-            //     ret = MEMORY_E;
-            //     goto err;
-            // }
+
             wc_ed448_free(ed448Key);
             ret = wc_ed448_init(ed448Key);
             if (ret < 0) {
@@ -841,19 +820,19 @@ int wc_AsymKey_size(const AsymKey* key) {
 #endif
 #ifdef HAVE_ED25519
     case ED25519_TYPE:
-        ret = wc_Ed25519KeyToDer((ed25519_key *)&key->val.ed25519Key, NULL, 0);
+        ret = wc_Ed25519PrivateKeyToDer((ed25519_key *)&key->val.ed25519Key, NULL, 0);
         break;
 #endif
 #ifdef HAVE_ED448
     case ED448_TYPE:
-        ret = wc_Ed448KeyToDer((ed448_key *)&key->val.ed448Key, NULL, 0);
+        ret = wc_Ed448PrivateKeyToDer((ed448_key *)&key->val.ed448Key, NULL, 0);
         break;
 #endif
 #ifdef HAVE_DILITHIUM
     case ML_DSA_LEVEL2_TYPE:
     case ML_DSA_LEVEL3_TYPE:
     case ML_DSA_LEVEL5_TYPE:
-        ret = wc_Dilithium_KeyToDer((dilithium_key *)&key->val.dilithiumKey, NULL, 0);
+        ret = wc_Dilithium_PrivateKeyToDer((dilithium_key *)&key->val.dilithiumKey, NULL, 0);
         break;
 #endif
 #ifdef HAVE_MLDSA_COMPOSITE
@@ -899,11 +878,9 @@ int wc_AsymKey_size(const AsymKey* key) {
 
 }
 
-
 int wc_AsymKey_pub_size(const AsymKey* key) {
 
-  
-  int ret = 0;
+    int ret = 0;
 
     if (!key)
         return BAD_FUNC_ARG;
@@ -1009,19 +986,19 @@ int wc_AsymKey_sig_size(const AsymKey* key) {
 #endif
 #ifdef HAVE_ED25519
     case ED25519_TYPE:
-        ret = wc_Ed25519PublicKeyToDer((ed25519_key *)&key->val.ed25519Key, NULL, 0, 0);
+        ret = wc_ed25519_sig_size((ed25519_key *)&key->val.ed25519Key);
         break;
 #endif
 #ifdef HAVE_ED448
     case ED448_TYPE:
-        ret = wc_Ed448PublicKeyToDer((ed448_key *)&key->val.ed448Key, NULL, 0, 0);
+        ret = wc_ed448_sig_size((ed448_key *)&key->val.ed448Key);
         break;
 #endif
 #ifdef HAVE_DILITHIUM
     case ML_DSA_LEVEL2_TYPE:
     case ML_DSA_LEVEL3_TYPE:
     case ML_DSA_LEVEL5_TYPE:
-        ret = wc_Dilithium_PublicKeyToDer((dilithium_key *)&key->val.dilithiumKey, NULL, 0, 0);
+        ret = wc_dilithium_sig_size((dilithium_key *)&key->val.dilithiumKey);
         break;
 #endif
 #ifdef HAVE_MLDSA_COMPOSITE
@@ -1039,13 +1016,13 @@ int wc_AsymKey_sig_size(const AsymKey* key) {
     case MLDSA87_BPOOL384_TYPE:
     case MLDSA87_NISTP384_TYPE:
     case MLDSA87_ED448_TYPE:
-        ret = wc_MlDsaComposite_PublicKeyToDer((mldsa_composite_key *)&key->val.mldsaCompKey, NULL, 0, 0);
+        ret = wc_mldsa_composite_sig_size((mldsa_composite_key *)&key->val.mldsaCompKey);
         break;
 #endif
 #ifdef HAVE_FALCON
     case FALCON_LEVEL1_TYPE:
     case FALCON_LEVEL5_TYPE:
-        ret = wc_Falcon_PublicKeyToDer(&key->val.falconKey, NULL, 0, 0);
+        ret = wc_falcon_sig_size(&key->val.falconKey);
         break;
 #endif
 #ifdef HAVE_SPHINCS
@@ -1055,7 +1032,7 @@ int wc_AsymKey_sig_size(const AsymKey* key) {
     case SPHINCS_SMALL_LEVEL1_TYPE:
     case SPHINCS_SMALL_LEVEL3_TYPE:
     case SPHINCS_SMALL_LEVEL5_TYPE:
-        ret = wc_Sphincs_PublicKeyToDer(key->key.sphincs, NULL, 0);
+        ret = wc_sphincs_sig_size(key->key.sphincs);
         break;
 #endif
 
