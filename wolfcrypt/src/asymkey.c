@@ -179,7 +179,7 @@ int wc_AsymKey_gen(AsymKey      ** key,
                    WC_RNG        * rng) {
 
     int ret = 0;
-    void* keyPtr = NULL;
+    // void* keyPtr = NULL;
 
     // int keyType = 0;
     int rngAlloc = 0;
@@ -326,7 +326,7 @@ int wc_AsymKey_gen(AsymKey      ** key,
             }
             ret = wc_ed25519_make_key(rng, ED25519_KEY_SIZE, ed25519Key);
             if (ret < 0) {
-                wc_ed25519_free(keyPtr);
+                wc_ed25519_free(ed25519Key);
                 goto err;
             }
             aKey.type = ED25519_TYPE;
@@ -389,7 +389,7 @@ int wc_AsymKey_gen(AsymKey      ** key,
                 aKey.type = ML_DSA_LEVEL3_TYPE;
                 aKey.secBits = 192;
             } else if (Oid == ML_DSA_LEVEL5k || Oid == DILITHIUM_LEVEL5k) {
-                ret = wc_dilithium_set_level(keyPtr, WC_ML_DSA_87);
+                ret = wc_dilithium_set_level(mldsaKey, WC_ML_DSA_87);
                 aKey.type = ML_DSA_LEVEL5_TYPE;
                 aKey.secBits = 256;
             } else {
@@ -490,7 +490,7 @@ int wc_AsymKey_gen(AsymKey      ** key,
             if (ret == 0)
                 ret = wc_mldsa_composite_make_key(mldsaCompKey, composite_level, rng);
 
-            aKey.type = wc_mldsa_composite_type(keyPtr);
+            aKey.type = wc_mldsa_composite_type(mldsaCompKey);
             aKey.isHybrid = 1;
             aKey.isPQC = 1;
             // TODO: Fix this shortcut
@@ -2405,10 +2405,13 @@ int wc_AsymKey_Sign_ex(byte          * out,
         case D2_MLDSA87_BPOOL384k:
         case D2_MLDSA87_NISTP384k:
         case D2_MLDSA87_ED448k:
-            if (!out) {
-                ret = wc_mldsa_composite_sig_size(&key->val.mldsaCompKey);
-            } else {
+            sigLen = ret = wc_mldsa_composite_sig_size(&key->val.mldsaCompKey);
+            if (ret < 0)
+                return ret;
+            if (out) {
                 ret = wc_mldsa_composite_sign_msg(tbsData, tbsDataSz, out, &sigLen, (mldsa_composite_key *)&key->val.mldsaCompKey, rng);
+                if (ret < 0)
+                    return ret;
             }
             break;
 #endif

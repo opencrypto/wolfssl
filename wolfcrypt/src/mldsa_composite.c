@@ -449,7 +449,7 @@ int wc_mldsa_composite_make_key(mldsa_composite_key* key, enum mldsa_composite_l
             //     wc_ecc_key_free(key->alt_key.ecc);
             //     key->alt_key.ecc = NULL;
             // }
-            wc_ecc_key_free(&key->alt_key.ecc);
+            wc_ecc_free(&key->alt_key.ecc);
 
             // // Allocates the ECC key
             // key->alt_key.ecc = (ecc_key*)XMALLOC(sizeof(ecc_key), key->heap, DYNAMIC_TYPE_PRIVATE_KEY);
@@ -4641,7 +4641,8 @@ int wc_mldsa_composite_export_private(const mldsa_composite_key* key, byte* out,
         return ASN_PARSE_E;
     }
     *outLen = encodedLen;
-    MADWOLF_DEBUG("COMPOSITE: Exported private key with size %d", encodedLen);
+
+    // MADWOLF_DEBUG("COMPOSITE: Exported private key with size %d", encodedLen);
 
 
 err:
