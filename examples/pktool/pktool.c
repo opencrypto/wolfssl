@@ -94,7 +94,8 @@ int load_key_p8(AsymKey ** key, int type, const char * key_file, int format) {
     }
 
     if (load_file(&keyData, &keySz, key_file) < 0) {
-        printf("Cannot open the key file (%s)", key_file);
+        printf("Cannot open the key file (%s)\n", key_file);
+        fflush(stdout);
         return -1;
     }
 
@@ -279,7 +280,7 @@ int gen_csr(const AsymKey * keyPair, const AsymKey * altkey, const char * out_fi
         goto exit;
     }
 
-    ret = wc_MakeCertReq_ex(&req, der, sizeof(der), certType, keyPair->key.ptr);
+    ret = wc_MakeCertReq_ex(&req, der, sizeof(der), certType, (void *)&keyPair->val);
     if (ret <= 0) {
         printf("Make Cert Req failed: %d\n", ret);
         goto exit;
@@ -392,7 +393,7 @@ int gen_csr(const AsymKey * keyPair, const AsymKey * altkey, const char * out_fi
     }
     ret = wc_SignCert_ex(req.bodySz, req.sigType, 
                          der, sizeof(der), certType,
-                         (void *)keyPair->key.ptr, &rng);
+                         (void *)&keyPair->val, &rng);
     if (ret <= 0) {
         printf("Sign Cert failed: %d\n", ret);
         goto exit;
@@ -519,7 +520,7 @@ int gen_cert(const AsymKey * keyPair, const AsymKey * altkey, const char * out_f
 
     // Forcing the type
     // certType = MLDSA44_RSAPSS2048_TYPE;
-    ret = wc_MakeCert_ex(&aCert, der, sizeof(der), certType, keyPair->key.ptr, &rng);
+    ret = wc_MakeCert_ex(&aCert, der, sizeof(der), certType, (void *)&keyPair->val, &rng);
     if (ret <= 0) {
         printf("Make Cert failed: %d\n", ret);
         goto exit;
@@ -632,7 +633,7 @@ int gen_cert(const AsymKey * keyPair, const AsymKey * altkey, const char * out_f
     }
     ret = wc_SignCert_ex(aCert.bodySz, aCert.sigType, 
                          der, sizeof(der), certType,
-                         (void *)keyPair->key.ptr, &rng);
+                         (void *)&keyPair->val, &rng);
     if (ret <= 0) {
         printf("Sign Cert failed: %d\n", ret);
         goto exit;

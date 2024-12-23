@@ -344,17 +344,17 @@ struct mldsa_composite_key {
     int type;
         /* Type of keys/cert from CertType */
 
-    MlDsaKey * mldsa_key;
+    MlDsaKey mldsa_key;
         /* ML-DSA Key */
 
     struct mldsa_composite_params alkey_kp;
         /* Alternative Key Parameters */
 
     union {
-        RsaKey * rsa; /* RSAOAEPk, RSAPSSk */
-        ecc_key * ecc; /* ECDSAk */
-        ed25519_key * ed25519; /* ED25519k */
-        ed448_key * ed448; /* ED448k */
+        RsaKey rsa; /* RSAOAEPk, RSAPSSk */
+        ecc_key ecc; /* ECDSAk */
+        ed25519_key ed25519; /* ED25519k */
+        ed448_key ed448; /* ED448k */
     } alt_key;
         /* Alternative Key */
 };
@@ -486,13 +486,6 @@ WOLFSSL_API int wc_mldsa_composite_init(mldsa_composite_key* key);
  */
 WOLFSSL_API int wc_mldsa_composite_init_ex(mldsa_composite_key* key, void* heap, int devId);
 
-/* Clears the memory associated with the internals of a mldsa composite key.
- *
- * @param [in, out] key     ML-DSA composite key.
- * @return  0 on success.
- * @return  BAD_FUNC_ARG when key is NULL
- */
-WOLFSSL_API int wc_mldsa_composite_clear(mldsa_composite_key* key);
 
 #ifdef WOLF_PRIVATE_KEY_ID
 WOLFSSL_API
@@ -578,7 +571,7 @@ WOLFSSL_API int wc_mldsa_composite_key_sum_level(const enum Key_Sum keytype_sum)
 */
 WOLFSSL_API int wc_composite_level_key_sum(const enum mldsa_composite_level level);
 
-/* Clears the MlDsaComposite key data
+/* Clears the MlDsaComposite key data but does not release the memory.
  *
  * key  [in]  MlDsaComposite key.
  */
@@ -631,7 +624,7 @@ WOLFSSL_API int wc_MlDsaCompositeKey_GetPubLen(mldsa_composite_key* key, int* le
  * @return  Signature size on success for set level.
  * @return  BAD_FUNC_ARG when key is NULL or level not set,
  */
-WOLFSSL_API int wc_mldsa_composite_sig_size(mldsa_composite_key* key);
+WOLFSSL_API int wc_mldsa_composite_sig_size(const mldsa_composite_key* key);
 #endif
 
 /* Returns the size of a MlDsaComposite signature.
@@ -706,7 +699,7 @@ WOLFSSL_API int wc_mldsa_composite_import_private(const byte* priv, word32 privS
  * @return  BAD_FUNC_ARG when a parameter is NULL.
  * @return  BUFFER_E when outLen is less than DILITHIUM_LEVEL2_KEY_SIZE.
  */
-WOLFSSL_API int wc_mldsa_composite_export_private(mldsa_composite_key* key, byte* out, word32* outLen);
+WOLFSSL_API int wc_mldsa_composite_export_private(const mldsa_composite_key* key, byte* out, word32* outLen);
 
 /* Define for import private only */
 #define wc_mldsa_composite_import_private_only    wc_mldsa_composite_import_private
@@ -815,7 +808,7 @@ WOLFSSL_API int wc_MlDsaComposite_PublicKeyToDer(mldsa_composite_key* key, byte*
  * @return  BAD_FUNC_ARG when key is NULL.
  * @return  MEMORY_E when dynamic memory allocation failed.
  */
-WOLFSSL_API int wc_MlDsaComposite_PrivateKeyToDer(mldsa_composite_key* key, byte* output,
+WOLFSSL_API int wc_MlDsaComposite_PrivateKeyToDer(const mldsa_composite_key* key, byte* output,
     word32 inLen);
 
 #ifdef WOLFSSL_MLDSA_COMPOSITE_PUBLIC_KEY

@@ -20,8 +20,8 @@
 /* in case user set HAVE_ECC there */
 #include <wolfssl/wolfcrypt/settings.h>
 
-#ifndef WOLF_CRYPT_ASYNCKEY_H
-#define WOLF_CRYPT_ASYNCKEY_H
+#ifndef WOLF_CRYPT_ASYMKEY_H
+#define WOLF_CRYPT_ASYMKEY_H
 
 #ifndef WOLF_CRYPT_ERROR_H
 #include <wolfssl/wolfcrypt/error-crypt.h>
@@ -79,46 +79,41 @@
 typedef struct AsymKey {
     /* Type of key - RSA, ECC, etc. */
     int type;
-    /* Key Parameter - Integer for Curve OIDs or level */
     int param;
     union {
-        /* RSA key data. */
 #ifndef NO_RSA
-        RsaKey* rsaKey;
+        RsaKey rsaKey;
 #endif
 #ifdef HAVE_ECC
-        /* ECC key data. */
-        ecc_key* eccKey;
+        ecc_key eccKey;
 #ifdef HAVE_ED25519
-        ed25519_key* ed25519Key;
+        ed25519_key ed25519Key;
 #endif
 #ifdef HAVE_ED448
-        ed448_key* ed448Key;
+        ed448_key ed448Key;
 #endif
 #endif
 #ifdef HAVE_PQC
 #ifdef HAVE_FALCON
-        falcon_key* falconKey;
+        falcon_key falconKey;
 #endif
 #ifdef HAVE_DILITHIUM
-        dilithium_key* dilithiumKey;
+        dilithium_key dilithiumKey;
 #endif
 #ifdef HAVE_SPHINCS
-        sphincs_key* sphincsKey;
+        sphincs_key sphincsKey;
 #endif
 #ifdef HAVE_MLDSA_COMPOSITE
-        mldsa_composite_key * mldsaCompKey;
+        mldsa_composite_key mldsaCompKey;
 #endif
 #endif
 #ifdef HAVE_SPHINCS
-        sphincs_key* sphincsKey;
+        sphincs_key sphincsKey;
 #endif
-        void * ptr;
-    } key;
-    /* Key data. */
+    } val;
     word32 secBits;
-    /* Useful Security Properties */
     word8 isPQC;
+    word8 isHybrid;
 } AsymKey;
 
 /* Type Defs for More Expressive Names */
@@ -314,6 +309,41 @@ WOLFSSL_API int wc_AsymKey_export_ex(const AsymKey* key, byte* buff, word32 buff
  * @return  BAD_FUNC_ARG when p8_data or p8_dataSz is NULL.
  */
 WOLFSSL_API int wc_AsymKey_info(word32 * oid, byte * pkcsData, word32 pkcsDataSz, int format);
+
+/* Exports a Private and Public Key in PKCS#8 format 
+*
+* @param [in]  key     The key to export.
+* @param [out] buff    Array to hold the exported keypair.
+* @param [in]  buffLen Number of bytes in the array.
+* @param [in]  format  Format of key data (1 = PEM, 0 = DER).
+* @return  the number of written bytes on success.
+* @return  BAD_FUNC_ARG when a parameter is NULL.
+* @return  BUFFER_E when outLen is less than required.
+*/
+
+int wc_AsymKey_ProivateKeyToDer(const AsymKey * key,
+                                byte          * buff,
+                                word32          buffLen,
+                                int             format);
+
+/* Exports a Private and Public Key in PKCS#8 format.
+*
+* @param [in]  key     The key to export.
+* @param [out] buff    Array to hold the exported keypair.
+* @param [in]  buffLen Number of bytes in the array.
+* @param [in]  format  Format of key data (1 = PEM, 0 = DER).
+* @param [in]  passwd  Password for the keypair, NULL if not encrypted.
+* @param [in]  passwdSz  Size of the password in bytes, 0 if not encrypted.
+* @return  the number of written bytes on success.
+* @return  BAD_FUNC_ARG when a parameter is NULL.
+* @return  BUFFER_E when outLen is less than required.
+*/
+int wc_AsymKey_PrivateKeyToDer_ex(const AsymKey * key,
+                                  byte          * buff,
+                                  word32          buffLen,
+                                  const byte    * passwd,
+                                  word32          passwdSz,
+                                  int             format);
 
 /* Make a new certificate request (PKCS#10).
  *

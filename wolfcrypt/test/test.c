@@ -46273,9 +46273,7 @@ printf("[%s:%d] %s(): Exported Private (and Public) Key: ret = %d, type = %d, ke
     //     fclose(f);
     // } while (0);
 
-    wc_mldsa_composite_clear(&imported_key);
-    XMEMSET(&imported_key, 0, sizeof(imported_key));
-
+    wc_mldsa_composite_free(&imported_key);
     ret = wc_mldsa_composite_init(&imported_key);
 
 printf("[%s:%d] %s(): MLDSA Composite Key RE-Initialized (MLDSA Comp Type: %d)\n", __FILE__, __LINE__, __FUNCTION__, param);
@@ -46406,8 +46404,7 @@ printf("[%s:%d] %s(): Imported Private (and Public) Key: ret = %d, type = %d, ke
 
 out:
 
-    // wc_mldsa_composite_free(key);
-    wc_mldsa_composite_clear(key);
+    wc_mldsa_composite_free(key);
 
     XFREE(sig, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(key, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
