@@ -89,6 +89,8 @@ int load_key_p8(AsymKey ** key, int type, const char * key_file, int format) {
 
     AsymKey * asymKeyPtr = NULL;
 
+    (void)format;
+    
     // Input checks
     if (!key) {
         printf("[%d] Missing Key Pointer, aborting.\n", __LINE__);
@@ -118,9 +120,10 @@ int load_key_p8(AsymKey ** key, int type, const char * key_file, int format) {
         return -1;
     }
 
-    ret = wc_AsymKey_import(asymKeyPtr, keyData, keySz, format);
+    // ret = wc_AsymKey_import(asymKeyPtr, keyData, keySz, format);
+    ret = wc_AsymKey_PrivateKeyDerDecode(asymKeyPtr, keyData, keySz);
     if (ret != 0) {
-        printf("[%d] Error loading key (err: %d)\n", __LINE__, ret);
+        printf("[%d] Error parsing the key data (err: %d)\n", __LINE__, ret);
         wc_AsymKey_free(asymKeyPtr);
         XFREE(asymKeyPtr, NULL, DYNAMIC_TYPE_PRIVATE_KEY);
         XFREE(keyData, NULL, DYNAMIC_TYPE_TMP_BUFFER);

@@ -1836,60 +1836,63 @@ int wc_AsymKey_PrivateKeyInfo(word32 * oid, byte * pkcsData, word32 pkcsDataSz, 
 }
 
 
-int wc_AsymKey_PrivateKeyDecode(AsymKey* key, const byte* data, word32 dataSz, int format) {
+int wc_AsymKey_PrivateKeyDerDecode(AsymKey* key, const byte* data, word32 dataSz) {
     
     // Calls the extended version with no password
-    return wc_AsymKey_PrivateKeyDecode_ex(key, data, dataSz, format, NULL, 0);
+    return wc_AsymKey_PrivateKeyDerDecode_ex(key, data, dataSz, NULL, 0, 0);
 }
 
-int wc_AsymKey_PrivateKeyDecode_ex(AsymKey* key, const byte* data, word32 dataSz, int format, const char* passwd, int devId) {
+int wc_AsymKey_PrivateKeyDerDecode_ex(AsymKey* key, const byte* data, word32 dataSz, const byte* pwd, word32 pwdSz, int devId) {
 
-  byte * buff = NULL;
-  word32 buffSz = 0;
+    // byte * buff = NULL;
+    // word32 buffSz = 0;
 
-  byte * der = NULL;
-  word32 derSz = 0;
+    byte * der = NULL;
+    word32 derSz = 0;
 
-  word32 algorSum = 0;
-  word32 idx = 0;
-  
-  int ret = 0;
+    word32 algorSum = 0;
+    word32 idx = 0;
+    
+    int ret = 0;
 
-  if (!key || !data || dataSz <= 0)
-    return BAD_FUNC_ARG;
+    if (!key || !data || dataSz <= 0)
+        return BAD_FUNC_ARG;
 
-  /* Assumes the input is DER for now */
-  derSz = dataSz;
+    /* Assumes the input is DER for now */
+    derSz = dataSz;
 
-  /* Convert PEM to DER. */
-  if (format == 1 || format < 0) {
+    (void)pwd;
+    (void)pwdSz;
 
-      // Allocates memory for the buffer (to avoid changing the original key data)
-      buff = (byte *)XMALLOC(dataSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-      buffSz = dataSz;
+//   /* Convert PEM to DER. */
+//   if (format == 1 || format < 0) {
 
-      // Decodes PEM into DER
-      if ((ret = wc_KeyPemToDer(data, dataSz, buff, buffSz, passwd)) < 0) {
-        XFREE(buff, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        return ret;
-      }
+//       // Allocates memory for the buffer (to avoid changing the original key data)
+//       buff = (byte *)XMALLOC(dataSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+//       buffSz = dataSz;
 
-      // If the format was not explicity required, allow for the DER format
-      if (format == 1 && ret <= 0) {
-        XFREE(buff, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        return ret;
-      }
+//       // Decodes PEM into DER
+//       if ((ret = wc_KeyPemToDer(data, dataSz, buff, buffSz, passwd)) < 0) {
+//         XFREE(buff, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+//         return ret;
+//       }
 
-      if (ret > 0) {
-          der = buff;
-          derSz  = buffSz;
-      } else {
-          der = (byte *)data;
-      }
+//       // If the format was not explicity required, allow for the DER format
+//       if (format == 1 && ret <= 0) {
+//         XFREE(buff, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+//         return ret;
+//       }
 
-  } else {
-      der = (byte *)data;
-  }
+//       if (ret > 0) {
+//           der = buff;
+//           derSz  = buffSz;
+//       } else {
+//           der = (byte *)data;
+//       }
+
+//   } else {
+//       der = (byte *)data;
+//   }
 
   // Gets the key information (OID or Key_Sum)
   if ((ret = wc_AsymKey_PrivateKeyInfo(&algorSum, der, derSz, 0)) < 0) {
@@ -2080,8 +2083,11 @@ int wc_AsymKey_PrivateKeyToDer(const AsymKey * key,
 int wc_AsymKey_PrivateKeyToDer_ex(const AsymKey * key,
                                   byte          * buff,
                                   word32        * buffLen,
-                                  const byte    * passwd,
-                                  word32          passwdSz) {
+                                  const byte    * pwd,
+                                  word32          pwdSz) {
+
+    (void)pwd;
+    (void)pwdSz;
 
     int ret = 0;
         // return value
@@ -2513,9 +2519,6 @@ int wc_AsymKey_PrivateKeyToDer_ex(const AsymKey * key,
     }
     
     *buffLen = derPkcsSz;
-
-    (void)passwd;
-    (void)passwdSz;
 
     return 0;
 }

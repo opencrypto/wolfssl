@@ -313,7 +313,7 @@ WOLFSSL_API int wc_AsymKey_PrivateKeyInfo(word32 * oid, byte * pkcsData, word32 
  * @return  0 on success.
  * @return  BAD_FUNC_ARG when a parameter is NULL.
  */
-WOLFSSL_API int wc_AsymKey_PrivateKeyDecode(AsymKey* key, const byte* data, word32 dataSz, int format);
+WOLFSSL_API int wc_AsymKey_PrivateKeyDerDecode(AsymKey* key, const byte* data, word32 dataSz);
 
 /* Decode an encrypted PKCS8 private key.
  *
@@ -326,7 +326,7 @@ WOLFSSL_API int wc_AsymKey_PrivateKeyDecode(AsymKey* key, const byte* data, word
  * @return  0 on success.
  * @return  BAD_FUNC_ARG when a parameter is NULL.
  */
-WOLFSSL_API int wc_AsymKey_PrivateKeyDecode_ex(AsymKey* key, const byte* data, word32 dataSz, int format, const char* passwd, int devId);
+WOLFSSL_API int wc_AsymKey_PrivateKeyDerDecode_ex(AsymKey* key, const byte* data, word32 dataSz, const byte* pwd, word32 pwdSz, int devId);
 
 /* Exports a Private and Public Key in PKCS#8 format 
 *
