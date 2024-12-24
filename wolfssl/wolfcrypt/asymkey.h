@@ -274,30 +274,24 @@ WOLFSSL_API int wc_AsymKey_import_ex(AsymKey* key, const byte* data, word32 data
  * @param [in]  key       The keypair to export.
  * @param [out] buff      Array to hold the exported keypair.
  * @param [in]  buffLen   Number of bytes in the array.
- * @param [in]  standard Use 1 for standard (pkcs8) or 0 for legacy (pkcs1).
- * @param [in]  format  Format of key data (1 = PEM, 0 = DER).
- * @param [in]  passwd    Password for the keypair, NULL if not encrypted.
- * @param [in]  passwdSz  Size of the password in bytes, 0 if not encrypted.
  * @return  0 on success.
  * @return  BAD_FUNC_ARG when a parameter is NULL.
  * @return  BUFFER_E when outLen is less than DILITHIUM_LEVEL2_KEY_SIZE.
  */
-WOLFSSL_API int wc_AsymKey_export(const AsymKey* key, byte* buff, word32 buffLen, int format);
+WOLFSSL_API int wc_AsymKey_export(const AsymKey* key, byte* buff, word32* buffLen);
 
 /* Export a keypair to a byte array.
  *
  * @param [in]  key       The keypair to export.
  * @param [out] buff      Array to hold the exported keypair.
  * @param [in]  buffLen   Number of bytes in the array.
- * @param [in]  standard Use 1 for standard (pkcs8) or 0 for legacy (pkcs1).
- * @param [in]  format  Format of key data (1 = PEM, 0 = DER).
  * @param [in]  passwd    Password for the keypair, NULL if not encrypted.
  * @param [in]  passwdSz  Size of the password in bytes, 0 if not encrypted.
  * @return  0 on success.
  * @return  BAD_FUNC_ARG when a parameter is NULL.
  * @return  BUFFER_E when outLen is less than DILITHIUM_LEVEL2_KEY_SIZE.
  */
-WOLFSSL_API int wc_AsymKey_export_ex(const AsymKey* key, byte* buff, word32 buffLen, const byte* passwd, word32 passwdSz, int format);
+WOLFSSL_API int wc_AsymKey_export_ex(const AsymKey* key, byte* buff, word32* buffLen, const byte* passwd, word32 passwdSz);
 
 /* Retrieves the OID of the keypair.
  *
@@ -308,7 +302,31 @@ WOLFSSL_API int wc_AsymKey_export_ex(const AsymKey* key, byte* buff, word32 buff
  * @return  0 on success.
  * @return  BAD_FUNC_ARG when p8_data or p8_dataSz is NULL.
  */
-WOLFSSL_API int wc_AsymKey_info(word32 * oid, byte * pkcsData, word32 pkcsDataSz, int format);
+WOLFSSL_API int wc_AsymKey_PrivateKeyInfo(word32 * oid, byte * pkcsData, word32 pkcsDataSz, int format);
+
+/* Decode a PKCS8 private key.
+ *
+ * @param [in] key     The key to decode.
+ * @param [in] data    The data to decode.
+ * @param [in] dataSz  The size of the data.
+ * @param [in] format  The format of the data.
+ * @return  0 on success.
+ * @return  BAD_FUNC_ARG when a parameter is NULL.
+ */
+WOLFSSL_API int wc_AsymKey_PrivateKeyDecode(AsymKey* key, const byte* data, word32 dataSz, int format);
+
+/* Decode an encrypted PKCS8 private key.
+ *
+ * @param [in] key     The key to decode.
+ * @param [in] data    The data to decode.
+ * @param [in] dataSz  The size of the data.
+ * @param [in] format  The format of the data.
+ * @param [in] passwd  The password for the key.
+ * @param [in] devId   The device ID for hardware acceleration.
+ * @return  0 on success.
+ * @return  BAD_FUNC_ARG when a parameter is NULL.
+ */
+WOLFSSL_API int wc_AsymKey_PrivateKeyDecode_ex(AsymKey* key, const byte* data, word32 dataSz, int format, const char* passwd, int devId);
 
 /* Exports a Private and Public Key in PKCS#8 format 
 *
@@ -320,11 +338,9 @@ WOLFSSL_API int wc_AsymKey_info(word32 * oid, byte * pkcsData, word32 pkcsDataSz
 * @return  BAD_FUNC_ARG when a parameter is NULL.
 * @return  BUFFER_E when outLen is less than required.
 */
-
-int wc_AsymKey_ProivateKeyToDer(const AsymKey * key,
-                                byte          * buff,
-                                word32          buffLen,
-                                int             format);
+WOLFSSL_API int wc_AsymKey_PrivateKeyToDer(const AsymKey * key,
+                               byte          * buff,
+                               word32        * buffLen);
 
 /* Exports a Private and Public Key in PKCS#8 format.
 *
@@ -338,12 +354,12 @@ int wc_AsymKey_ProivateKeyToDer(const AsymKey * key,
 * @return  BAD_FUNC_ARG when a parameter is NULL.
 * @return  BUFFER_E when outLen is less than required.
 */
-int wc_AsymKey_PrivateKeyToDer_ex(const AsymKey * key,
-                                  byte          * buff,
-                                  word32          buffLen,
-                                  const byte    * passwd,
-                                  word32          passwdSz,
-                                  int             format);
+WOLFSSL_API int wc_AsymKey_PrivateKeyToDer_ex(const AsymKey * key,
+                                              byte          * buff,
+                                              word32        * buffLen,
+                                              const byte    * passwd,
+                                              word32          passwdSz);
+
 
 /* Make a new certificate request (PKCS#10).
  *

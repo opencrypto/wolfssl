@@ -27438,8 +27438,8 @@ int wc_KeySum_get(const char * name) {
             ret = MLDSA65_NISTP256k;
         } else if (!XSTRNCMP(name, "MLDSA65-BPOOL256", 16) ||
                    !XSTRNCMP(name, "mldsa65-bpool256", 16) ||
-                   !XSTRNCMP(name, "MLDSA65-B256", 12) ||
-                   !XSTRNCMP(name, "mldsa65-b256", 12)) {
+                   !XSTRNCMP(name, "MLDSA65-BP256", 12) ||
+                   !XSTRNCMP(name, "mldsa65-bp256", 12)) {
             ret = MLDSA65_BPOOL256k;
         } else if (!XSTRNCMP(name, "MLDSA65-ED25519", 15) ||
                    !XSTRNCMP(name, "mldsa65-ed25519", 15)) {
@@ -27451,26 +27451,20 @@ int wc_KeySum_get(const char * name) {
             ret = MLDSA87_NISTP384k;
         } else if (!XSTRNCMP(name, "MLDSA87-BPOOL384", 16) ||
                    !XSTRNCMP(name, "mldsa87-bpool384", 16) ||
-                   !XSTRNCMP(name, "MLDSA87-B384", 12) ||
-                   !XSTRNCMP(name, "mldsa87-b384", 12)) {
+                   !XSTRNCMP(name, "MLDSA87-BP384", 12) ||
+                   !XSTRNCMP(name, "mldsa87-bp384", 12)) {
             ret = MLDSA87_BPOOL384k;
         } else if (!XSTRNCMP(name, "MLDSA87-ED448", 14) ||
                    !XSTRNCMP(name, "mldsa87-ed448", 14)) {
             ret = MLDSA87_ED448k;
         } else if (!XSTRNCMP(name, "ML-DSA-44", 9) ||
-                   !XSTRNCMP(name, "ml-dsa-44", 9) ||
-                   !XSTRNCMP(name, "MLDSA44", 7) ||
-                   !XSTRNCMP(name, "mldsa44", 7)) {
+                   !XSTRNCMP(name, "ml-dsa-44", 9)) {
             ret = ML_DSA_LEVEL2k;
         } else if (!XSTRNCMP(name, "ML-DSA-65", 9) ||
-                   !XSTRNCMP(name, "ml-dsa-65", 9) ||
-                   !XSTRNCMP(name, "MLDSA65", 7) ||
-                   !XSTRNCMP(name, "mldsa65", 7)) {
+                   !XSTRNCMP(name, "ml-dsa-65", 9)) {
             ret = ML_DSA_LEVEL3k;
         } else if (!XSTRNCMP(name, "ML-DSA-87", 9) ||
-                   !XSTRNCMP(name, "ml-dsa-87", 9) ||
-                   !XSTRNCMP(name, "MLDSA87", 7) ||
-                   !XSTRNCMP(name, "mldsa87", 7)) {
+                   !XSTRNCMP(name, "ml-dsa-87", 9)) {
             ret = ML_DSA_LEVEL5k;
         } else {
             ret = BAD_FUNC_ARG;

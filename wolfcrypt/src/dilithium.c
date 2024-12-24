@@ -9436,6 +9436,11 @@ int wc_dilithium_export_private(dilithium_key* key, byte* out, word32* outLen) {
         ret = BAD_FUNC_ARG;
     }
 
+    if (ret == 0 && !out) {
+        *outLen = DILITHIUM_SEED_SZ;
+        return ret;
+    }
+
     // if (ret == 0) {
     //     inLen = *outLen;
     //     /* check and set up out length */

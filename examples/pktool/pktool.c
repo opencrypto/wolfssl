@@ -35,7 +35,9 @@ int export_key_p8(AsymKey * key, const char * out_file, int format) {
     byte * buff = NULL;
         // buffer to hold the exported key
 
-    buffSz = ret = wc_AsymKey_export(key, NULL, 0, format);
+    (void)format;
+
+    ret = wc_AsymKey_PrivateKeyToDer(key, NULL, &buffSz);
     if (ret < 0) {
         printf("Error exporting key %d\n", ret);
         return ret;
@@ -47,7 +49,7 @@ int export_key_p8(AsymKey * key, const char * out_file, int format) {
         return -1;
     }
 
-    buffSz = ret = wc_AsymKey_export(key, buff, buffSz, format);
+    ret = wc_AsymKey_PrivateKeyToDer(key, buff, &buffSz);
     if (ret < 0) {
         printf("Error exporting key %d\n", ret);
         return ret;
@@ -101,12 +103,12 @@ int load_key_p8(AsymKey ** key, int type, const char * key_file, int format) {
 
     printf("******** Loaded File: %s, %d ******** \n", key_file, keySz);
 
-    word32 algorSum = 0;
-    ret = wc_AsymKey_info(&algorSum, keyData, keySz, format);
-    if (ret < 0) {
-        printf("[%d] Error Retrieving AsymKey Information (sz: %d, sum: %d, err: %d)\n", __LINE__, keySz, algorSum, ret);
-        return -1;
-    }
+    // word32 algorSum = 0;
+    // ret = wc_AsymKey_info(&algorSum, keyData, keySz, format);
+    // if (ret < 0) {
+    //     printf("[%d] Error Retrieving AsymKey Information (sz: %d, sum: %d, err: %d)\n", __LINE__, keySz, algorSum, ret);
+    //     return -1;
+    // }
 
     // Allocates memory for the key
     asymKeyPtr = wc_AsymKey_new();
@@ -896,6 +898,7 @@ int gen_keypair(AsymKey ** key, int keySum, int param) {
     return 0;
 }
 #endif // WOLFSSL_KEY_GEN
+
 
 int main(int argc, char** argv) {
 
