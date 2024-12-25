@@ -949,7 +949,6 @@ then
     test "$enable_ocsp" = "" && enable_ocsp=no
     test "$enable_tlsx" = "" && enable_tlsx=no
     test "$enable_sni" = "" && enable_sni=no
-    test "$enable_sni" = "" && enable_sni=no
     test "$enable_crl_monitor" = "" && enable_crl_monitor=no
     test "$enable_alpn" = "" && enable_alpn=no
     test "$enable_pkcallbacks" = "" && enable_pkcallbacks=no
@@ -2488,6 +2487,16 @@ else
     AM_CFLAGS="$AM_CFLAGS -DWC_NO_HARDEN -DWC_NO_CACHE_RESISTANT"
 fi
 
+# Fault protection hardening
+AC_ARG_ENABLE([faultharden],
+    [AS_HELP_STRING([--enable-faultharden],[Enable Fault Hardened build (default: disabled)])],
+    [ENABLED_FAULTHARDEN=$enableval],
+    [ENABLED_FAULTHARDEN=no])
+
+if test "$ENABLED_FAULTHARDEN" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CHECK_SIG_FAULTS -DWOLFSSL_CHECK_VER_FAULTS"
+fi
 
 # IPv6 Test Apps
 AC_ARG_ENABLE([ipv6],
@@ -5589,7 +5598,7 @@ AS_CASE([$FIPS_VERSION],
         # for armasm on arm-v7 or earlier (see armasm setup above).
         AS_IF([test "$ENABLED_AESGCM_STREAM" != "yes" &&
                (test "$FIPS_VERSION" != "dev" || test "$enable_aesgcm_stream" != "no") &&
-               (test "$ENABLED_ARMASM" = "no" || test "$ENABLED_ARMASM_CRYPTO" = "no")],
+               ! (test "$ENABLED_ARMASM" = "yes" && test "$ENABLED_ARMASM_CRYPTO" = "no")],
             [ENABLED_AESGCM_STREAM="yes"])
 
         AS_IF([test "x$ENABLED_AESOFB" = "xno" &&
@@ -5608,7 +5617,7 @@ AS_CASE([$FIPS_VERSION],
 
         AS_IF([test "x$ENABLED_AESXTS_STREAM" = "xno" &&
                (test "$FIPS_VERSION" != "dev" || test "$enable_aesxts_stream" != "no") &&
-               (test "$ENABLED_ARMASM" = "no" || test "$ENABLED_ARMASM_CRYPTO" = "no")],
+               ! (test "$ENABLED_ARMASM" = "yes" && test "$ENABLED_ARMASM_CRYPTO" = "no")],
             [ENABLED_AESXTS_STREAM="yes"])
 
         AS_IF([(test "$ENABLED_AESCCM" = "yes" && test "$HAVE_AESCCM_PORT" != "yes") ||
