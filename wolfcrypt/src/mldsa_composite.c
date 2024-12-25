@@ -4333,9 +4333,11 @@ int wc_mldsa_composite_export_private(const mldsa_composite_key* key, byte* out,
 #ifdef HAVE_MLDSA_COMPOSITE_DRAFT_3
 
         // mldsa_BufferLen = ret = wc_dilithium_priv_size((dilithium_key *)&key->mldsa_key);
-        mldsa_BufferLen = ret = wc_dilithium_export_private((dilithium_key *)&key->mldsa_key, NULL, &mldsa_BufferLen);
-        if (ret <= 0)
+        ret = wc_dilithium_export_private((dilithium_key *)&key->mldsa_key, NULL, &mldsa_BufferLen);
+        if (ret < 0) {
+            MADWOLF_DEBUG("error cannot export ML-DSA component's private key with error %d\n", ret);
             return WC_KEY_SIZE_E;
+        }
         
         if (inLen < mldsa_BufferLen)
             return BUFFER_E;
@@ -4401,7 +4403,7 @@ int wc_mldsa_composite_export_private(const mldsa_composite_key* key, byte* out,
                 // if ((ret = wc_ed25519_export_private_only((ed25519_key *)&key->alt_key.ed25519, other_Buffer, &other_BufferLen)) < 0) {
                 //     return ret;
                 // }
-                if ((ret = wc_ed25519_export_private((ed25519_key *)&key->alt_key.ed25519, other_Buffer, &other_BufferLen)) < 0) {
+                if ((ret = wc_ed25519_export_private_only((ed25519_key *)&key->alt_key.ed25519, other_Buffer, &other_BufferLen)) < 0) {
                     return ret;
                 }
             }

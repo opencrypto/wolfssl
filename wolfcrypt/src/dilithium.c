@@ -9599,8 +9599,6 @@ int wc_Dilithium_PrivateKeyDecode(const byte* input, word32* inOutIdx,
         ret = BAD_FUNC_ARG;
     }
 
-    printf("[%s:%d] MADWOLF: ret: %d\n", __FILE__, __LINE__, ret);
-
     if (ret == 0) {
         /* Get OID sum for level. */
     #if defined(WOLFSSL_DILITHIUM_FIPS204_DRAFT)
@@ -9632,14 +9630,11 @@ int wc_Dilithium_PrivateKeyDecode(const byte* input, word32* inOutIdx,
             keytype = ANONk; /* 0, not a valid key type in this situation*/
         }
     }
-    printf("[%s:%d] MADWOLF: keytype: %d, ret: %d\n", __FILE__, __LINE__, keytype, ret);
-
     if (ret == 0) {
         /* Decode the asymmetric key and get out private and public key data. */
         ret = DecodeAsymKey_Assign(input, inOutIdx, inSz,
                                    &privKey, &privKeyLen,
                                    &pubKey, &pubKeyLen, &keytype);
-        printf("[%s:%d] MADWOLF: privLen: %d, pubKeyLen: %d, ret: %d\n", __FILE__, __LINE__, privKeyLen, pubKeyLen, ret);
         if (ret == 0
 #ifdef WOLFSSL_WC_DILITHIUM
             && key->params == NULL
@@ -9647,14 +9642,11 @@ int wc_Dilithium_PrivateKeyDecode(const byte* input, word32* inOutIdx,
         ) {
             /* Set the security level based on the decoded key. */
             ret = mapOidToSecLevel(keytype);
-            printf("[%s:%d] MADWOLF: mapOidToSecLevel -> keytype: %d, ret: %d\n", __FILE__, __LINE__, keytype, ret);
             if (ret > 0) {
                 ret = wc_dilithium_set_level(key, ret);
-                printf("[%s:%d] MADWOLF: set level -> keytype: %d, ret: %d\n", __FILE__, __LINE__, keytype, ret);
             }
         }
     }
-    printf("[%s:%d] MADWOLF: keytype: %d, ret: %d\n", __FILE__, __LINE__, keytype, ret);
     if ((ret == 0) && (privKey != NULL) && (privKeyLen == DILITHIUM_SEED_SZ)) {
         /* Set the private key data. */
         isSeed = 1;
