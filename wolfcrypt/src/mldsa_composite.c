@@ -3676,28 +3676,6 @@ int wc_mldsa_composite_import_private(const byte                * priv,
         return MEMORY_E;
     }
 
-    MADWOLF_DEBUG("Importing ML-DSA Composite Private Key (level: %d, size: %d)", level, privSz);
-
-    // // Removes the PKCS8 header
-    // if ((ret = ToTraditional_ex(keyBuffer, privSz, &algorSum)) > 0) {
-    //     privSz = ret;
-    //     // Saves the result in the OID
-    //     int pkcs8_level = wc_mldsa_composite_key_sum_level(algorSum);
-    //     if (wc_mldsa_composite_type_level(key->type) != pkcs8_level) {
-    //         MADWOLF_DEBUG("Key type mismatch (%d vs. %d)", key->type, pkcs8_level);
-    //         ret = BAD_FUNC_ARG;
-    //         goto err;
-    //     }
- 
-    //     word32 stringSz = 0;
-    //     ASNGetData octetStringData[1];
-    //     ASNItem dataIT = { 0, ASN_OCTET_STRING, 0, 1, 0 };
-    //     GetASN_Buffer(&octetStringData[0], NULL, &stringSz);
-    //     if ((ret = GetASN_Items(&dataIT, octetStringData, 1, 0, NULL, &idx, privSz)) < 0) {
-    //         MADWOLF_DEBUG("Error while parsing ASN.1 (%d, privSz: %d, idx: %d, type: %d)", ret, privSz, idx, key->type);
-    //         goto err;
-    //     }
-
     // Parse the ASN.1 data
     if (level == D2_WC_MLDSA44_RSAPSS2048_SHA256
         || level == D2_WC_MLDSA44_RSA2048_SHA256
@@ -3754,7 +3732,7 @@ int wc_mldsa_composite_import_private(const byte                * priv,
             other_BufferLen = idx + seqLen;
             XMEMCPY(other_Buffer, dataPnt, dataLen);
 
-            // --------- Dreaft 2 --------------- //
+            // --------- Draft 2 --------------- //
             // 
             // The default approach would be to use the usual code for the GetASN_Items(), however
             // the current implementation leaves the two sequences at depth 1 without the outer sequence
@@ -3818,37 +3796,15 @@ int wc_mldsa_composite_import_private(const byte                * priv,
 
         // -------- Draft 3 (D3) ML-DSA Private Key - SEQ of OCTET STRING ------- //
         idx = 0;
-
-        // MADWOLF_DEBUG0("ML-DSA COMPOSITE: Parsing ASN.1 data");
-
-        if ((ret = GetASN_Items(compPrivKeyIT, compPrivKeyASN, 3, 1, keyBuffer, &idx, privSz)) < 0) {
-            MADWOLF_DEBUG("Error while parsing ASN.1 (%d, privSz: %d, idx: %d, level: %d, type: %d)", ret, privSz, idx, level, key->type);
-            // FILE * f = fopen("privkey.bin", "wb");
-            // if (f) {
-            //     fwrite(priv, 1, privSz, f);
-            //     fclose(f);
-            // }
+        ret = GetASN_Items(compPrivKeyIT, compPrivKeyASN, 3, 1, keyBuffer, &idx, privSz);
+        if (ret < 0)
             goto err;
-        }
     }
 
     // If no passed type, let's check the key type
     if (level <= 0) level = wc_mldsa_composite_level(key);
 
     idx = mldsa_BufferLen;
-
-    // // Allocate the ML-DSA key
-    // if (key->mldsa_key) {
-    //     wc_dilithium_free(key->mldsa_key);
-    //     key->mldsa_key = NULL;
-    // }
-
-    // // Allocates the memory
-    // key->mldsa_key = ((dilithium_key*)XMALLOC(sizeof(dilithium_key), key->heap, DYNAMIC_TYPE_DILITHIUM));
-    // if (!key->mldsa_key) {
-    //     ret = MEMORY_E;
-    //     goto err;
-    // }
 
     // Initializes the ML-DSA key
     wc_dilithium_free(&key->mldsa_key);
@@ -3926,13 +3882,6 @@ int wc_mldsa_composite_import_private(const byte                * priv,
         || level == D2_WC_MLDSA87_BPOOL384_SHA512
         || level == D2_WC_MLDSA87_ED448_SHA512) {
 
-        // // Processes a sequence of PKCS8 objects
-        // if ((ret = wc_Dilithium_PrivateKeyDecode(mldsa_Buffer, &idx, key->mldsa_key, mldsa_BufferLen)) < 0) {
-        //     MADWOLF_DEBUG("failed to import ML-DSA-44 component with code %d", ret);
-        //     goto err;
-        //     return ret;
-        // }
-
         // Processes a sequence of OCTET STRING objects
         ret = ToTraditional_ex(mldsa_Buffer, mldsa_BufferLen, &algorSum);
         if (ret <= 0) {
@@ -3942,24 +3891,16 @@ int wc_mldsa_composite_import_private(const byte                * priv,
         ret = 0;
 
         // Processes a sequence of PKCS8 objects
-        if ((ret = wc_Dilithium_PrivateKeyDecode(mldsa_Buffer, &idx,&key->mldsa_key, mldsa_BufferLen)) < 0) {
-            MADWOLF_DEBUG("[A] failed to import ML-DSA-44 component with code %d", ret);
-            // goto err;
-        }
-
-        // // Processes a sequence of OCTET STRING objects
-        // if ((ret = wc_dilithium_import_private(mldsa_Buffer, mldsa_BufferLen, key->mldsa_key)) < 0) {
-        //     MADWOLF_DEBUG("[B] failed to import ML-DSA component with code %d", ret);
-        //     goto err;
-        // }
+        ret = wc_Dilithium_PrivateKeyDecode(mldsa_Buffer, &idx,&key->mldsa_key, mldsa_BufferLen);
+        if (ret < 0)
+            goto err;
 
     } else {
 
         // Processes a sequence of OCTET STRING objects
-        if ((ret = wc_dilithium_import_private(mldsa_Buffer, mldsa_BufferLen, &key->mldsa_key)) < 0) {
-            MADWOLF_DEBUG("[C] failed to import ML-DSA component with code %d", ret);
+        ret = wc_dilithium_import_private(mldsa_Buffer, mldsa_BufferLen, &key->mldsa_key);
+        if (ret < 0)
             goto err;
-        }
     }
 
     // Resets the index
@@ -3972,27 +3913,8 @@ int wc_mldsa_composite_import_private(const byte                * priv,
         case D2_WC_MLDSA44_ED25519_SHA256:
         case WC_MLDSA65_ED25519_SHA384:
         case WC_MLDSA44_ED25519_SHA256: {
-
-            // // Checks the ED25519 pubkey buffer size
-            // if (other_BufferLen != ED25519_PRV_KEY_SIZE) {
-            //     MADWOLF_DEBUG("ML-DSA COMPOSITE: ED25519 private key size error (%d vs. %d)", other_BufferLen, ED25519_KEY_SIZE);
-            //     ret = BUFFER_E;
-            //     break;
-            // }
-            // if (key->alt_key.ed25519) {
-            //     wc_ed25519_free(key->alt_key.ed25519);
-            // } else {
-            //     key->alt_key.ed25519 = (ed25519_key *)XMALLOC(sizeof(ed25519_key), key->heap, DYNAMIC_TYPE_ED25519);
-            //     if (!key->alt_key.ed25519) {
-            //         ret = MEMORY_E;
-            //         break;
-            //     }
-            // }
-
             wc_ed25519_free(&key->alt_key.ed25519);
-
             if ((ret = wc_ed25519_init(&key->alt_key.ed25519)) < 0) {
-                MADWOLF_DEBUG("ML-DSA COMPOSITE: failed to init ED25519 component with code %d", ret);
                 wc_ed25519_free(&key->alt_key.ed25519);
                 break;
             }
@@ -4001,23 +3923,20 @@ int wc_mldsa_composite_import_private(const byte                * priv,
             if (level == WC_MLDSA65_ED25519_SHA384 ||
                 level == WC_MLDSA44_ED25519_SHA256) {
 
-                // if (key->alt_key.ed25519) {
-                //     wc_ed25519_free(key->alt_key.ed25519);
-                // } else {
-                //     key->alt_key.ed25519 = (ed25519_key *)XMALLOC(sizeof(ed25519_key), key->heap, DYNAMIC_TYPE_ED25519);
-                //     if (!key->alt_key.ed25519) {
-                //         ret = MEMORY_E;
-                //         break;
-                //     }
-                // }
                 wc_ed25519_free(&key->alt_key.ed25519);
 
                 if (other_BufferLen >= ED25519_PRV_KEY_SIZE) {
                     if ((ret = wc_ed25519_import_private_key(other_Buffer, ED25519_PRV_KEY_SIZE, NULL, 0, &key->alt_key.ed25519)) < 0) {
-                        MADWOLF_DEBUG("ML-DSA COMPOSITE: failed to import ED25519 component with code %d, Trying private only", ret);
+                        if ((ret = wc_ed25519_import_private_only(other_Buffer, other_BufferLen, &key->alt_key.ed25519)) < 0) {
+                            wc_ed25519_free(&key->alt_key.ed25519);
+                            break;
+                        }
                     }
+
                 } else { 
-                    if ((ret = wc_ed25519_import_private_only(other_Buffer, other_BufferLen, &key->alt_key.ed25519)) < 0) {
+
+                    ret = wc_ed25519_import_private_only(other_Buffer, other_BufferLen, &key->alt_key.ed25519);
+                    if (ret < 0) {
                         MADWOLF_DEBUG("ML-DSA COMPOSITE: failed to import ED25519 private only component with code %d", ret);
                         wc_ed25519_free(&key->alt_key.ed25519);
                         break;
@@ -4055,18 +3974,7 @@ int wc_mldsa_composite_import_private(const byte                * priv,
             int curveId = 0;
             int curveSz = 0;
 
-            // if (key->alt_key.ecc) {
-            //     wc_ecc_free(key->alt_key.ecc);
-            //     key->alt_key.ecc = NULL;
-            // }
             wc_ecc_free(&key->alt_key.ecc);
-
-            // key->alt_key.ecc = (ecc_key *)XMALLOC(sizeof(ecc_key), key->heap, DYNAMIC_TYPE_PRIVATE_KEY);
-            // if (!key->alt_key.ecc) {
-            //     ret = MEMORY_E;
-            //     break;
-            // }
-
             if (wc_ecc_init_ex(&key->alt_key.ecc, key->heap, key->devId) < 0) {
                 wc_ecc_free(&key->alt_key.ecc);
                 ret = BAD_STATE_E;
@@ -4152,18 +4060,8 @@ int wc_mldsa_composite_import_private(const byte                * priv,
             word32 rsaSz = 0;
             int sz = 0;
 
-            // if (key->alt_key.rsa) {
-            //     wc_FreeRsaKey(key->alt_key.rsa);
-            //     key->alt_key.rsa = NULL;
-            // }
             wc_FreeRsaKey(&key->alt_key.rsa);
 
-            // key->alt_key.rsa = (RsaKey *)XMALLOC(sizeof(RsaKey), key->heap, DYNAMIC_TYPE_PRIVATE_KEY);
-            // if (!key->alt_key.rsa) {
-            //     ret = MEMORY_E;
-            //     break;
-            // }
-            
             if (level == D2_WC_MLDSA65_RSAPSS3072_SHA512
                 || level == D2_WC_MLDSA65_RSA3072_SHA512
                 || level == D2_WC_MLDSA44_RSAPSS2048_SHA256
@@ -4171,14 +4069,12 @@ int wc_mldsa_composite_import_private(const byte                * priv,
 
                 // Processes a sequence of OCTET STRING objects
                 ret = ToTraditional_ex(other_Buffer, other_BufferLen, &algorSum);
-                if (ret <= 0) {
-                    MADWOLF_DEBUG(":::: failed to convert RSA component to traditional with code %d (algorSum: %d)", ret, algorSum);
+                if (ret <= 0)
                     goto err;
-                }
                 other_BufferLen = ret;
 
-                if ((ret = wc_RsaPrivateKeyDecode(other_Buffer, &rsaSz, &key->alt_key.rsa, other_BufferLen)) < 0) {
-                    MADWOLF_DEBUG("failed to import RSA component with code %d (other: %d, rsaSz: %d)", ret, other_BufferLen, rsaSz);
+                ret = wc_RsaPrivateKeyDecode(other_Buffer, &rsaSz, &key->alt_key.rsa, other_BufferLen);
+                if (ret < 0) {
                     wc_FreeRsaKey(&key->alt_key.rsa);
                     ret = ASN_PARSE_E;
                     break;
@@ -4248,13 +4144,8 @@ int wc_mldsa_composite_import_private(const byte                * priv,
 
                 wc_ed448_free(&(key->alt_key.ed448));
 
-                // key->alt_key.ed448 = (ed448_key *)XMALLOC(sizeof(ed448_key), key->heap, DYNAMIC_TYPE_PRIVATE_KEY);
-                // if (!key->alt_key.ed448) {
-                //     ret = MEMORY_E;
-                //     break;
-                // }
-                if ((ret = wc_ed448_import_private_key_ex(other_Buffer, other_BufferLen, NULL, 0, &(key->alt_key.ed448), 0)) < 0) {
-                    MADWOLF_DEBUG("ML-DSA COMPOSITE: failed to import ED448 component with code %d", ret);
+                ret = wc_ed448_import_private_key_ex(other_Buffer, other_BufferLen, NULL, 0, &(key->alt_key.ed448), 0);
+                if (ret < 0) {
                     wc_ed448_free(&key->alt_key.ed448);
                     break;
                 }
