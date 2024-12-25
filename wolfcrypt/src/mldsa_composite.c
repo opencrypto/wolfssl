@@ -1388,18 +1388,21 @@ int wc_mldsa_composite_sign_msg_ex(const byte* msg, word32 msgLen, byte* sig,
         case WC_MLDSA87_BPOOL384_SHA384: {
             // Sign ECC Component
             byte msg_digest[WC_SHA512_DIGEST_SIZE];
+            word32 msg_digestLen = WC_SHA512_DIGEST_SIZE;
 
             if (composite_level == D2_WC_MLDSA87_BPOOL384_SHA512) {
                 if (wc_Sha512Hash(tbsMsg, tbsMsgLen, msg_digest) < 0) {
                     return BAD_STATE_E;
                 }
+                msg_digestLen = WC_SHA512_DIGEST_SIZE;
             } else {
                 if (wc_Sha384Hash(tbsMsg, tbsMsgLen, msg_digest) < 0) {
                     return BAD_STATE_E;
                 }
+                msg_digestLen = WC_SHA384_DIGEST_SIZE;
             }
 
-            if ((ret = wc_ecc_sign_hash(msg_digest, sizeof(msg_digest),
+            if ((ret = wc_ecc_sign_hash(msg_digest, msg_digestLen,
                                         otherSig_buffer, &otherSig_bufferLen, 
                                         rng, (ecc_key *)&key->alt_key.ecc)) < 0) {
 

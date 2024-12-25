@@ -239,7 +239,7 @@ int gen_csr(const AsymKey * keyPair, const AsymKey * altkey, const char * out_fi
     printf("AsymKey Sign: derSz = %d, ret = %d\n", derSz, ret);
     ret = wc_AsymKey_Sign_ex(der, (word32 *)&derSz, (const byte *)"1234567890", 10, WC_HASH_TYPE_SHA256, NULL, 0, keyPair, &rng);
     if (ret != 0) {
-        printf("Error signing data: %d\n", ret);
+        printf("Error signing data: %d, derSz = %d\n", ret, derSz);
         return ret;
     }
 
@@ -698,48 +698,7 @@ exit:
 int gen_keypair(AsymKey ** key, int keySum, int param) {
 
     int ret;
-    int outSz = 0;
-#ifndef NO_RSA
-    RsaKey rsaKey;
-#endif
-#ifdef HAVE_DSA
-    dsa_key dsaKey;
-#endif
-#ifdef HAVE_ECC
-    ecc_key ecKey;
-#endif
-#ifdef HAVE_ED25519
-    ed25519_key ed25519Key;
-#endif
-#ifdef HAVE_ED448
-    ed448_key ed448Key;
-#endif
-#ifdef HAVE_DILITHIUM
-    MlDsaKey mldsaKey;
-#endif
-#ifdef HAVE_MLDSA_COMPOSITE
-    mldsa_composite_key mldsa_compositeKey;
-#endif
-    void* keyPtr = NULL;
     WC_RNG rng;
-
-#ifdef HAVE_MLDSA_COMPOSITE
-    byte der[MLDSA_COMPOSITE_MAX_PRV_KEY_SIZE];
-#else
-    byte der[10192]; /* 10k */
-#endif
-
-    // AsymKey * aKey = NULL;
-    
-    // if (*key == NULL) {
-    //     aKey = wc_AsymKey_new();
-    //     if (aKey == NULL) {
-    //         printf("Error allocating memory for the key\n");
-    //         return -1;
-    //     }
-    // } else {
-    //     aKey = *key;
-    // }
 
     wc_InitRng(&rng);
     if ((ret = wc_AsymKey_gen(key, keySum, param, NULL, 0, &rng)) < 0) {
@@ -747,155 +706,6 @@ int gen_keypair(AsymKey ** key, int keySum, int param) {
         return -1;
     }
 
-    (void)der;
-    (void)outSz;
-    (void)mldsaKey;
-    (void)ed448Key;
-    (void)ed25519Key;
-    (void)ecKey;
-    (void)keyPtr;
-
-//     if (keySum < 0) {
-//         printf("Invalid key type (type: %d)\n", keySum);
-//         return -1;
-//     } else if (!key) {
-//         printf("Missing function parameter (key)\n");
-//         return -2;
-//     }
-
-//     ret = wc_InitRng(&rng);
-//     if (ret != 0) {
-//         printf("RNG initialization failed: %d\n", ret);
-//         return ret;
-//     }
-
-//     switch (keySum) {
-// #ifdef HAVE_DSA
-//     case DSAk:
-//         keyPtr = &dsaKey;
-//         ret = wc_InitDsaKey(&dsaKey, NULL);
-//         break;
-// #endif
-// #ifndef NO_RSA
-//     case RSAPSSk:
-//     case RSAk:
-//         keyPtr = &rsaKey;
-//         ret = wc_InitRsaKey(&rsaKey, rsaKey.heap);
-//         if (ret == 0)
-//             ret = wc_MakeRsaKey(&rsaKey, 2048, WC_RSA_EXPONENT, &rng);
-//         break;
-// #endif
-// #ifdef HAVE_ECC
-//     case ECDSAk:
-//         keyPtr = &ecKey;
-//         ret = wc_ecc_init(&ecKey);
-//         int keySz = 32;
-//         if (param <= 0)
-//             param = ECC_SECP256R1;
-//         if (ret == 0) {
-//             if ((keySz = wc_ecc_get_curve_size_from_id(param)) < 0)
-//                 ret = keySz;
-//             if (ret == 0)
-//                 ret = wc_ecc_make_key_ex(&rng, keySz, keyPtr, param);
-//         }
-//         break;
-// #endif
-// #ifdef HAVE_ED25519
-//     case ED25519k:
-//         keyPtr = &ed25519Key;
-//         ret = wc_ed25519_init(&ed25519Key);
-//         if (ret == 0)
-//             ret = wc_ed25519_make_key(&rng, ED25519_KEY_SIZE, keyPtr);
-//         break;
-// #endif
-// #ifdef HAVE_ED448
-//     case ED448k:
-//         keyPtr = &ed448Key;
-//         ret = wc_ed448_init(&ed448Key);
-//         if (ret == 0)
-//             ret = wc_ed448_make_key(&rng, ED448_KEY_SIZE, keyPtr);
-//         break;
-// #endif
-// #ifdef HAVE_DILITHIUM
-//     case ML_DSA_LEVEL2k:
-//     case ML_DSA_LEVEL3k:
-//     case ML_DSA_LEVEL5k:
-//         keyPtr = &mldsaKey;
-//         ret = wc_dilithium_init(&mldsaKey);
-//         if (ret == 0) {
-//             if (keySum == ML_DSA_LEVEL2k)
-//                 ret = wc_dilithium_set_level(&mldsaKey, WC_ML_DSA_44);
-//             else if (keySum == ML_DSA_LEVEL3k)
-//                 ret = wc_dilithium_set_level(&mldsaKey, WC_ML_DSA_65);
-//             else if (keySum == ML_DSA_LEVEL5k)
-//                 ret = wc_dilithium_set_level(&mldsaKey, WC_ML_DSA_87);
-//             else
-//                 ret = -1;
-//         }
-//         if (ret == 0)
-//             ret = wc_dilithium_make_key(&mldsaKey, &rng);
-//         break;
-// #endif
-
-// #ifdef HAVE_MLDSA_COMPOSITE
-//     case MLDSA44_RSAPSS2048k:
-//     case MLDSA44_RSA2048k:
-//     case MLDSA44_NISTP256k:
-//     // case MLDSA44_BPOOL256k:
-//     case MLDSA44_ED25519k:
-//     case MLDSA65_ED25519k:
-//     case MLDSA65_RSAPSS4096k:
-//     case MLDSA65_RSA4096k:
-//     case MLDSA65_RSAPSS3072k:
-//     case MLDSA65_RSA3072k:
-//     case MLDSA65_NISTP256k:
-//     case MLDSA65_BPOOL256k:
-//     case MLDSA87_BPOOL384k:
-//     case MLDSA87_NISTP384k:
-//     case MLDSA87_ED448k:
-//         keyPtr = &mldsa_compositeKey;
-//         int key_type = 0;
-        
-//         ret = wc_mldsa_composite_init(&mldsa_compositeKey);
-//         if ((key_type = wc_mldsa_composite_key_sum_level(keySum)) < 0)
-//             return key_type;
-//         if (ret == 0)
-//             ret = wc_mldsa_composite_make_key(&mldsa_compositeKey, key_type, &rng);
-
-//         break;
-// #endif
-
-//         default:
-//             printf("ERROR: Invalid key type (%d)\n", keySum);
-//             return BAD_FUNC_ARG;
-//     }
-
-//     // Returns the key
-//     if (ret == 0) {
-//         *key = keyPtr;
-//     }
-
-#ifdef HAVE_MLDSA_COMPOSITE
-    (void)mldsa_compositeKey;
-#endif
-#ifdef HAVE_MLDSA
-    (void)mldsaKey;
-#endif
-#ifdef HAVE_ED448
-    (void)ed448Key;
-#endif
-#ifdef HAVE_ED25519
-    (void)ed25519Key;
-#endif
-#ifdef HAVE_ECC
-    (void)ecKey;
-#endif
-#ifndef NO_RSA
-    (void)rsaKey;
-#endif
-#ifdef HAVE_DSA
-    (void)dsaKey;
-#endif
     wc_FreeRng(&rng);
 
     return 0;

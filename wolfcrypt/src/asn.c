@@ -32958,6 +32958,10 @@ static int MakeCertReq(Cert* cert, byte* derBuffer, word32 derSz,
             cert->keyType = MLDSA87_NISTP384_KEY;
         }
         else if ((mldsaCompKey != NULL) &&
+                    (mldsaCompKey->type == MLDSA87_BPOOL384_TYPE)) {
+            cert->keyType = MLDSA87_BPOOL384_KEY;
+        }
+        else if ((mldsaCompKey != NULL) &&
                     (mldsaCompKey->type == MLDSA87_ED448_TYPE)) {
             cert->keyType = MLDSA87_ED448_KEY;
         }

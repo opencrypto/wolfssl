@@ -1937,30 +1937,27 @@ int wc_AsymKey_PrivateKeyDerDecode_ex(AsymKey* key, const byte* data, word32 dat
 #endif
 #ifdef HAVE_ED25519
     case ED25519k:
-        ed25519_key * edKey = (ed25519_key *)&key->val.ed25519Key;
+        ed25519_key * ed25519Key = (ed25519_key *)&key->val.ed25519Key;
         
-        wc_ed25519_free(edKey);
-        if (wc_ed25519_init(edKey) < 0) {
+        wc_ed25519_free(ed25519Key);
+        if (wc_ed25519_init(ed25519Key) < 0) {
             return BAD_STATE_E;
         }
-
-        // if ((ret = wc_ed25519_import_private_key(data, dataSz, NULL, 0, edKey)) < 0) {
-        //     MADWOLF_DEBUG("Error importing ED25519 private key (ret: %d, Sz: %d)\n", ret, dataSz);
-        //     return ASN_PARSE_E;
-        // }
-
-        if ((ret = wc_Ed25519PrivateKeyDecode(data, &idx, edKey, dataSz)) < 0) {
+        if ((ret = wc_Ed25519PrivateKeyDecode(data, &idx, ed25519Key, dataSz)) < 0) {
             return ASN_PARSE_E;
         }
-        edKey->pubKeySet = 1;
-        edKey->privKeySet = 1;
+        ed25519Key->pubKeySet = 1;
+        ed25519Key->privKeySet = 1;
         key->type = ED25519_TYPE;
         break;
 #endif
 #ifdef HAVE_ED448
     case ED448k:
         ed448_key * ed448Key = (ed448_key *)&key->val.ed448Key;
-
+        wc_ed448_free(ed448Key);
+        if (wc_ed448_init(ed448Key) < 0) {
+            return BAD_STATE_E;
+        }
         if ((ret = wc_Ed448PrivateKeyDecode(data, &idx, ed448Key, dataSz)) < 0) {
             return ASN_PARSE_E;
         }
