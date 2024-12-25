@@ -1895,10 +1895,6 @@ int wc_AsymKey_PrivateKeyDerDecode_ex(AsymKey* key, const byte* data, word32 dat
 
   // Gets the key information (OID or Key_Sum)
   if ((ret = wc_AsymKey_PrivateKeyInfo(&algorSum, (byte *)data, dataSz, 0)) < 0) {
-    MADWOLF_DEBUG("Error getting key information (%d)\n", ret);
-    FILE * f = fopen("key.der", "wb");
-    fwrite(data, 1, dataSz, f);
-    fclose(f);
     return ret;
   }
 

@@ -5453,7 +5453,6 @@ int wc_MlDsaComposite_PublicKeyToDer(mldsa_composite_key* key, byte* output, wor
 
         // Gets the size of the public key
         if ((ret = wc_mldsa_composite_export_public(key, NULL, &pubKeyLen)) < 0) {
-            MADWOLF_DEBUG("Cannot export the ML-DSA Composite public key with code %d", ret);
             return ret;
         }
 
@@ -5509,14 +5508,12 @@ int wc_MlDsaComposite_PrivateKeyToDer(const mldsa_composite_key* key, byte* outp
 
         // Check the private key buffer size
         if ((privkey_sz = SetAsymKeyDer(privKey_Buffer, privKey_BufferLen, NULL, 0, NULL, 0, keySum)) < 0) {
-            MADWOLF_DEBUG0("Cannot calculate the private key size");
             return MEMORY_E;
         }
 
         // If output is provided, export the private key
         if (output) {
             if ((word32)privkey_sz > len) {
-                MADWOLF_DEBUG("Private Key Export Buffer (needed: %d, provided: %d, type: %d)", privkey_sz, len, key->type);
                 return BAD_FUNC_ARG;
             }
             // Export the private key (if any output is provided)
@@ -5524,12 +5521,6 @@ int wc_MlDsaComposite_PrivateKeyToDer(const mldsa_composite_key* key, byte* outp
             if (ret < 0) {
                 return ret;
             }
-            FILE * fp = fopen("private_key_3.der", "wb");
-            if (fp) {
-                fwrite(output, 1, ret, fp);
-                fclose(fp);
-            }
-
         } else {
             ret = privkey_sz;
         }
@@ -5566,14 +5557,12 @@ int wc_MlDsaComposite_KeyToDer(mldsa_composite_key* key, byte* output, word32 le
 
         // Check the private key buffer size
         if ((privkey_sz = SetAsymKeyDer(privKey_Buffer, privKey_BufferLen, NULL, 0, NULL, 0, keySum)) < 0) {
-            MADWOLF_DEBUG0("Cannot calculate the private key size");
             return MEMORY_E;
         }
 
         // If output is provided, export the private key
         if (output) {
             if ((word32)privkey_sz > len) {
-                MADWOLF_DEBUG("Private Key Export Buffer (needed: %d, provided: %d, type: %d)", privkey_sz, len, key->type);
                 return BAD_FUNC_ARG;
             }
             // Export the private key (if any output is provided)
