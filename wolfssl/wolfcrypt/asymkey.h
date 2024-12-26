@@ -117,8 +117,8 @@ typedef struct AsymKey {
 } AsymKey;
 
 /* Type Defs for More Expressive Names */
-typedef struct Cert wc_509Cert;
-typedef struct Cert wc_509Req;
+typedef struct Cert wc_x509Cert;
+typedef struct Cert wc_x509Req;
 
 /* Functions */
 
@@ -304,7 +304,7 @@ WOLFSSL_API int wc_AsymKey_export_ex(const AsymKey* key, byte* buff, word32* buf
  */
 WOLFSSL_API int wc_AsymKey_PrivateKeyInfo(word32 * oid, byte * pkcsData, word32 pkcsDataSz, int format);
 
-/* Decode a PKCS8 private key.
+/* Decode a PKCS8 private key in DER format.
  *
  * @param [in] key     The key to decode.
  * @param [in] data    The data to decode.
@@ -315,7 +315,7 @@ WOLFSSL_API int wc_AsymKey_PrivateKeyInfo(word32 * oid, byte * pkcsData, word32 
  */
 WOLFSSL_API int wc_AsymKey_PrivateKeyDerDecode(AsymKey* key, const byte* data, word32 dataSz);
 
-/* Decode an encrypted PKCS8 private key.
+/* Decode an encrypted PKCS8 private key in DER format.
  *
  * @param [in] key     The key to decode.
  * @param [in] data    The data to decode.
@@ -327,6 +327,30 @@ WOLFSSL_API int wc_AsymKey_PrivateKeyDerDecode(AsymKey* key, const byte* data, w
  * @return  BAD_FUNC_ARG when a parameter is NULL.
  */
 WOLFSSL_API int wc_AsymKey_PrivateKeyDerDecode_ex(AsymKey* key, const byte* data, word32 dataSz, const byte* pwd, word32 pwdSz, int devId);
+
+/* Decode a PKCS8 private key in PEM format.
+ *
+ * @param [in] key     The key to decode.
+ * @param [in] data    The data to decode.
+ * @param [in] dataSz  The size of the data.
+ * @param [in] format  The format of the data.
+ * @return  0 on success.
+ * @return  BAD_FUNC_ARG when a parameter is NULL.
+ */
+WOLFSSL_API int wc_AsymKey_PrivateKeyPemDecode(AsymKey* key, const byte* data, word32 dataSz);
+
+/* Decode an encrypted PKCS8 private key in PEM format.
+ *
+ * @param [in] key     The key to decode.
+ * @param [in] data    The data to decode.
+ * @param [in] dataSz  The size of the data.
+ * @param [in] format  The format of the data.
+ * @param [in] passwd  The password for the key.
+ * @param [in] devId   The device ID for hardware acceleration.
+ * @return  0 on success.
+ * @return  BAD_FUNC_ARG when a parameter is NULL.
+ */
+WOLFSSL_API int wc_AsymKey_PrivateKeyPemDecode_ex(AsymKey* key, const byte* data, word32 dataSz, const byte* pwd, word32 pwdSz, int devId);
 
 /* Exports a Private and Public Key in PKCS#8 format 
 *
@@ -360,30 +384,15 @@ WOLFSSL_API int wc_AsymKey_PrivateKeyToDer_ex(const AsymKey * key,
                                               const byte    * passwd,
                                               word32          passwdSz);
 
+WOLFSSL_API int wc_AsymKey_PrivateKeyToPem(const AsymKey * key,
+                                           byte          * out,
+                                           word32        * outLen);
 
-/* Make a new certificate request (PKCS#10).
- *
- * @param [in]  der     The DER encoded certificate request.
- * @param [in]  derSz   The size of the DER encoded certificate request.
- * @param [out] req     The certificate request.
- * @param [in]  key     The key to make the request with.
- * @return  0 on success.
- * @return  BAD_FUNC_ARG when a parameter is NULL.
- * @return  NOT_COMPILED_IN when the function is not compiled in.
- */
-WOLFSSL_API int wc_AsymKey_MakeReq(const byte* der, word32 derSz, wc_509Req* req, const AsymKey* key);
-
-/* Make a new certificate (X509).
- *
- * @param [in]  req     The certificate request.
- * @param [in]  dn      Distinguished Name.
- * @param [in]  key     The key to make the certificate with.
- * @param [in]  rng     Random number generator.
- * @return  0 on success.
- * @return  BAD_FUNC_ARG when a parameter is NULL.
- * @return  NOT_COMPILED_IN when the function is not compiled in.
- */
-WOLFSSL_API int wc_AsymKey_MakeCert(const byte * der, word32 derLen, wc_509Cert* req, const AsymKey* key, WC_RNG* rng);
+WOLFSSL_API int wc_AsymKey_PrivateKeyToPem_ex(const AsymKey * key,
+                                              byte          * out,
+                                              word32        * outLen,
+                                              const byte    * pwd,
+                                              word32          pwdSz);
 
 /* Sign a message with the key.
  *
@@ -455,14 +464,67 @@ WOLFSSL_API int wc_AsymKey_Verify(const byte* sig, word32 sigLen,
 */
 WOLFSSL_API int wc_AsymKey_Verify_ex(const byte* sig, word32 sigLen, const byte* in, word32 inLen, enum wc_HashType hashType, const AsymKey* key, const byte* context, byte contextLen);
 
-WOLFSSL_API int wc_X509_Req_Sign(const byte * der, word32 derLen, wc_509Req * req, enum wc_HashType htype, const AsymKey* key, WC_RNG* rng);
-WOLFSSL_API int wc_X509_Req_Sign_ex(const byte * der, word32 derLen, wc_509Req * req, enum wc_HashType htype, const byte* context, byte contextLen, const AsymKey* key, WC_RNG* rng);
+/* Retrieves the signature type based on key and hash used.
+ *
+ * @param [in] key      The key to query.
+ * @param [in] hashType The hash type used for the signature
+ *                      (e.g., WC_HASH_TYPE_SHA256). Use WC_HASH_TYPE_NONE
+ *                      for no hash (or for algorithms that do not support
+ *                      hashing).
+ * @return  0 on success.
+ * @return  BAD_FUNC_ARG when a parameter is NULL.
+ */
+WOLFSSL_API int wc_AsymKey_SigType(const AsymKey* key, enum wc_HashType hashType);
+
+/* Make a new certificate request (PKCS#10).
+ *
+ * @param [in]  der     The DER encoded certificate request.
+ * @param [in]  derSz   The size of the DER encoded certificate request.
+ * @param [in]  subjectDN  Distinguished Name.
+ * @param [in]  htype   Hash type to use for the request.
+ * @param [in]  format  Format of key data (1 = PEM, 0 = DER).
+ * @param [in]  key     The key to make the request with.
+ * @return  0 on success.
+ * @return  BAD_FUNC_ARG when a parameter is NULL.
+ * @return  NOT_COMPILED_IN when the function is not compiled in.
+ */
+WOLFSSL_API int wc_AsymKey_MakeReq(byte* der, word32 derSz, const char * subjectDN, enum wc_HashType htype, int format, const AsymKey* key);
+
+/* Make a new certificate request (PKCS#10).
+ *
+ * @param [in]  der     The DER encoded certificate request.
+ * @param [in]  derSz   The size of the DER encoded certificate request.
+ * @param [out] req     The certificate request.
+ * @param [in]  hashType  Hash type to use for the request.
+ * @param [in]  format  Format of key data (1 = PEM, 0 = DER).
+ * @param [in]  key     The key to make the request with.
+ * @param [in]  rng     Random number generator (must be initialized).
+ * @return  0 on success.
+ * @return  BAD_FUNC_ARG when a parameter is NULL.
+ * @return  NOT_COMPILED_IN when the function is not compiled in.
+ */
+WOLFSSL_API int wc_AsymKey_MakeReq_ex(byte* der, word32 derSz, wc_x509Req* req, enum wc_HashType hashType, int format, const AsymKey* key, WC_RNG* rng);
+
+/* Make a new certificate (X509).
+ *
+ * @param [in]  req     The certificate request.
+ * @param [in]  dn      Distinguished Name.
+ * @param [in]  key     The key to make the certificate with.
+ * @param [in]  rng     Random number generator.
+ * @return  0 on success.
+ * @return  BAD_FUNC_ARG when a parameter is NULL.
+ * @return  NOT_COMPILED_IN when the function is not compiled in.
+ */
+WOLFSSL_API int wc_AsymKey_MakeCert(byte * der, word32 derLen, wc_x509Cert* req, const AsymKey* key, WC_RNG* rng);
+
+WOLFSSL_API int wc_X509_Req_Sign(byte * der, word32 derLen, wc_x509Req * req, enum wc_HashType htype, const AsymKey* key, WC_RNG* rng);
+WOLFSSL_API int wc_X509_Req_Sign_ex(byte * der, word32 derLen, wc_x509Req * req, enum wc_HashType htype, const byte* context, byte contextLen, const AsymKey* key, WC_RNG* rng);
 
 WOLFSSL_API int wc_X509_Req_Verify(const byte * der, word32 derLen);
 WOLFSSL_API int wc_X509_Req_Verify_ex(const byte * der, word32 derLen, const byte* context, byte contextLen, const AsymKey* caKey);
 
-WOLFSSL_API int wc_X509_Cert_Sign(const byte * der, word32 derLen, wc_509Req * req, enum wc_HashType htype, const AsymKey* caKey, WC_RNG* rng);
-WOLFSSL_API int wc_X509_Cert_Sign_ex(const byte * der, word32 derLen, wc_509Req * req, enum wc_HashType htype, const byte* context, byte contextLen, const AsymKey* key, WC_RNG* rng);
+WOLFSSL_API int wc_X509_Cert_Sign(byte * der, word32 derLen, wc_x509Req * req, enum wc_HashType htype, const AsymKey* caKey, WC_RNG* rng);
+WOLFSSL_API int wc_X509_Cert_Sign_ex(byte * der, word32 derLen, wc_x509Req * req, enum wc_HashType htype, const byte* context, byte contextLen, const AsymKey* key, WC_RNG* rng);
 
 WOLFSSL_API int wc_X509_Cert_Verify(const byte * der, word32 derLen, const AsymKey * key);
 WOLFSSL_API int wc_X509_Cert_Verify_ex(const byte * der, word32 derLen, const byte* context, byte contextLen, const AsymKey * caKey);

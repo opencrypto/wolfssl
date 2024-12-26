@@ -33340,7 +33340,6 @@ static int SignCert(int requestSz, int sType, byte* buf, word32 buffSz,
             return MEMORY_E;
     }
 
-    // TODO: Add support for more key types (mldsa_composite)
     sigSz = MakeSignature(certSignCtx, buf, (word32)requestSz, certSignCtx->sig,
         MAX_ENCODED_SIG_SZ, rsaKey, eccKey, ed25519Key, ed448Key,
         falconKey, dilithiumKey, sphincsKey, mldsaCompKey, rng, (word32)sType, heap);

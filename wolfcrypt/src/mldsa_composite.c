@@ -978,8 +978,6 @@ int wc_mldsa_composite_verify_msg_ex(const byte* sig, word32 sigLen, const byte*
         return ASN_PARSE_E;
     }
 
-    MADWOLF_DEBUG("ML-DSA Signature Size: %d - calling wc_dilithium_verify_ctx_msg()", mldsa_BufferLen);
-
     // Verify the ML-DSA Component
     if ((ret = wc_dilithium_verify_ctx_msg(mldsa_Buffer, 
                                            mldsa_BufferLen,
@@ -989,14 +987,11 @@ int wc_mldsa_composite_verify_msg_ex(const byte* sig, word32 sigLen, const byte*
                                            tbsMsgLen,
                                            res,
                                            &key->mldsa_key)) < 0) {
-        MADWOLF_DEBUG("wc_dilithium_verify_ctx_msg() failed with error %d", ret);
         return SIG_VERIFY_E;
     }
 
     // If all components are verified, then the signature is valid
     *res = 1;
-
-    MADWOLF_DEBUG("ML-DSA Signature Verified: %d", *res);
 
     // Return the result
     return ret;
