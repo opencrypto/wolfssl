@@ -36,6 +36,20 @@ for algo in $TRADITIONAL_ALGOS; do
     examples/pktool/.libs/pktool genpkey -algorithm $algo $OPT -out $OUTDIR/$algo.key && echo "done" || ( echo "failed" && exit 1 )
     echo -n "Generating csr for $algo ... "
     examples/pktool/.libs/pktool genreq -key $OUTDIR/$algo.key -out $OUTDIR/$algo.req && echo "done" || ( echo "failed" && exit 1 )
+    echo -n "Generating cert for $algo ... "
+    examples/pktool/.libs/pktool gencert -key $OUTDIR/$algo.key -out $OUTDIR/$algo.cer && echo "done" || ( echo "failed" && exit 1 )
+done
+
+# Standard PQC
+PQC_ALGOS="ml-dsa-44 ml-dsa-65 ml-dsa-87"
+
+for algo in $PQC_ALGOS; do
+    echo -n "Generating key for $algo ... "
+    examples/pktool/.libs/pktool genpkey -algorithm $algo $OPT -out $OUTDIR/$algo.key && echo "done" || ( echo "failed" && exit 1 )
+    echo -n "Generating csr for $algo ... "
+    examples/pktool/.libs/pktool genreq -key $OUTDIR/$algo.key -out $OUTDIR/$algo.req && echo "done" || ( echo "failed" && exit 1 )
+    echo -n "Generating cert for $algo ... "
+    examples/pktool/.libs/pktool gencert -key $OUTDIR/$algo.key -out $OUTDIR/$algo.cer && echo "done" || ( echo "failed" && exit 1 )
 done
 
 # Level 1
@@ -59,6 +73,8 @@ for algo in $ALGOS; do
     examples/pktool/.libs/pktool genpkey -algorithm $algo -out $OUTDIR/$algo.key && echo "done" || ( echo "failed" && exit 1 )
     echo -n "Generating csr for $algo ... "
     examples/pktool/.libs/pktool genreq -key $OUTDIR/$algo.key -out $OUTDIR/$algo.req && echo "done" || ( echo "failed" && exit 1 )
+    echo -n "Generating cert for $algo ... "
+    examples/pktool/.libs/pktool gencert -key $OUTDIR/$algo.key -out $OUTDIR/$algo.cer && echo "done" || ( echo "failed" && exit 1 )
 done
 
 echo "All keys generated successfully"

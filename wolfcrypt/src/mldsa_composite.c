@@ -3003,11 +3003,6 @@ int wc_mldsa_composite_import_public(const byte* inBuffer, word32 inLen,
     // Parse the ASN.1 data
     if ((ret = GetASN_Items(compPubKeyIT, compPubKeyASN, 3, 0, inBuffer, &idx, inLen)) < 0) {
         MADWOLF_DEBUG("Error while parsing ASN.1 (%d)", ret);
-        FILE *fp = fopen("mldsa_composite_import_public_error.bin", "wb");
-        if (fp) {
-            fwrite(inBuffer, 1, inLen, fp);
-            fclose(fp);
-        }
         return ret;
     }
 
@@ -3143,18 +3138,18 @@ int wc_mldsa_composite_import_public(const byte* inBuffer, word32 inLen,
         case WC_MLDSA65_NISTP256_SHA384:
         case D2_WC_MLDSA44_NISTP256_SHA256:
         case WC_MLDSA44_NISTP256_SHA256: {
-            int curveId = 0;
-            int curveSz = 0;
+            // int curveId = 0;
+            // int curveSz = 0;
 
-            // Gets the Brainpool curveId, if needed
-            if (comp_level == D2_WC_MLDSA65_BPOOL256_SHA512 
-                || comp_level == WC_MLDSA65_BPOOL256_SHA384) {
-                // Brainpool384r1 curve
-                curveId = ECC_BRAINPOOLP256R1;
-            } else {
-                // NIST P-256 curve
-                curveId = ECC_SECP256R1;
-            }
+            // // Gets the Brainpool curveId, if needed
+            // if (comp_level == D2_WC_MLDSA65_BPOOL256_SHA512 
+            //     || comp_level == WC_MLDSA65_BPOOL256_SHA384) {
+            //     // Brainpool384r1 curve
+            //     curveId = ECC_BRAINPOOLP256R1;
+            // } else {
+            //     // NIST P-256 curve
+            //     curveId = ECC_SECP256R1;
+            // }
 
             // MADWOLF_DEBUG0("ML-DSA COMPOSITE: ECDSA public key import");
             // // Free the ECC key, if any is present
@@ -3176,14 +3171,20 @@ int wc_mldsa_composite_import_public(const byte* inBuffer, word32 inLen,
                 return MEMORY_E;
             }
 
-            // Gets the right curveId and curveSz
-            curveSz = wc_ecc_get_curve_size_from_id(curveId);
-            if (curveSz <= 0) {
-                MADWOLF_DEBUG("ML-DSA COMPOSITE: ECDSA curve size error (%d)", curveSz);
-                return BAD_FUNC_ARG;
-            }
-            if ((ret = wc_ecc_import_unsigned(&key->alt_key.ecc, other_Buffer, other_Buffer + curveSz, NULL, curveId)) < 0) {
-                MADWOLF_DEBUG("ML-DSA COMPOSITE: ECDSA import PubKey failed with %d (curveId: %d, curveSz: %d)", ret, curveId, curveSz);
+            // // Gets the right curveId and curveSz
+            // curveSz = wc_ecc_get_curve_size_from_id(curveId);
+            // if (curveSz <= 0) {
+            //     MADWOLF_DEBUG("ML-DSA COMPOSITE: ECDSA curve size error (%d)", curveSz);
+            //     return BAD_FUNC_ARG;
+            // }
+            // if ((ret = wc_ecc_import_unsigned(&key->alt_key.ecc, other_Buffer, other_Buffer + curveSz, NULL, curveId)) < 0) {
+            //     MADWOLF_DEBUG("ML-DSA COMPOSITE: ECDSA import PubKey failed with %d (curveId: %d, curveSz: %d)", ret, curveId, curveSz);
+            //     return ret;
+            // }
+
+            ret = wc_EccPublicKeyDecode(other_Buffer, &idx, &key->alt_key.ecc, other_BufferLen);
+            if (ret < 0) {
+                MADWOLF_DEBUG("ML-DSA COMPOSITE: ECDSA export PubKey failed with %d", ret);
                 return ret;
             }
         } break;
@@ -3264,9 +3265,8 @@ int wc_mldsa_composite_import_public(const byte* inBuffer, word32 inLen,
 
             wc_ed25519_free(&key->alt_key.ed25519);
 
-
-            // Import ED25519 Component
-            XMEMSET(&key->alt_key.ed25519, 0, sizeof(ed25519_key));
+            // // Import ED25519 Component
+            // XMEMSET(&key->alt_key.ed25519, 0, sizeof(ed25519_key));
 
             // Initializes the key
             if ((ret = wc_ed25519_init_ex(&key->alt_key.ed25519, key->heap, key->devId)) < 0) {
@@ -3275,6 +3275,11 @@ int wc_mldsa_composite_import_public(const byte* inBuffer, word32 inLen,
                 return ret;
             }
 
+            // ret = wc_Ed25519PublicKeyDecode(other_Buffer, &idx, &key->alt_key.ed25519, other_BufferLen);
+            // if (ret < 0) {
+            //     MADWOLF_DEBUG("ML-DSA COMPOSITE: ED25519 export PubKey failed with %d", ret);
+            //     return ret;
+            // }
             // Import ED25519 Component
             if ((ret = wc_ed25519_import_public(other_Buffer, other_BufferLen, &key->alt_key.ed25519)) < 0) {
                 MADWOLF_DEBUG("ML-DSA COMPOSITE: failed to import ED25519 component with code %d", ret);
@@ -3288,54 +3293,60 @@ int wc_mldsa_composite_import_public(const byte* inBuffer, word32 inLen,
         case D2_WC_MLDSA87_BPOOL384_SHA512:
         case WC_MLDSA87_NISTP384_SHA384:
         case WC_MLDSA87_BPOOL384_SHA384: {
-            int curveSz = 0;
-            int curveId = ECC_SECP384R1;
+            // int curveSz = 0;
+            // int curveId = ECC_SECP384R1;
                 // Default curveId
 
-            // Gets the Brainpool curveId, if needed
-            if (comp_level == D2_WC_MLDSA87_BPOOL384_SHA512 
-                || comp_level == WC_MLDSA87_BPOOL384_SHA384) {
-                // Brainpool384r1 curve
-                curveId = ECC_BRAINPOOLP384R1;
-            }
-
-            // Gets the curve size
-            curveSz = wc_ecc_get_curve_size_from_id(curveId);
-            if (curveSz <= 0) {
-                MADWOLF_DEBUG("ML-DSA COMPOSITE: ECDSA curve size error (%d)", curveSz);
-                return BAD_STATE_E;
-            }
-
-            // // If a ecc key is present, let's free it
-            // if (key->alt_key.ecc) {
-            //     wc_ecc_free(key->alt_key.ecc);
-            //     key->alt_key.ecc = NULL;
+            // // Gets the Brainpool curveId, if needed
+            // if (comp_level == D2_WC_MLDSA87_BPOOL384_SHA512 
+            //     || comp_level == WC_MLDSA87_BPOOL384_SHA384) {
+            //     // Brainpool384r1 curve
+            //     curveId = ECC_BRAINPOOLP384R1;
             // }
-            // // Allocates the memory
-            // if ((key->alt_key.ecc = (ecc_key*)XMALLOC(sizeof(ecc_key), NULL, DYNAMIC_TYPE_ECC)) == NULL) {
-            //     MADWOLF_DEBUG0("ML-DSA COMPOSITE: failed to allocate ECDSA component");
-            //     return MEMORY_E;
+
+            // // Gets the curve size
+            // curveSz = wc_ecc_get_curve_size_from_id(curveId);
+            // if (curveSz <= 0) {
+            //     MADWOLF_DEBUG("ML-DSA COMPOSITE: ECDSA curve size error (%d)", curveSz);
+            //     return BAD_STATE_E;
             // }
-            // Initializes the key
+
+            // // // If a ecc key is present, let's free it
+            // // if (key->alt_key.ecc) {
+            // //     wc_ecc_free(key->alt_key.ecc);
+            // //     key->alt_key.ecc = NULL;
+            // // }
+            // // // Allocates the memory
+            // // if ((key->alt_key.ecc = (ecc_key*)XMALLOC(sizeof(ecc_key), NULL, DYNAMIC_TYPE_ECC)) == NULL) {
+            // //     MADWOLF_DEBUG0("ML-DSA COMPOSITE: failed to allocate ECDSA component");
+            // //     return MEMORY_E;
+            // // }
+            // // Initializes the key
+            // wc_ecc_free(&key->alt_key.ecc);
+            // XMEMSET(&key->alt_key.ecc, 0, sizeof(ecc_key));
+
             wc_ecc_free(&key->alt_key.ecc);
-            XMEMSET(&key->alt_key.ecc, 0, sizeof(ecc_key));
-
             if (wc_ecc_init(&key->alt_key.ecc) < 0) {
                 MADWOLF_DEBUG0("ML-DSA COMPOSITE: failed to initialize ECDSA component");
                 return BAD_STATE_E;
             }
 
-            // Import ECDSA Component
-            if ((ret = wc_ecc_import_unsigned(&key->alt_key.ecc, 
-                    other_Buffer, other_Buffer + curveSz, NULL, curveId)) < 0) {
-                MADWOLF_DEBUG("ML-DSA COMPOSITE: ECDSA import PubKey failed with %d", ret);
+            // // Import ECDSA Component
+            // if ((ret = wc_ecc_import_unsigned(&key->alt_key.ecc, 
+            //         other_Buffer, other_Buffer + curveSz, NULL, curveId)) < 0) {
+            //     MADWOLF_DEBUG("ML-DSA COMPOSITE: ECDSA import PubKey failed with %d", ret);
+            //     return ret;
+            // }
+            // // // Checks the ECDSA curve (P-384)
+            // // if (wc_ecc_get_curve_id(key->alt_key.ecc->idx) != ECC_BRAINPOOLP384R1) {
+            // //     MADWOLF_DEBUG("ML-DSA COMPOSITE: ECDSA import PubKey curve error (%d vs. %d)", key->alt_key.ecc->dp->id, ECC_BRAINPOOLP384R1);
+            // //     return BAD_STATE_E;
+            // // }
+            ret = wc_EccPublicKeyDecode(other_Buffer, &idx, &key->alt_key.ecc, other_BufferLen);
+            if (ret < 0) {
+                MADWOLF_DEBUG("ML-DSA COMPOSITE: ECDSA export PubKey failed with %d", ret);
                 return ret;
             }
-            // // Checks the ECDSA curve (P-384)
-            // if (wc_ecc_get_curve_id(key->alt_key.ecc->idx) != ECC_BRAINPOOLP384R1) {
-            //     MADWOLF_DEBUG("ML-DSA COMPOSITE: ECDSA import PubKey curve error (%d vs. %d)", key->alt_key.ecc->dp->id, ECC_BRAINPOOLP384R1);
-            //     return BAD_STATE_E;
-            // }
         } break;
 
         case D2_WC_MLDSA87_ED448_SHA512:
@@ -3358,16 +3369,21 @@ int wc_mldsa_composite_import_public(const byte* inBuffer, word32 inLen,
             // }
             wc_ed448_free(&key->alt_key.ed448);
 
-            // Initializes the ED448 Component
-            XMEMSET(&key->alt_key.ed448, 0, sizeof(ed448_key));
-            if ((ret = wc_ed448_init_ex(&key->alt_key.ed448, key->heap, key->devId)) < 0) {
-                MADWOLF_DEBUG("ML-DSA COMPOSITE: failed to initialize ED448 component with code %d", ret);
-                goto err;
-            }
-            // Import ED448 Component
-            if ((ret = wc_ed448_import_public(other_Buffer, other_BufferLen, &key->alt_key.ed448)) < 0) {
-                MADWOLF_DEBUG("ML-DSA COMPOSITE: failed to import ED448 component with code %d", ret);
-                goto err;
+            // // Initializes the ED448 Component
+            // XMEMSET(&key->alt_key.ed448, 0, sizeof(ed448_key));
+            // if ((ret = wc_ed448_init_ex(&key->alt_key.ed448, key->heap, key->devId)) < 0) {
+            //     MADWOLF_DEBUG("ML-DSA COMPOSITE: failed to initialize ED448 component with code %d", ret);
+            //     goto err;
+            // }
+            // // Import ED448 Component
+            // if ((ret = wc_ed448_import_public(other_Buffer, other_BufferLen, &key->alt_key.ed448)) < 0) {
+            //     MADWOLF_DEBUG("ML-DSA COMPOSITE: failed to import ED448 component with code %d", ret);
+            //     goto err;
+            // }
+            ret = wc_Ed448PublicKeyDecode(other_Buffer, &idx, &key->alt_key.ed448, other_BufferLen);
+            if (ret < 0) {
+                MADWOLF_DEBUG("ML-DSA COMPOSITE: ED448 export PubKey failed with %d", ret);
+                return ret;
             }
         } break;
 
@@ -3469,6 +3485,8 @@ int wc_mldsa_composite_export_public(mldsa_composite_key* key, byte* out, word32
     // Gets the expected size of the pub key
     *outLen = wc_mldsa_composite_pub_size(key);
 
+    MADWOLF_DEBUG("Exporting Public Key: Sz: %d", *outLen);
+
     // Checks if the buffer is too small
     if (!out) {
         return 0;
@@ -3477,16 +3495,13 @@ int wc_mldsa_composite_export_public(mldsa_composite_key* key, byte* out, word32
         MADWOLF_DEBUG("Output Public Key Buffer too small (needed: %d, provided: %d)", *outLen, inLen);
         return BUFFER_E;
     }
-    if (inLen < *outLen) {
-        MADWOLF_DEBUG("Output Public Key Buffer too small (needed: %d, provided: %d)", *outLen, inLen);
-        return BAD_FUNC_ARG;
-    }
 
     /* Exports the ML-DSA key */
-    if ((ret = wc_MlDsaKey_ExportPubRaw(&key->mldsa_key, mldsa_Buffer, &mldsa_BufferLen)) < 0) {
+    if ((ret = wc_Dilithium_PublicKeyToDer(&key->mldsa_key, mldsa_Buffer, mldsa_BufferLen, 0)) < 0) {
         WOLFSSL_MSG_VSNPRINTF("error cannot export ML-DSA component's public key\n");
         return ret;
     }
+    mldsa_BufferLen = ret;
 
     /* Exports the other key */
     switch (key->type) {
@@ -3519,21 +3534,24 @@ int wc_mldsa_composite_export_public(mldsa_composite_key* key, byte* out, word32
         case D2_MLDSA65_ED25519_SHA512_TYPE:
         case MLDSA44_ED25519_TYPE:
         case MLDSA65_ED25519_TYPE: {
-            if ((ret = wc_ed25519_export_public(&key->alt_key.ed25519, 
-                    other_Buffer, &other_BufferLen)) < 0) {
+            if ((ret = wc_Ed25519PublicKeyToDer(&key->alt_key.ed25519, other_Buffer, other_BufferLen, 0)) < 0) {
                 return ret;
             }
+            other_BufferLen = ret;
         } break;
 
-        // ECDSA (P-256)
-        case D2_MLDSA65_NISTP256_SHA512_TYPE:
-        case D2_MLDSA44_NISTP256_SHA256_TYPE:
-        case MLDSA44_NISTP256_TYPE:
-        case MLDSA65_NISTP256_TYPE: {
-            if ((ret = wc_ecc_export_x963_ex(&key->alt_key.ecc, other_Buffer, &other_BufferLen, ECC_SECP256R1)) < 0) {
-                return ret;
-            }
-        } break;
+        // // ECDSA (P-256)
+        // case D2_MLDSA65_NISTP256_SHA512_TYPE:
+        // case D2_MLDSA44_NISTP256_SHA256_TYPE:
+        // case MLDSA44_NISTP256_TYPE:
+        // case MLDSA65_NISTP256_TYPE: {
+        //     // if ((ret = wc_ecc_export_x963_ex(&key->alt_key.ecc, other_Buffer, &other_BufferLen, ECC_SECP256R1)) < 0) {
+        //     //     return ret;
+        //     // }
+        //     if ((ret = wc_EccPublicKeyToDer(&key->alt_key.ecc, other_Buffer, &other_BufferLen, 0)) < 0) {
+        //         return ret;
+        //     }
+        // } break;
 
         // case WC_MLDSA44_BPOOL256_SHA256: {
         //     // word32 pubLenX = 32, pubLenY = 32;
@@ -3569,36 +3587,57 @@ int wc_mldsa_composite_export_public(mldsa_composite_key* key, byte* out, word32
         //     }
         // } break;
 
-        // ECDSA (BPOOL-256)
+        // // ECDSA (BPOOL-256)
+        // case D2_MLDSA65_BPOOL256_SHA512_TYPE:
+        // case MLDSA65_BPOOL256_TYPE: {
+        //     if ((ret = wc_ecc_export_x963_ex(&key->alt_key.ecc, other_Buffer, &other_BufferLen, ECC_BRAINPOOLP256R1)) < 0) {
+        //         return ret;
+        //     }
+        // } break;
+
+        // // ECDSA (P-384)
+        // case D2_MLDSA87_NISTP384_SHA512_TYPE:
+        // case MLDSA87_NISTP384_TYPE: {
+        //     if ((ret = wc_ecc_export_x963_ex(&key->alt_key.ecc, other_Buffer, &other_BufferLen, ECC_SECP384R1)) < 0) {
+        //         return ret;
+        //     }
+        // } break;
+        // case D2_MLDSA87_BPOOL384_SHA512_TYPE:
+        // case MLDSA87_BPOOL384_TYPE: {
+        //     if ((ret = wc_ecc_export_x963_ex(&key->alt_key.ecc, other_Buffer, &other_BufferLen, ECC_BRAINPOOLP384R1)) < 0) {
+        //         return ret;
+        //     }
+        // } break;
+
+        case D2_MLDSA65_NISTP256_SHA512_TYPE:
+        case D2_MLDSA44_NISTP256_SHA256_TYPE:
+        case MLDSA44_NISTP256_TYPE:
+        case MLDSA65_NISTP256_TYPE:
         case D2_MLDSA65_BPOOL256_SHA512_TYPE:
-        case MLDSA65_BPOOL256_TYPE: {
-            if ((ret = wc_ecc_export_x963_ex(&key->alt_key.ecc, other_Buffer, &other_BufferLen, ECC_BRAINPOOLP256R1)) < 0) {
-                return ret;
-            }
-        } break;
-
-        // ECDSA (P-384)
+        case MLDSA65_BPOOL256_TYPE:
         case D2_MLDSA87_NISTP384_SHA512_TYPE:
-        case MLDSA87_NISTP384_TYPE: {
-            if ((ret = wc_ecc_export_x963_ex(&key->alt_key.ecc, other_Buffer, &other_BufferLen, ECC_SECP384R1)) < 0) {
-                return ret;
-            }
-        } break;
-
-        // ECDSA (BPOOL-384)
+        case MLDSA87_NISTP384_TYPE:
         case D2_MLDSA87_BPOOL384_SHA512_TYPE:
         case MLDSA87_BPOOL384_TYPE: {
-            if ((ret = wc_ecc_export_x963_ex(&key->alt_key.ecc, other_Buffer, &other_BufferLen, ECC_BRAINPOOLP384R1)) < 0) {
+            // if ((ret = wc_ecc_export_x963_ex(&key->alt_key.ecc, other_Buffer, &other_BufferLen, ECC_BRAINPOOLP384R1)) < 0) {
+            //     return ret;
+            // }
+            if ((ret = wc_EccPublicKeyToDer(&key->alt_key.ecc, other_Buffer, other_BufferLen, 0)) < 0) {
                 return ret;
             }
+            other_BufferLen = ret;
         } break;
 
         // ED448
         case D2_MLDSA87_ED448_SHA512_TYPE:
         case MLDSA87_ED448_TYPE: {
-            if ((ret = wc_ed448_export_public(&key->alt_key.ed448, other_Buffer, &other_BufferLen)) < 0) {
+            // if ((ret = wc_ed448_export_public(&key->alt_key.ed448, other_Buffer, &other_BufferLen)) < 0) {
+            //     return ret;
+            // }
+            if ((ret = wc_Ed448PublicKeyToDer(&key->alt_key.ed448, other_Buffer, other_BufferLen, 0)) < 0) {
                 return ret;
             }
+            other_BufferLen = ret;
         } break;
 
         case WC_MLDSA_COMPOSITE_UNDEF:
@@ -3917,7 +3956,6 @@ int wc_mldsa_composite_import_private(const byte                * priv,
                 break;
             }
 
-#if defined(HAVE_MLDSA_COMPOSITE_DRAFT_3)
             if (level == WC_MLDSA65_ED25519_SHA384 ||
                 level == WC_MLDSA44_ED25519_SHA256) {
 
@@ -3981,8 +4019,12 @@ int wc_mldsa_composite_import_private(const byte                * priv,
 
             if (level == WC_MLDSA65_NISTP256_SHA384 || level == WC_MLDSA44_NISTP256_SHA256) {
                 curveId = ECC_SECP256R1;
-            } else {
+            } else if (level == WC_MLDSA65_BPOOL256_SHA384 || level == D2_WC_MLDSA65_BPOOL256_SHA512) {
                 curveId = ECC_BRAINPOOLP256R1;
+            } else if (level == WC_MLDSA87_NISTP384_SHA384 || level == D2_WC_MLDSA87_NISTP384_SHA512) {
+                curveId = ECC_SECP384R1;
+            } else if (level == WC_MLDSA87_BPOOL384_SHA384 || level == D2_WC_MLDSA87_BPOOL384_SHA512) {
+                curveId = ECC_BRAINPOOLP384R1;
             }
 
             // Sets the curve
@@ -3999,49 +4041,48 @@ int wc_mldsa_composite_import_private(const byte                * priv,
                 break;
             }
 
-            if (level == WC_MLDSA87_BPOOL384_SHA384 ||
-                level == WC_MLDSA87_NISTP384_SHA384 ||
-                level == WC_MLDSA65_BPOOL256_SHA384  ||
-                // level == WC_MLDSA44_BPOOL256_SHA256  ||
-                level == WC_MLDSA65_NISTP256_SHA384 ||
-                level == WC_MLDSA44_NISTP256_SHA256) {
-
-                idx = 0;
-                ret = wc_EccPrivateKeyDecode(other_Buffer, &idx, &key->alt_key.ecc, other_BufferLen);
-                if (ret < 0) {
-                    MADWOLF_DEBUG("failed to import ECDSA component with code %d (buff_len: %d)", ret, other_BufferLen);
-                    wc_ecc_free(&key->alt_key.ecc);
-                    break;
-                }
+            idx = 0;
+            ret = wc_EccPrivateKeyDecode(other_Buffer, &idx, &key->alt_key.ecc, other_BufferLen);
+            if (ret < 0) {
+                MADWOLF_DEBUG("failed to import ECDSA component with code %d (buff_len: %d)", ret, other_BufferLen);
+                wc_ecc_free(&key->alt_key.ecc);
+                break;
             }
 
-            if (level == D2_WC_MLDSA87_BPOOL384_SHA512 ||
-                level == D2_WC_MLDSA87_NISTP384_SHA512 ||
-                level == D2_WC_MLDSA65_BPOOL256_SHA512 ||
-                level == D2_WC_MLDSA65_NISTP256_SHA512 ||
-                level == D2_WC_MLDSA44_NISTP256_SHA256) {
-
-                if ((ret = wc_EccPrivateKeyDecode(other_Buffer, &idx, &key->alt_key.ecc, other_BufferLen)) < 0) {
-                    MADWOLF_DEBUG("failed to import ECDSA component with code %d", ret);
-                    break;
-                }
-                if (level == WC_MLDSA65_NISTP256_SHA384 || 
-                    level == WC_MLDSA44_NISTP256_SHA256) {
-                    // Checks the ECDSA curve (P-256)
-                    if (wc_ecc_get_curve_id(key->alt_key.ecc.idx) != ECC_SECP256R1) {
-                        MADWOLF_DEBUG("ML-DSA COMPOSITE: ECDSA import PubKey curve error (%d vs. %d)", key->alt_key.ecc.dp->id, ECC_SECP256R1);
-                        ret = BAD_STATE_E;
-                        break;
-                    }
-                } else {
-                    // Checks the ECDSA curve (BRAINPOOLP256R1)
-                    if (wc_ecc_get_curve_id(key->alt_key.ecc.idx) != ECC_BRAINPOOLP256R1) {
-                        MADWOLF_DEBUG("ML-DSA COMPOSITE: ECDSA import PubKey curve error (%d vs. %d)", key->alt_key.ecc.dp->id, ECC_BRAINPOOLP256R1);
-                        ret = BAD_STATE_E;
-                        break;
-                    }
-                }
+            ret = wc_ecc_make_pub(&key->alt_key.ecc, NULL);
+            if (ret < 0) {
+                MADWOLF_DEBUG("failed to make ECDSA public key with code %d", ret);
+                wc_ecc_free(&key->alt_key.ecc);
+                break;
             }
+            // if (level == D2_WC_MLDSA87_BPOOL384_SHA512 ||
+            //     level == D2_WC_MLDSA87_NISTP384_SHA512 ||
+            //     level == D2_WC_MLDSA65_BPOOL256_SHA512 ||
+            //     level == D2_WC_MLDSA65_NISTP256_SHA512 ||
+            //     level == D2_WC_MLDSA44_NISTP256_SHA256) {
+
+            //     if ((ret = wc_EccPrivateKeyDecode(other_Buffer, &idx, &key->alt_key.ecc, other_BufferLen)) < 0) {
+            //         MADWOLF_DEBUG("failed to import ECDSA component with code %d", ret);
+            //         break;
+            //     }
+            //     if (level == D2_WC_MLDSA65_NISTP256_SHA512 || 
+            //         level == D2_WC_MLDSA44_NISTP256_SHA256) {
+            //         // Checks the ECDSA curve (P-256)
+            //         if (wc_ecc_get_curve_id(key->alt_key.ecc.idx) != ECC_SECP256R1) {
+            //             MADWOLF_DEBUG("ML-DSA COMPOSITE: ECDSA import PubKey curve error (%d vs. %d)", key->alt_key.ecc.dp->id, ECC_SECP256R1);
+            //             ret = BAD_STATE_E;
+            //             break;
+            //         }
+            //     } else if (level == WC_MLDSA65_BPOOL256_SHA384 || 
+            //                level == D2_WC_MLDSA65_BPOOL256_SHA512) {
+            //         // Checks the ECDSA curve (BRAINPOOLP256R1)
+            //         if (wc_ecc_get_curve_id(key->alt_key.ecc.idx) != ECC_BRAINPOOLP256R1) {
+            //             MADWOLF_DEBUG("ML-DSA COMPOSITE: ECDSA import PubKey curve error (%d vs. %d)", key->alt_key.ecc.dp->id, ECC_BRAINPOOLP256R1);
+            //             ret = BAD_STATE_E;
+            //             break;
+            //         }
+            //     }
+            // }
         } break;
 
         case D2_WC_MLDSA65_RSAPSS3072_SHA512:
@@ -4351,10 +4392,14 @@ int wc_mldsa_composite_export_private(const mldsa_composite_key* key, byte* out,
                 goto err;
             }
 
-            // Gets the size of the ECDSA component
-            other_BufferLen = ret = wc_EccKeyDerSize((ecc_key *)&key->alt_key.ecc, 1);
+            other_BufferLen = ret = wc_EccPrivateKeyToDer((ecc_key *)&key->alt_key.ecc, NULL, other_BufferLen);
             if (ret < 0)
                 goto err;
+
+            // // Gets the size of the ECDSA component
+            // other_BufferLen = ret = wc_EccKeyDerSize((ecc_key *)&key->alt_key.ecc, 1);
+            // if (ret < 0)
+            //     goto err;
 
             if (out) {
                 // Allocates memory for the ECDSA component
@@ -4365,7 +4410,7 @@ int wc_mldsa_composite_export_private(const mldsa_composite_key* key, byte* out,
                 }
 
                 // Encodes the ECDSA component
-                if (wc_EccKeyToDer((ecc_key *)&key->alt_key.ecc, other_Buffer, other_BufferLen) < 0) {
+                if (wc_EccPrivateKeyToDer((ecc_key *)&key->alt_key.ecc, other_Buffer, other_BufferLen) < 0) {
                     MADWOLF_DEBUG("failed to export ECDSA component with code %d", ret);
                     goto err;
                 }
@@ -5023,7 +5068,6 @@ int wc_mldsa_composite_export_key(mldsa_composite_key* key, byte* priv, word32 *
 
     return ret;
 }
-#endif /* WOLFSSL_MLDSA_COMPOSITE_PRIVATE_KEY */
 
 #ifndef WOLFSSL_MLDSA_COMPOSITE_NO_ASN1
 #if defined(WOLFSSL_MLDSA_COMPOSITE_PRIVATE_KEY)
@@ -5351,6 +5395,11 @@ int wc_MlDsaComposite_PublicKeyToDer(mldsa_composite_key* key, byte* output, wor
             return MEMORY_E;
         }
 
+        // Gets the size of the public key
+        if ((ret = wc_mldsa_composite_export_public(key, pubKey, &pubKeyLen)) < 0) {
+            return ret;
+        }
+
         /* Encode the public key. */
         ret = SetAsymKeyDerPublic(pubKey, pubKeyLen, output, len, keySum,
                 withAlg);
@@ -5396,7 +5445,8 @@ int wc_MlDsaComposite_PrivateKeyToDer(const mldsa_composite_key* key, byte* outp
         }
 
         // Check the private key buffer size
-        if ((privkey_sz = SetAsymKeyDer(privKey_Buffer, privKey_BufferLen, NULL, 0, NULL, 0, keySum)) < 0) {
+        privkey_sz = ret = SetAsymKeyDer(privKey_Buffer, privKey_BufferLen, NULL, 0, NULL, 0, keySum);
+        if (ret < 0) {
             return MEMORY_E;
         }
 
@@ -5410,8 +5460,6 @@ int wc_MlDsaComposite_PrivateKeyToDer(const mldsa_composite_key* key, byte* outp
             if (ret < 0) {
                 return ret;
             }
-        } else {
-            ret = privkey_sz;
         }
     }
 

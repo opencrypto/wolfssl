@@ -9681,19 +9681,22 @@ int wc_Dilithium_PrivateKeyDecode(const byte* input, word32* inOutIdx,
             (privKeyLen == ML_DSA_LEVEL2_PRV_KEY_SIZE || privKeyLen == DILITHIUM_SEED_SZ)) {
             pubKey = privKey + ML_DSA_LEVEL2_KEY_SIZE;
             pubKeyLen = ML_DSA_LEVEL2_PUB_KEY_SIZE;
-            privKeyLen -= ML_DSA_LEVEL2_PUB_KEY_SIZE;
+            if (privKeyLen != DILITHIUM_SEED_SZ) 
+                privKeyLen -= ML_DSA_LEVEL2_PUB_KEY_SIZE;
         }
         else if ((key->level == WC_ML_DSA_65) &&
                  (privKeyLen == ML_DSA_LEVEL3_PRV_KEY_SIZE || privKeyLen == DILITHIUM_SEED_SZ)) {
             pubKey = privKey + ML_DSA_LEVEL3_KEY_SIZE;
             pubKeyLen = ML_DSA_LEVEL3_PUB_KEY_SIZE;
-            privKeyLen -= ML_DSA_LEVEL3_PUB_KEY_SIZE;
+            if (privKeyLen != DILITHIUM_SEED_SZ)
+                privKeyLen -= ML_DSA_LEVEL3_PUB_KEY_SIZE;
         }
         else if ((key->level == WC_ML_DSA_87) &&
                  (privKeyLen == ML_DSA_LEVEL5_PRV_KEY_SIZE || privKeyLen == DILITHIUM_SEED_SZ)) {
             pubKey = privKey + ML_DSA_LEVEL5_KEY_SIZE;
             pubKeyLen = ML_DSA_LEVEL5_PUB_KEY_SIZE;
-            privKeyLen -= ML_DSA_LEVEL5_PUB_KEY_SIZE;
+            if (privKeyLen != DILITHIUM_SEED_SZ)
+                privKeyLen -= ML_DSA_LEVEL5_PUB_KEY_SIZE;
         }
     }
 

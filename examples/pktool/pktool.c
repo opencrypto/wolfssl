@@ -141,20 +141,32 @@ int load_key_p8(AsymKey ** key, int type, const char * key_file, int format) {
         return -1;
     }
 
-    // Tryies to decode the DER version first
-    ret = wc_AsymKey_PrivateKeyDerDecode(asymKeyPtr, keyData, keySz);
-    if (ret != 0) {
-        // Decodes the PEM version, if the DER decoding fails
+    if (format == 1 || format < 0) {
         ret = wc_AsymKey_PrivateKeyPemDecode(asymKeyPtr, keyData, keySz);
-        if (ret != 0) {
-            printf("[%d] Error parsing the key data (err: %d)\n", __LINE__, ret);
+        if (ret != 0 && format == 1) {
             wc_AsymKey_free(asymKeyPtr);
             XFREE(asymKeyPtr, NULL, DYNAMIC_TYPE_PRIVATE_KEY);
             XFREE(keyData, NULL, DYNAMIC_TYPE_TMP_BUFFER);
             return ret;
         }
     }
-    
+
+    if (format == 0 || ret < 0) {
+        // Tries to decode the DER version first
+        ret = wc_AsymKey_PrivateKeyDerDecode(asymKeyPtr, keyData, keySz);
+        if (ret != 0) {
+            // Decodes the PEM version, if the DER decoding fails
+            ret = wc_AsymKey_PrivateKeyPemDecode(asymKeyPtr, keyData, keySz);
+            if (ret != 0) {
+                printf("[%d] Error parsing the key data (err: %d)\n", __LINE__, ret);
+                wc_AsymKey_free(asymKeyPtr);
+                XFREE(asymKeyPtr, NULL, DYNAMIC_TYPE_PRIVATE_KEY);
+                XFREE(keyData, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                return ret;
+            }
+        }
+    }
+        
     // Free the key data
     if (keyData) XFREE(keyData, NULL, DYNAMIC_TYPE_PRIVATE_KEY);
 
@@ -237,6 +249,9 @@ int gen_csr(const AsymKey * keyPair, const AsymKey * altkey, const char * out_fi
 
 #ifdef WOLFSSL_CERT_REQ
     WC_RNG rng;
+
+    Cert aReq;
+
     byte der[WC_CTC_MAX_ALT_SIZE];
     int  derSz = WC_CTC_MAX_ALT_SIZE;
 
@@ -247,14 +262,31 @@ int gen_csr(const AsymKey * keyPair, const AsymKey * altkey, const char * out_fi
 
     XMEMSET(der, 0, WC_CTC_MAX_ALT_SIZE);
 
-    // Initializing the RNG
-    wc_InitRng(&rng);
-
-    ret = wc_AsymKey_MakeReq(der, derSz, "C=US, O=wolfSSL, OU=Test, CN=Test", WC_HASH_TYPE_SHA512, 1, keyPair);
-    if (ret < 0) {
-        printf("Error retrieving the size for the DER certificate request: %d\n", ret);
+    wc_InitCert(&aReq);
+    ret = wc_AsymKey_CertReq_SetTemplate(&aReq, WC_CERT_TEMPLATE_IETF_ROOT_CA);
+    if (ret != 0) {
+        printf("Init Cert failed: %d\n", ret);
         return ret;
     }
+
+    // Sets the Static parts of the DN
+    if (wc_AsymKey_CertReq_SetSubject(&aReq, "C=US, O=wolfSSL, OU=Test, CN=Test") < 0) {
+        printf("Error setting the subject\n");
+        return -1;
+    }
+
+    wc_InitRng(&rng);
+    ret = wc_AsymKey_MakeReq_ex(der, derSz, &aReq, WC_HASH_TYPE_SHA512, 1, keyPair, &rng);
+    if (ret < 0) {
+        printf("Error Generating the Request: ret = %d, derSz = %d\n", ret, derSz);
+        return ret;
+    }
+
+    // ret = wc_AsymKey_MakeReq(der, derSz, "C=US, O=wolfSSL, OU=Test, CN=Test", WC_HASH_TYPE_SHA512, 1, keyPair);
+    // if (ret < 0) {
+    //     printf("Error retrieving the size for the DER certificate request: %d\n", ret);
+    //     return ret;
+    // }
     derSz = ret;
 
     if (out_filename) {
@@ -328,32 +360,29 @@ int gen_cert(const AsymKey * keyPair, const AsymKey * altkey, const char * out_f
         algName = "Unknown";
     }
 
-    printf("CertType: %d, keySum: %d, algName: %s\n", certType, keySum, algName);
+    ret = wc_AsymKey_CertReq_SetTemplate(&aCert, WC_CERT_TEMPLATE_IETF_ROOT_CA);
+    if (ret < 0) {
+        printf("Init Cert failed: %d\n", ret);
+        goto exit;
+    }
 
-    strncpy(aCert.subject.country, "US", CTC_NAME_SIZE);
-    // strncpy(req.subject.state, "OR", CTC_NAME_SIZE);
-    // strncpy(req.subject.locality, "Portland", CTC_NAME_SIZE);
-    strncpy(aCert.subject.org, "wolfSSL", CTC_NAME_SIZE);
-    strncpy(aCert.subject.unit, "Test", CTC_NAME_SIZE);
+    // Sets the static parts of the DN
+    ret = wc_AsymKey_CertReq_SetSigType(&aCert, WC_HASH_TYPE_SHA384, keyPair);
+    if (ret < 0) {
+        printf("Error retrieving the signature type: %d\n", ret);
+        goto exit;
+    }
+
+    // Sets the Static parts of the DN
+    if (wc_AsymKey_CertReq_SetSubject(&aCert, "C=US, O=wolfSSL, OU=Test, CN=Test") < 0) {
+        printf("Error setting the subject\n");
+        return -1;
+    }
+
+    // Sets the dynamic parts of the DN
     strncpy(aCert.subject.commonName, algName, CTC_NAME_SIZE);
-    strncpy(aCert.subject.email, "info@wolfssl.com", CTC_NAME_SIZE);
-    aCert.version = 0;
-
-    byte serial[20] = { 
-        0xBE, 0xEF, 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
-        0xBE, 0xEF, 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07 };
-
-    XMEMCPY(aCert.serial, serial, sizeof(serial));
-    aCert.serialSz = sizeof(serial);
-
-    /* Days before certificate expires */
-    aCert.daysValid = 365;
-
-    XMEMCPY(aCert.serial, serial, sizeof(serial));
-    aCert.serialSz = sizeof(serial);
-
-    // Forcing the type
-    // certType = MLDSA44_RSAPSS2048_TYPE;
+    
+    // Generates the DER certificate (unsigned)
     ret = wc_MakeCert_ex(&aCert, der, sizeof(der), certType, (void *)&keyPair->val, &rng);
     if (ret <= 0) {
         printf("Make Cert failed: %d\n", ret);
@@ -361,105 +390,7 @@ int gen_cert(const AsymKey * keyPair, const AsymKey * altkey, const char * out_f
     }
     derSz = ret;
 
-#ifdef HAVE_ECC
-    if (certType == ECC_TYPE)
-        aCert.sigType = CTC_SHA256wECDSA;
-#endif
-#ifndef NO_RSA
-    if (certType == RSA_TYPE)
-        aCert.sigType = CTC_SHA256wRSA;
-#endif
-#ifdef HAVE_ED25519
-    if (certType == ED25519_TYPE)
-        aCert.sigType = CTC_ED25519;
-#endif
-#ifdef HAVE_ED448
-    if (certType == ED448_TYPE)
-        aCert.sigType = CTC_ED448;
-#endif
-#ifdef HAVE_DILITHIUM
-    if (certType == ML_DSA_LEVEL2_TYPE)
-        aCert.sigType = CTC_DILITHIUM_LEVEL2;
-    if (certType == ML_DSA_LEVEL3_TYPE)
-        aCert.sigType = CTC_DILITHIUM_LEVEL3;
-    if (certType == ML_DSA_LEVEL5_TYPE)
-        aCert.sigType = CTC_DILITHIUM_LEVEL5;
-#endif
-#ifdef HAVE_FALCON
-    if (certType == FALCON_LEVEL1_TYPE)
-        aCert.sigType = CTC_FALCON_LEVEL1;
-    if (certType == FALCON_LEVEL5_TYPE)
-        aCert.sigType = CTC_FALCON_LEVEL5;
-#endif
-#ifdef HAVE_SPHINCS
-    if (certType == SPHINCS_HARAKA_128F_ROBUST_TYPE)
-        aCert.sigType = CTC_SPHINCS_HARAKA_128F_ROBUST;
-    if (certType == SPHINCS_HARAKA_128S_ROBUST_TYPE)
-        aCert.sigType = CTC_SPHINCS_HARAKA_128S_ROBUST;
-    if (certType == SPHINCS_HARAKA_192F_ROBUST_TYPE)
-        aCert.sigType = CTC_SPHINCS_HARAKA_192F_ROBUST;
-    if (certType == SPHINCS_HARAKA_192S_ROBUST_TYPE)
-        aCert.sigType = CTC_SPHINCS_HARAKA_192S_ROBUST;
-    if (certType == SPHINCS_HARAKA_256F_ROBUST_TYPE)
-        aCert.sigType = CTC_SPHINCS_HARAKA_256F_ROBUST;
-    if (certType == SPHINCS_HARAKA_256S_ROBUST_TYPE)
-        aCert.sigType = CTC_SPHINCS_HARAKA_256S_ROBUST;
-#endif
-#ifdef HAVE_MLDSA_COMPOSITE
-    if (certType == MLDSA44_NISTP256_TYPE)
-        aCert.sigType = CTC_MLDSA44_NISTP256_SHA256;
-    if (certType == MLDSA44_RSA2048_TYPE)
-        aCert.sigType = CTC_MLDSA44_RSA2048_SHA256;
-    if (certType == MLDSA44_RSAPSS2048_TYPE)
-        aCert.sigType = CTC_MLDSA44_RSAPSS2048_SHA256;
-    // if (type == MLDSA44_BPOOL256_TYPE)
-    //     aCert.sigType = CTC_MLDSA44_BPOOL256_SHA256;
-    if (certType == MLDSA44_ED25519_TYPE)
-        aCert.sigType = CTC_MLDSA44_ED25519;
-    if (certType == MLDSA65_NISTP256_TYPE)
-        aCert.sigType = CTC_MLDSA65_NISTP256_SHA384;
-    if (certType == MLDSA65_RSA3072_TYPE)
-        aCert.sigType = CTC_MLDSA65_RSA3072_SHA384;
-    if (certType == MLDSA65_RSAPSS3072_TYPE)    
-        aCert.sigType = CTC_MLDSA65_RSAPSS3072_SHA384;
-    if (certType == MLDSA65_RSA4096_TYPE)
-        aCert.sigType = CTC_MLDSA65_RSA4096_SHA384;
-    if (certType == MLDSA65_RSAPSS4096_TYPE)    
-        aCert.sigType = CTC_MLDSA65_RSAPSS4096_SHA384;
-    if (certType == MLDSA65_BPOOL256_TYPE)
-        aCert.sigType = CTC_MLDSA65_BPOOL256_SHA256;
-    if (certType == MLDSA65_ED25519_TYPE)
-        aCert.sigType = CTC_MLDSA65_ED25519_SHA384;
-    if (certType == MLDSA87_NISTP384_TYPE)
-        aCert.sigType = CTC_MLDSA87_NISTP384_SHA384;
-    if (certType == MLDSA87_BPOOL384_TYPE)
-        aCert.sigType = CTC_MLDSA87_BPOOL384_SHA384;
-    if (certType == MLDSA87_ED448_TYPE)
-        aCert.sigType = CTC_MLDSA87_ED448;
-    // -------- Draft 2 -------------//
-    if (certType == D2_MLDSA44_RSAPSS2048_SHA256_TYPE)
-        aCert.sigType = D2_CTC_MLDSA44_RSAPSS2048_SHA256;
-    if (certType == D2_MLDSA44_RSA2048_SHA256_TYPE)
-        aCert.sigType = D2_CTC_MLDSA44_RSA2048_SHA256;
-    if (certType == D2_MLDSA44_NISTP256_SHA256_TYPE)
-        aCert.sigType = D2_CTC_MLDSA44_NISTP256_SHA256;
-    if (certType == D2_MLDSA44_ED25519_SHA256_TYPE)
-        aCert.sigType = D2_CTC_MLDSA44_ED25519;
-    if (certType == D2_MLDSA65_RSAPSS3072_SHA512_TYPE)
-        aCert.sigType = D2_CTC_MLDSA65_RSAPSS3072_SHA512;
-    if (certType == D2_MLDSA65_RSA3072_SHA512_TYPE)
-        aCert.sigType = D2_CTC_MLDSA65_RSA3072_SHA512;
-    if (certType == D2_MLDSA65_NISTP256_SHA512_TYPE)
-        aCert.sigType = D2_CTC_MLDSA65_NISTP256_SHA512;
-    if (certType == D2_MLDSA65_ED25519_SHA512_TYPE)
-        aCert.sigType = D2_CTC_MLDSA65_ED25519_SHA512;
-    if (certType == D2_MLDSA87_BPOOL384_SHA512_TYPE)
-        aCert.sigType = D2_CTC_MLDSA87_BPOOL384_SHA512;
-    if (certType == D2_MLDSA87_NISTP384_SHA512_TYPE)
-        aCert.sigType = D2_CTC_MLDSA87_NISTP384_SHA512;
-    if (certType == D2_MLDSA87_ED448_SHA512_TYPE)
-        aCert.sigType = D2_CTC_MLDSA87_ED448_SHA512;
-#endif
+    // Signs the certificate
     ret = wc_InitRng(&rng);
     if (ret != 0) {
         printf("RNG initialization failed: %d\n", ret);
@@ -541,6 +472,181 @@ int gen_keypair(AsymKey ** key, int keySum, int param) {
 }
 #endif // WOLFSSL_KEY_GEN
 
+int test(int param) {
+
+    word32 idx = 0;
+    ed25519_key ed25519Key;
+    // ed448_key ed448Key;
+
+    MlDsaCompositeKey key;
+    WC_RNG rng;
+    int ret;
+
+    byte buff[65535];
+    word32 buffSz = sizeof(buff);
+
+    wc_InitRng(&rng);
+
+    wc_mldsa_composite_init(&key);
+    if (wc_mldsa_composite_make_key(&key, param, &rng) < 0) {
+        printf("Error generating key\n");
+        return -1;
+    }
+
+    ret = wc_mldsa_composite_export_public(&key, buff, &buffSz);
+    if (ret < 0) {
+        printf("Error exporting public key\n");
+        return -1;
+    }
+    printf("[1] Exported MLDSA Composite Public Key (type: %d, ret: %d, Sz: %d)\n", param, ret, buffSz);
+    do {
+        FILE * file = fopen("public_export.der", "wb");
+        if (file) {
+            fwrite(buff, 1, buffSz, file);
+            fclose(file);
+        }
+    } while (0);
+
+    buffSz = sizeof(buff);
+
+    ret = wc_MlDsaComposite_PublicKeyToDer(&key, buff, buffSz, 0);
+    if (ret < 0) {
+        printf("Error exporting public key\n");
+        return -1;
+    }
+
+    buffSz = ret;
+    printf("[2] Exported MLDSA Composite Public Key (ret and Sz: %d)\n", buffSz);
+    do {
+        FILE * file = fopen("PublicKeyToDer.der", "wb");
+        if (file) {
+            fwrite(buff, 1, buffSz, file);
+            fclose(file);
+        }
+    } while (0);
+
+    wc_mldsa_composite_free(&key);
+
+
+    wc_ed25519_init(&ed25519Key);
+    if (wc_ed25519_make_key(&rng, ED25519_KEY_SIZE, &ed25519Key) < 0) {
+        printf("Error generating key\n");
+        return -1;
+    }
+    ret = wc_ed25519_export_public(&ed25519Key, buff, &buffSz);
+    if (ret < 0) {
+        printf("Error exporting public key\n");
+        return -1;
+    }
+    printf("[1] Exported ED25519 Public Key (ret and Sz: %d)\n", buffSz);
+
+    do {
+        FILE * file = fopen("ed25519_public_export.der", "wb");
+        if (file) {
+            fwrite(buff, 1, buffSz, file);
+            fclose(file);
+        }
+    } while (0);
+
+    buffSz = sizeof(buff);
+    ret = wc_Ed25519PublicKeyToDer(&ed25519Key, buff, buffSz, 0);
+    if (ret < 0) {
+        printf("Error exporting public key\n");
+        return -1;
+    }
+    buffSz = ret;
+    printf("[2] Exported ED25519 Public Key (ret and Sz: %d)\n", buffSz);
+    do {
+        FILE * file = fopen("Ed25519PublicKeyToDer.der", "wb");
+        if (file) {
+            fwrite(buff, 1, buffSz, file);
+            fclose(file);
+        }
+    } while (0);
+
+    wc_ed25519_free(&ed25519Key);
+
+    buffSz = sizeof(buff);
+
+    ecc_key eccKey;
+    wc_ecc_init(&eccKey);
+
+    wc_ecc_set_curve(&eccKey, 32, ECC_SECP256R1);
+    if (wc_ecc_make_key(&rng, 32, &eccKey) < 0) {
+        printf("Error generating key\n");
+        return -1;
+    }
+    buffSz = ret = wc_EccPublicKeyToDer(&eccKey, buff, buffSz, 1);
+    // ret = wc_ecc_export_x963(&eccKey, buff, &buffSz);
+    if (ret < 0) {
+        printf("Error exporting public key (%d)\n", ret);
+        return -1;
+    }
+    printf("[1] Exported ECC Public Key (Sz: %d)\n", buffSz);
+
+    do {
+        FILE * file = fopen("ecc_public_export.der", "wb");
+        if (file) {
+            fwrite(buff, 1, buffSz, file);
+            fclose(file);
+        }
+    } while (0);
+
+    // ret = wc_ecc_import_x963(buff, buffSz, &eccKey);
+    // if (ret < 0) {
+    //     printf("[0] Error importing public key (ret: %d)\n", ret);
+    //     return -1;
+    // }
+    // wc_ecc_free(&eccKey);
+
+    idx = 0;
+    ret = wc_EccPublicKeyDecode(buff, &idx, &eccKey, buffSz);
+    if (ret < 0) {
+        printf("[1] Error decoding public key (ret: %d)\n", ret);
+        return -1;
+    }
+    buffSz = idx;
+
+    printf("[1] Decoded ECC Public Key on the same data as the import x963 (ret: %d, Sz: %d)\n", ret, idx);
+
+    buffSz = sizeof(buff);
+    ret = wc_EccPublicKeyDerSize(&eccKey, 0);
+    if (ret < 0) {
+        printf("Error getting the size for ECC public key\n");
+        return -1;
+    }
+    buffSz = ret;
+    ret = wc_EccPublicKeyToDer(&eccKey, buff, buffSz, 0);
+    if (ret < 0) {
+        printf("Error exporting ECC public key\n");
+        return -1;
+    }
+    buffSz = ret;
+    printf("[2] Exported ECC Public Key (Sz: %d)\n", buffSz);
+
+    ret = wc_ecc_import_x963(buff, buffSz, &eccKey);
+    if (ret < 0) {
+        printf("[2] Error importing public key, ret: %d\n", ret);
+        return -1;
+    }
+
+    // ret = wc_EccPublicKeyDecode(buff, &idx, &eccKey, buffSz);
+    // if (ret < 0) {
+    //     printf("[2] Error decoding public key (ret: %d)\n", ret);
+    //     return -1;
+    // }
+    // buffSz = idx;
+
+    do {
+        FILE * file = fopen("EccPublicKeyToDer.der", "wb");
+        if (file) {
+            fwrite(buff, 1, buffSz, file);
+            fclose(file);
+        }
+    } while (0);
+
+    return 0;
+}
 
 int main(int argc, char** argv) {
 
@@ -577,6 +683,9 @@ int main(int argc, char** argv) {
 
     // Gets the CMD
     if (argc < 2) {
+        // test(WC_MLDSA44_ED25519_SHA256);
+        test(WC_MLDSA44_ED25519_SHA256); // To Be Removed
+
         usage();
         return 1;
     }

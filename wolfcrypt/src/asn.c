@@ -29857,6 +29857,7 @@ static int EncodePublicKey(int keyType, byte* output, int outLen,
         case MLDSA65_RSA3072_KEY:
         case MLDSA65_RSAPSS4096_KEY:
         case MLDSA65_RSA4096_KEY:
+        case MLDSA65_NISTP256_KEY:
         case MLDSA65_NISTP384_KEY:
         case MLDSA65_ED25519_KEY:
         case MLDSA65_BPOOL256_KEY:
@@ -29878,9 +29879,6 @@ static int EncodePublicKey(int keyType, byte* output, int outLen,
         case D2_MLDSA87_BPOOL384_KEY:
         case D2_MLDSA87_ED448_KEY:
             ret = wc_MlDsaComposite_PublicKeyToDer(mldsaCompKey, output, (word32)outLen, 1);
-            if (ret <= 0) {
-                ret = PUBLIC_KEY_E;
-            }
             break;
             
     #endif /* HAVE_MLDSA_COMPOSITE */
@@ -31713,8 +31711,17 @@ static int MakeAnyCert(Cert* cert, byte* derBuffer, word32 derSz,
             cert->keyType = MLDSA65_BPOOL256_KEY;
         }
         else if ((mldsaCompKey != NULL) &&
+                    (mldsaCompKey->type == MLDSA65_NISTP256_TYPE
+                     || mldsaCompKey->type == D2_MLDSA65_NISTP256_SHA512_TYPE)) {
+            cert->keyType = MLDSA65_NISTP256_KEY;
+        }
+        else if ((mldsaCompKey != NULL) &&
                     (mldsaCompKey->type == MLDSA87_NISTP384_TYPE)) {
             cert->keyType = MLDSA87_NISTP384_KEY;
+        }
+        else if ((mldsaCompKey != NULL) &&
+                    (mldsaCompKey->type == MLDSA87_BPOOL384_TYPE)) {
+            cert->keyType = MLDSA87_BPOOL384_KEY;
         }
         else if ((mldsaCompKey != NULL) &&
                     (mldsaCompKey->type == MLDSA87_ED448_TYPE)) {

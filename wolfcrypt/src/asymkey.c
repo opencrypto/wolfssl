@@ -1061,12 +1061,12 @@ int wc_AsymKey_Public_import(AsymKey* key, int type, const byte* in, word32 inLe
     return NOT_COMPILED_IN;
 }
 
-int wc_AsymKey_Public_export(byte* buff, word32 buffLen, int withAlg, int format, const AsymKey* key) {
+int wc_AsymKey_Public_export(byte* buff, word32 buffLen, int withSPKIAlg, int format, const AsymKey* key) {
   
     (void)key;
     (void)buff;
     (void)buffLen;
-    (void)withAlg;
+    (void)withSPKIAlg;
     (void)format;
 
     return NOT_COMPILED_IN;
@@ -1778,60 +1778,61 @@ int wc_AsymKey_export_ex(const AsymKey * key,
 }
 
 
-int wc_AsymKey_PrivateKeyInfo(word32 * oid, byte * pkcsData, word32 pkcsDataSz, int format) {
-  int ret = 0;
+int wc_AsymKey_PrivateKeyInfo(word32 * oid, byte * data, word32 dataSz, int format) {
+
+    int ret = 0;
     word32 algorSum = 0;
 
-    if (!pkcsData || !pkcsDataSz) {
+    if (!data || !dataSz) {
         return BAD_FUNC_ARG;
     }
 
     // Creates a copy of the data
-    word32 buffSz = pkcsDataSz;
-    byte * buff = XMALLOC(pkcsDataSz, NULL, DYNAMIC_TYPE_PRIVATE_KEY);
-    if (buff == NULL) {
+    word32 derSz = dataSz;
+    byte * der = XMALLOC(dataSz, NULL, DYNAMIC_TYPE_PRIVATE_KEY);
+    if (der == NULL) {
         ret = MEMORY_E;
     }
     /* Convert PEM to DER. */
     if (format == 1 || format < 0) {
 
         // Decodes PEM into DER
-        if ((ret = wc_KeyPemToDer(pkcsData, pkcsDataSz, buff, buffSz, NULL)) < 0) {
-          XFREE(buff, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        if ((ret = wc_KeyPemToDer(data, dataSz, der, derSz, NULL)) < 0) {
+          XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
           return ret;
         }
 
         // If the format was not explicity required, allow for the DER format
         if (format == 1 && ret <= 0) {
-          XFREE(buff, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+          XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
           return ret;
         }
 
         if (ret > 0) {
-            buffSz = ret;
+            derSz = ret;
         } else {
             // Copies the data (allows for trying with DER)
-            XMEMCPY(buff, pkcsData, pkcsDataSz);
+            XMEMCPY(der, data, dataSz);
         }
 
     } else {
         // Copies the data
-        XMEMCPY(buff, pkcsData, pkcsDataSz);
+        XMEMCPY(der, data, dataSz);
     }
     if (ret == 0) {
 
 #if defined(HAVE_PKCS8) || defined(HAVE_PKCS12)
 
       // Removes the PKCS8 header
-      ret = ToTraditional_ex(buff, pkcsDataSz, &algorSum);
+      ret = ToTraditional_ex(der, dataSz, &algorSum);
       *oid = algorSum;
 #else
     ret = NOT_COMPILED_IN;
 #endif // HAVE_PKCS8 || HAVE_PKCS12
 
       // Frees the buffer
-      if (buff) XFREE(buff, NULL, DYNAMIC_TYPE_PRIVATE_KEY);
-      buff = NULL;
+      if (der) XFREE(der, NULL, DYNAMIC_TYPE_PRIVATE_KEY);
+      der = NULL;
     }
 
     return ret;
@@ -1980,16 +1981,16 @@ int wc_AsymKey_PrivateKeyDerDecode_ex(AsymKey* key, const byte* data, word32 dat
 
         // Initializes the key and sets the expected level
         wc_dilithium_free(mlDsaKey);
-        wc_dilithium_init(mlDsaKey);
 
+        wc_dilithium_init(mlDsaKey);
         if (algorSum == ML_DSA_LEVEL5k) {
-            wc_dilithium_set_level(mlDsaKey, 5);
+            wc_dilithium_set_level(mlDsaKey, WC_ML_DSA_87);
             key->type = ML_DSA_LEVEL5_TYPE;
         } else if (algorSum == ML_DSA_LEVEL3k) {
-            wc_dilithium_set_level(mlDsaKey, 3);
+            wc_dilithium_set_level(mlDsaKey, WC_ML_DSA_65);
             key->type = ML_DSA_LEVEL3_TYPE;
         } else if (algorSum == ML_DSA_LEVEL2k) {
-            wc_dilithium_set_level(mlDsaKey, 2);
+            wc_dilithium_set_level(mlDsaKey, WC_ML_DSA_44);
             key->type = ML_DSA_LEVEL2_TYPE;
         }
         // Decodes the key
@@ -2282,7 +2283,8 @@ int wc_AsymKey_PrivateKeyToDer_ex(const AsymKey * key,
                 // Shortcut to the ECC key
 
             // Get the size of the DER key
-            derSz = ret = wc_EccKeyDerSize((ecc_key *)eccKey, 1);
+            // derSz = ret = wc_EccKeyDerSize((ecc_key *)eccKey, 1);
+            derSz = ret = wc_EccPrivateKeyToDer((ecc_key *)eccKey, NULL, derSz);
             if (ret < 0) {
                 return BAD_FUNC_ARG;
             }
@@ -2295,12 +2297,35 @@ int wc_AsymKey_PrivateKeyToDer_ex(const AsymKey * key,
 
             if (buff) {
                 // Export the key to DER format
-                ret = wc_EccKeyToDer((ecc_key *)eccKey, derPtr, derSz);
+                // ret = wc_EccKeyToDer((ecc_key *)eccKey, derPtr, derSz);
+                derSz = ret = wc_EccPrivateKeyToDer((ecc_key *)eccKey, derPtr, derSz);
                 if (ret < 0) {
                     XFREE(derPtr, NULL, DYNAMIC_TYPE_TMP_BUFFER);
                     return BAD_STATE_E;
                 }
             }
+
+            // // Get the size of the DER key
+            // ret = wc_EccPrivateKeyToPKCS8((ecc_key *)eccKey, NULL, &derSz);
+            // if (ret < 0) {
+            //     return BAD_FUNC_ARG;
+            // }
+
+            // // Allocate memory for the DER key
+            // derPtr = (byte *)XMALLOC(derSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            // if (derPtr == NULL) {
+            //     return MEMORY_E;
+            // }
+
+            // if (buff) {
+            //     // Export the key to DER format
+            //     // ret = wc_EccKeyToDer((ecc_key *)eccKey, derPtr, derSz);
+            //     ret = wc_EccPrivateKeyToPKCS8((ecc_key *)eccKey, derPtr, &derSz);
+            //     if (ret < 0) {
+            //         XFREE(derPtr, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            //         return BAD_STATE_E;
+            //     }
+            // }
 
             // ----------------------
             // Export in PKCS8 format
@@ -3440,6 +3465,7 @@ int wc_AsymKey_Verify_ex(const byte* sig, word32 sigLen,
 int wc_AsymKey_SigType(const AsymKey* key, enum wc_HashType hashType) {
 
     int certType = 0;
+    int ret = 0;
 
     if (!key) {
         return BAD_FUNC_ARG;
@@ -3457,30 +3483,31 @@ int wc_AsymKey_SigType(const AsymKey* key, enum wc_HashType hashType) {
         case RSA_TYPE:
             int keyType = wc_AsymKey_Oid(key);
             if (keyType < 0) {
-                return BAD_FUNC_ARG;
+                ret = BAD_FUNC_ARG;
+                break;
             }
 
             if (keyType == RSAPSSk) {
-                return CTC_RSASSAPSS;
+                ret = CTC_RSASSAPSS;
+                break;
             }
 
             if (hashType == WC_HASH_TYPE_NONE
                 || hashType == WC_HASH_TYPE_SHA256) {
-                return CTC_SHA256wRSA;
+                ret = CTC_SHA256wRSA;
             } else if (hashType == WC_HASH_TYPE_SHA384) {
-                return CTC_SHA384wRSA;
+                ret = CTC_SHA384wRSA;
             } else if (hashType == WC_HASH_TYPE_SHA512) {
-                return CTC_SHA512wRSA;
+                ret = CTC_SHA512wRSA;
             } else if (hashType == WC_HASH_TYPE_SHA3_256) {
-                return CTC_SHA3_256wRSA;
+                ret = CTC_SHA3_256wRSA;
             } else if (hashType == WC_HASH_TYPE_SHA3_384) {
-                return CTC_SHA3_384wRSA;
+                ret = CTC_SHA3_384wRSA;
             } else if (hashType == WC_HASH_TYPE_SHA3_512) {
-                return CTC_SHA3_512wRSA;
+                ret = CTC_SHA3_512wRSA;
             } else {
-                return BAD_FUNC_ARG;
+                ret = BAD_FUNC_ARG;
             }
-            return BAD_FUNC_ARG;
         break;
 #endif // NO_RSA
 
@@ -3488,171 +3515,171 @@ int wc_AsymKey_SigType(const AsymKey* key, enum wc_HashType hashType) {
         case ECC_TYPE:
             if (hashType == WC_HASH_TYPE_NONE
                 || hashType == WC_HASH_TYPE_SHA256) {
-                return CTC_SHA256wECDSA;
+                ret = CTC_SHA256wECDSA;
             } else if (hashType == WC_HASH_TYPE_SHA384) {
-                return CTC_SHA384wECDSA;
+                ret = CTC_SHA384wECDSA;
             } else if (hashType == WC_HASH_TYPE_SHA512) {
-                return CTC_SHA512wECDSA; 
+                ret = CTC_SHA512wECDSA; 
             } else if (hashType == WC_HASH_TYPE_SHA3_256) {
-                return CTC_SHA3_256wECDSA;
+                ret = CTC_SHA3_256wECDSA;
             } else if (hashType == WC_HASH_TYPE_SHA3_384) {
-                return CTC_SHA3_384wECDSA;
+                ret = CTC_SHA3_384wECDSA;
             } else if (hashType == WC_HASH_TYPE_SHA3_512) {
-                return CTC_SHA3_512wECDSA;
+                ret = CTC_SHA3_512wECDSA;
             } else {
-                return BAD_FUNC_ARG;
+                ret = BAD_FUNC_ARG;
             }
-            return BAD_FUNC_ARG;
         break;
 #endif // HAVE_ECC
 
 #ifdef HAVE_ED25519
         case ED25519_TYPE:
-            return CTC_ED25519;
+            ret = CTC_ED25519;
         break;
 #endif // HAVE_ED25519
 
 #ifdef HAVE_ED448
         case ED448_TYPE:
-            return CTC_ED448;
+            ret = CTC_ED448;
         break;
 #endif // HAVE_ED448
 
-#ifdef HAVE_DILITHIUM
+#if defined(HAVE_DILITHIUM)
         case ML_DSA_LEVEL2_TYPE:
-            return CTC_ML_DSA_LEVEL2;
+            ret = CTC_ML_DSA_LEVEL2;
             break;
 
-        case CTC_ML_DSA_LEVEL3:
-            return CTC_ML_DSA_LEVEL3;
+        case ML_DSA_LEVEL3_TYPE:
+            ret = CTC_ML_DSA_LEVEL3;
             break;
 
-        case CTC_ML_DSA_LEVEL5:
-            return CTC_ML_DSA_LEVEL5;
+        case ML_DSA_LEVEL5_TYPE:
+            ret = CTC_ML_DSA_LEVEL5;
             break;
 #endif
 
 #ifdef HAVE_FALCON
         case FALCON_LEVEL1_TYPE:
-            return CTC_FALCON_LEVEL1;
+            ret = CTC_FALCON_LEVEL1;
             break;
 
         case FALCON_LEVEL5_TYPE:
-            return CTC_FALCON_LEVEL5;
+            ret = CTC_FALCON_LEVEL5;
             break;
 #endif // HAVE_FALCON
 
 #ifdef HAVE_SPHINCS
         case SPHINCS_HARAKA_128F_ROBUST_TYPE:
-            return CTC_SPHINCS_HARAKA_128F_ROBUST;
+            ret = CTC_SPHINCS_HARAKA_128F_ROBUST;
             break;
 
         case SPHINCS_HARAKA_128S_ROBUST_TYPE:
-            return CTC_SPHINCS_HARAKA_128S_ROBUST;
+            ret = CTC_SPHINCS_HARAKA_128S_ROBUST;
             break;
 
         case SPHINCS_HARAKA_192F_ROBUST_TYPE:
-            return CTC_SPHINCS_HARAKA_192F_ROBUST;
+            ret = CTC_SPHINCS_HARAKA_192F_ROBUST;
             break;
 
         case SPHINCS_HARAKA_192S_ROBUST_TYPE:
-            return CTC_SPHINCS_HARAKA_192S_ROBUST;
+            ret = CTC_SPHINCS_HARAKA_192S_ROBUST;
             break;
 
         case SPHINCS_HARAKA_256F_ROBUST_TYPE:
-            return CTC_SPHINCS_HARAKA_256F_ROBUST;
+            ret = CTC_SPHINCS_HARAKA_256F_ROBUST;
             break;
 
         case SPHINCS_HARAKA_256S_ROBUST_TYPE:
-            return CTC_SPHINCS_HARAKA_256S_ROBUST;
+            ret = CTC_SPHINCS_HARAKA_256S_ROBUST;
             break;
 #endif
-#ifdef HAVE_MLDSA_COMPOSITE
+// #ifdef HAVE_MLDSA_COMPOSITE
         case MLDSA44_NISTP256_TYPE:
-            return CTC_MLDSA44_NISTP256_SHA256;
+            ret = CTC_MLDSA44_NISTP256_SHA256;
             break;
         case MLDSA44_RSA2048_TYPE:
-            return CTC_MLDSA44_RSA2048_SHA256;
+            ret = CTC_MLDSA44_RSA2048_SHA256;
             break;
         case MLDSA44_RSAPSS2048_TYPE:
-            return CTC_MLDSA44_RSAPSS2048_SHA256;
+            ret = CTC_MLDSA44_RSAPSS2048_SHA256;
             break;
         // case MLDSA44_BPOOL256_TYPE:
-        //     return CTC_MLDSA44_BPOOL256_SHA256;
+        //     ret = CTC_MLDSA44_BPOOL256_SHA256;
         //     break;
         case MLDSA44_ED25519_TYPE:
-            return CTC_MLDSA44_ED25519;
+            ret = CTC_MLDSA44_ED25519;
             break;
         case MLDSA65_NISTP256_TYPE:
-            return NOT_COMPILED_IN;
+            ret = CTC_MLDSA65_NISTP256_SHA384;
+            break;
         case MLDSA65_RSA3072_TYPE:
-            return CTC_MLDSA65_RSA3072_SHA384;
+            ret = CTC_MLDSA65_RSA3072_SHA384;
             break;
         case MLDSA65_RSAPSS3072_TYPE:
-            return CTC_MLDSA65_RSAPSS3072_SHA384;
+            ret = CTC_MLDSA65_RSAPSS3072_SHA384;
             break;
         case MLDSA65_RSA4096_TYPE:
-            return CTC_MLDSA65_RSA4096_SHA384;
+            ret = CTC_MLDSA65_RSA4096_SHA384;
             break;
         case MLDSA65_RSAPSS4096_TYPE:
-            return CTC_MLDSA65_RSAPSS4096_SHA384;
+            ret = CTC_MLDSA65_RSAPSS4096_SHA384;
             break;
         case MLDSA65_BPOOL256_TYPE:
-            return CTC_MLDSA65_BPOOL256_SHA256;
+            ret = CTC_MLDSA65_BPOOL256_SHA256;
             break;
         case MLDSA65_ED25519_TYPE:
-            return CTC_MLDSA65_ED25519_SHA384;
-            break;
-        case MLDSA87_NISTP384_TYPE:
-            return CTC_MLDSA87_NISTP384_SHA384;
+            ret = CTC_MLDSA65_ED25519_SHA384;
             break;
         case MLDSA87_BPOOL384_TYPE:
-            return CTC_MLDSA87_BPOOL384_SHA384;
+            ret = CTC_MLDSA87_BPOOL384_SHA384;
+            break;
+        case MLDSA87_NISTP384_TYPE:
+            ret = CTC_MLDSA87_NISTP384_SHA384;
             break;
         case MLDSA87_ED448_TYPE:
-            return CTC_MLDSA87_ED448;
+            ret = CTC_MLDSA87_ED448;
             break;
         // -------- Draft 2 -------------//
         case D2_MLDSA44_RSAPSS2048_SHA256_TYPE:
-            return D2_CTC_MLDSA44_RSAPSS2048_SHA256;
+            ret = D2_CTC_MLDSA44_RSAPSS2048_SHA256;
             break;
         case D2_MLDSA44_RSA2048_SHA256_TYPE:
-            return D2_CTC_MLDSA44_RSA2048_SHA256;
+            ret = D2_CTC_MLDSA44_RSA2048_SHA256;
             break;
         case D2_MLDSA44_NISTP256_SHA256_TYPE:
-            return D2_CTC_MLDSA44_NISTP256_SHA256;
+            ret = D2_CTC_MLDSA44_NISTP256_SHA256;
             break;
         case D2_MLDSA44_ED25519_SHA256_TYPE:
-            return D2_CTC_MLDSA44_ED25519;
+            ret = D2_CTC_MLDSA44_ED25519;
             break;
         case D2_MLDSA65_RSAPSS3072_SHA512_TYPE:
-            return D2_CTC_MLDSA65_RSAPSS3072_SHA512;
+            ret = D2_CTC_MLDSA65_RSAPSS3072_SHA512;
             break;
         case D2_MLDSA65_RSA3072_SHA512_TYPE:
-            return D2_CTC_MLDSA65_RSA3072_SHA512;
+            ret = D2_CTC_MLDSA65_RSA3072_SHA512;
             break;
         case D2_MLDSA65_NISTP256_SHA512_TYPE:
-            return D2_CTC_MLDSA65_NISTP256_SHA512;
+            ret = D2_CTC_MLDSA65_NISTP256_SHA512;
             break;
         case D2_MLDSA65_ED25519_SHA512_TYPE:
-            return D2_CTC_MLDSA65_ED25519_SHA512;
+            ret = D2_CTC_MLDSA65_ED25519_SHA512;
             break;
         case D2_MLDSA87_BPOOL384_SHA512_TYPE:
-            return D2_CTC_MLDSA87_BPOOL384_SHA512;
+            ret = D2_CTC_MLDSA87_BPOOL384_SHA512;
             break;
         case D2_MLDSA87_NISTP384_SHA512_TYPE:
-            return D2_CTC_MLDSA87_NISTP384_SHA512;
+            ret = D2_CTC_MLDSA87_NISTP384_SHA512;
             break;
         case D2_MLDSA87_ED448_SHA512_TYPE:
-            return D2_CTC_MLDSA87_ED448_SHA512;
+            ret = D2_CTC_MLDSA87_ED448_SHA512;
             break;
-#endif
+// #endif
 
-    default:
-        return BAD_FUNC_ARG;
+        default:
+            ret = BAD_FUNC_ARG;
     }
 
-    return 0;
+    return ret;
 }
 
 int wc_AsymKey_MakeReq(byte* der, word32 derSz, const char * subjectDN, enum wc_HashType hashType, int format, const AsymKey* key /*, const AsymKey *alt_key */) {
@@ -3683,50 +3710,60 @@ int wc_AsymKey_MakeReq(byte* der, word32 derSz, const char * subjectDN, enum wc_
     return wc_AsymKey_MakeReq_ex(der, derSz, &req, hashType, format, key, &rng);
 }
 
-int wc_AsymKey_CertTemplate_SetReq(Cert * tbsCert, const byte * buf, word32 bufSz, enum wc_CertTemplate template_id, int format) {
+int wc_AsymKey_CertReq_SetTemplate(Cert * tbsCert, enum wc_CertTemplate template_id) {
     
     WC_RNG rng;
-    DecodedCert aReq;
     int ret = 0;
 
     byte * derBuf = NULL;
-    word32 derBufSz = 0;
     byte derBufAlloc = 0;
 
-    AsymKey * aKey = NULL;
-
-    if (!buf || bufSz <= 0) {
+    if (!tbsCert)
         return BAD_FUNC_ARG;
-    }
 
-    if (wc_InitRng(&rng) < 0) {
+    if (wc_InitRng(&rng) < 0)
         return BAD_STATE_E;
-    }
 
-    // Assumes DER format
-    derBuf = (byte *)buf;
-    derBufSz = bufSz;
+    // DecodedCert aReq;
 
-    // Convert PEM to DER, if needed
-    if (format > 0) {
-        word32 pemSz = bufSz;
-        derBuf = XMALLOC(pemSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        ret = wc_CertPemToDer(buf, bufSz, derBuf, derBufSz, CERTREQ_TYPE);
-        if (ret <= 0) {
-           goto err;
-        }
-        derBufSz = ret;
-        derBufAlloc = 1;
-    }
+    // // Assumes DER format
+    // derBuf = (byte *)buf;
+    // derBufSz = bufSz;
 
-    // Parse the DER buffer
-    InitDecodedCert(&aReq, derBuf, derBufSz, NULL);
-    ret = ParseCert(&aReq, CERTREQ_TYPE, NO_VERIFY, NULL);
-    if (ret != 0) {
-        goto err;
-    }
+    // // Convert PEM to DER, if needed
+    // if (format > 0) {
+    //     word32 pemSz = bufSz;
+    //     derBuf = XMALLOC(pemSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    //     ret = wc_CertPemToDer(buf, bufSz, derBuf, derBufSz, CERTREQ_TYPE);
+    //     if (ret <= 0) {
+    //        goto err;
+    //     }
+    //     derBufSz = ret;
+    //     derBufAlloc = 1;
+    // }
+
+    // // Parse the DER buffer
+    // InitDecodedCert(&aReq, derBuf, derBufSz, NULL);
+    // ret = ParseCert(&aReq, CERTREQ_TYPE, NO_VERIFY, NULL);
+    // if (ret != 0) {
+    //     goto err;
+    // }
 
     // ret = wc_AsymKey_PublicKeyDerDecode(aKey, aReq.publicKey, aReq.pubKeySize);
+    // if (ret != 0) {
+    //     goto err;
+    // }
+
+    // // Subject
+    // if (subjectDn) {
+    //     ret = wc_CertName_set(&tbsCert->subject, subjectDn);
+    //     if (ret != 0) {
+    //         goto err;
+    //     }
+    // }
+    
+    // // Subject KeyId
+    // ret = wc_SetSubjectKeyIdFromPublicKey_ex(tbsCert, aKey->type, &aKey->val);
     // if (ret != 0) {
     //     goto err;
     // }
@@ -3734,12 +3771,6 @@ int wc_AsymKey_CertTemplate_SetReq(Cert * tbsCert, const byte * buf, word32 bufS
     // Default values
     tbsCert->version   = 2;
     tbsCert->daysValid = 365;
-    
-    // Subject KeyId
-    ret = wc_SetSubjectKeyIdFromPublicKey_ex(tbsCert, aKey->type, &aKey->val);
-    if (ret != 0) {
-        goto err;
-    }
 
     switch (template_id) {
 
@@ -3832,11 +3863,12 @@ int wc_AsymKey_CertTemplate_SetReq(Cert * tbsCert, const byte * buf, word32 bufS
 
         case WC_CERT_TEMPLATE_UNKNOWN:
             default:
-                return BAD_FUNC_ARG;
+                ret = BAD_FUNC_ARG;
+                goto err;
     }
 
-    if (!tbsCert->selfSigned)
-        wc_SetAuthKeyIdFromPublicKey_ex(tbsCert, aKey->type, &aKey->val);
+    // if (!tbsCert->selfSigned)
+    //     wc_SetAuthKeyIdFromPublicKey_ex(tbsCert, aKey->type, &aKey->val);
 
     // Serial Number
     if (tbsCert->serialSz > 0)
@@ -3848,32 +3880,41 @@ err:
         XFREE(derBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     }
 
+    return ret;
+}
+
+WOLFSSL_API int wc_AsymKey_CertReq_SetSigType(Cert * tbsCert, enum wc_HashType hashType, const AsymKey* key) {
+
+    int ret = 0;
+
+    if (!tbsCert || !key) {
+        return BAD_FUNC_ARG;
+    }
+
+    ret = wc_AsymKey_SigType(key, hashType);
+    if (ret < 0) {
+        return ret;
+    }
+
+    tbsCert->sigType = ret;
     return 0;
 }
 
-int wc_AsymKey_SetCert_Issuer(Cert * tbsCert, DecodedCert * caCert, AsymKey * caKey) {
-
+int wc_AsymKey_CertReq_SetSubject(Cert * tbsCert, const char * subjectStr) {
+    
     int ret = 0;
+
     if (!tbsCert) {
         ret = BAD_FUNC_ARG;
     }
 
-    if (ret == 0 && caCert) {
-        XMEMCPY(&tbsCert->issuer, &caCert->subject, sizeof(CertName));
-    }
+    if (ret == 0 && subjectStr)
+        ret = wc_CertName_set(&tbsCert->subject, subjectStr);
 
-    if (ret == 0 && caKey) {
-        if (&tbsCert->selfSigned) {
-            ret = wc_SetSubjectKeyIdFromPublicKey_ex(tbsCert, caKey->type, &caKey->val);
-        } else {
-            ret = wc_SetAuthKeyIdFromPublicKey_ex(tbsCert, caKey->type, &caKey->val);
-        }
-    }
-
-    return 0;
+    return ret;
 }
 
-int wc_AsymKey_SetCert_Issuer_txt(Cert * tbsCert, const char * issuerStr, AsymKey * caKey) {
+int wc_AsymKey_CertReq_SetIssuer(Cert * tbsCert, const char * issuerStr) {
 
     int ret = 0;
 
@@ -3884,17 +3925,30 @@ int wc_AsymKey_SetCert_Issuer_txt(Cert * tbsCert, const char * issuerStr, AsymKe
     if (ret == 0 && issuerStr)
         ret = wc_CertName_set(&tbsCert->issuer, issuerStr);
 
-    if (ret == 0 && caKey) {
-        if (&tbsCert->selfSigned) {
-            ret = wc_SetSubjectKeyIdFromPublicKey_ex(tbsCert, caKey->type, &caKey->val);
-        } else {
-            ret = wc_SetAuthKeyIdFromPublicKey_ex(tbsCert, caKey->type, &caKey->val);
-        }
-    }
-
     return ret;
 }
 
+int wc_AsymKey_CertReq_SetIssuer_CaCert(Cert * tbsCert, DecodedCert * caCert) {
+
+    int ret = 0;
+    if (!tbsCert) {
+        ret = BAD_FUNC_ARG;
+    }
+
+    if (ret == 0 && caCert) {
+        XMEMCPY(&tbsCert->issuer, &caCert->subject, sizeof(CertName));
+    }
+
+    // if (ret == 0 && caCert) {
+    //     if (&tbsCert->selfSigned) {
+    //         ret = wc_SetSubjectKeyIdFromPublicKey_ex(tbsCert, caKey->type, &caKey->val);
+    //     } else {
+    //         ret = wc_SetAuthKeyIdFromPublicKey_ex(tbsCert, caKey->type, &caKey->val);
+    //     }
+    // }
+
+    return 0;
+}
 
 int wc_AsymKey_MakeReq_ex(byte* der, word32 derSz, wc_x509Req* req, enum wc_HashType hashType, int format, const AsymKey* key, WC_RNG* rng) {
 
@@ -3915,7 +3969,7 @@ int wc_AsymKey_MakeReq_ex(byte* der, word32 derSz, wc_x509Req* req, enum wc_Hash
     if (certType < 0)
         return BAD_FUNC_ARG;
 
-    req->sigType = wc_AsymKey_SigType(key, hashType);
+    req->sigType = ret = wc_AsymKey_SigType(key, hashType);
     if (ret < 0)
         return req->sigType;
 
@@ -3981,7 +4035,6 @@ int wc_AsymKey_MakeReq_ex(byte* der, word32 derSz, wc_x509Req* req, enum wc_Hash
 
     return ret;
 }
-
 
 int wc_AsymKey_MakeCert(byte * der, word32 derLen, wc_x509Cert* req, const AsymKey* key, WC_RNG* rng) {
 

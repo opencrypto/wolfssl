@@ -24,6 +24,8 @@
 // Function Prototypes
 // ===================
 
+int test(int param); // To Be Removed
+
 void usage(void);
 
 int wc_PKCS8_info(byte * p8_data, word32 p8_dataSz, word32 * oid);
