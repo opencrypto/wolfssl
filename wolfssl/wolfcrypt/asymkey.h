@@ -120,6 +120,36 @@ typedef struct AsymKey {
 typedef struct Cert wc_x509Cert;
 typedef struct Cert wc_x509Req;
 
+enum wc_CertTemplate {
+    WC_CERT_TEMPLATE_UNKNOWN = 0,
+
+    // IETF Templates (RFC 5280)
+    WC_CERT_TEMPLATE_IETF_ROOT_CA,
+    WC_CERT_TEMPLATE_IETF_INTERMEDIATE_CA,
+    WC_CERT_TEMPLATE_IETF_OCSP_SERVER,
+    WC_CERT_TEMPLATE_IETF_CODE_SIGNING,
+    WC_CERT_TEMPLATE_IETF_TIME_STAMPING,
+    WC_CERT_TEMPLATE_IETF_TLS_SERVER,
+    WC_CERT_TEMPLATE_IETF_TLS_CLIENT,
+    WC_CERT_TEMPLATE_IETF_EMAIL,
+    WC_CERT_TEMPLATE_IETF_802_1X,
+    WC_CERT_TEMPLATE_IETF_IPSEC,
+
+    // X9.68 Templates
+    WC_CERT_TEMPLATE_X9_RFC5280_ROOT_CA,
+    WC_CERT_TEMPLATE_X9_INTERMEDIATE_CA,
+    WC_CERT_TEMPLATE_X9_OCSP_SERVER,
+    WC_CERT_TEMPLATE_X9_CODE_SIGNING,
+    WC_CERT_TEMPLATE_X9_TIME_STAMPING,
+    WC_CERT_TEMPLATE_X9_TLS_SERVER,
+    WC_CERT_TEMPLATE_X9_TLS_CLIENT,
+    WC_CERT_TEMPLATE_X9_EMAIL,
+    WC_CERT_TEMPLATE_X9_802_1X,
+    WC_CERT_TEMPLATE_X9_IPSEC,
+};
+
+typedef enum wc_CertTemplate WC_CERT_TEMPLATE;
+
 /* Functions */
 
 /* Allocates the memory associated with a new AsymKey.
@@ -475,6 +505,14 @@ WOLFSSL_API int wc_AsymKey_Verify_ex(const byte* sig, word32 sigLen, const byte*
  * @return  BAD_FUNC_ARG when a parameter is NULL.
  */
 WOLFSSL_API int wc_AsymKey_SigType(const AsymKey* key, enum wc_HashType hashType);
+
+WOLFSSL_API int wc_AsymKey_SetCert(Cert * tbsCert, const AsymKey * subjectKey, const AsymKey * signingKey, enum wc_CertTemplate template_id);
+
+WOLFSSL_API int wc_AsymKey_SetCert_Issuer(Cert * tbsCert, DecodedCert * caCert, AsymKey * caKey);
+
+WOLFSSL_API int wc_AsymKey_SetCert_Issuer_txt(Cert * tbsCert, const char * issuerStr, AsymKey * caKey);
+
+WOLFSSL_API int wc_AsymKey_CertTemplate_SetReq(Cert * tbsCert, const byte * buf, word32 bufSz, enum wc_CertTemplate template_id, int format);
 
 /* Make a new certificate request (PKCS#10).
  *

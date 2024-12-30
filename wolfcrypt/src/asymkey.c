@@ -3683,6 +3683,219 @@ int wc_AsymKey_MakeReq(byte* der, word32 derSz, const char * subjectDN, enum wc_
     return wc_AsymKey_MakeReq_ex(der, derSz, &req, hashType, format, key, &rng);
 }
 
+int wc_AsymKey_CertTemplate_SetReq(Cert * tbsCert, const byte * buf, word32 bufSz, enum wc_CertTemplate template_id, int format) {
+    
+    WC_RNG rng;
+    DecodedCert aReq;
+    int ret = 0;
+
+    byte * derBuf = NULL;
+    word32 derBufSz = 0;
+    byte derBufAlloc = 0;
+
+    AsymKey * aKey = NULL;
+
+    if (!buf || bufSz <= 0) {
+        return BAD_FUNC_ARG;
+    }
+
+    if (wc_InitRng(&rng) < 0) {
+        return BAD_STATE_E;
+    }
+
+    // Assumes DER format
+    derBuf = (byte *)buf;
+    derBufSz = bufSz;
+
+    // Convert PEM to DER, if needed
+    if (format > 0) {
+        word32 pemSz = bufSz;
+        derBuf = XMALLOC(pemSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        ret = wc_CertPemToDer(buf, bufSz, derBuf, derBufSz, CERTREQ_TYPE);
+        if (ret <= 0) {
+           goto err;
+        }
+        derBufSz = ret;
+        derBufAlloc = 1;
+    }
+
+    // Parse the DER buffer
+    InitDecodedCert(&aReq, derBuf, derBufSz, NULL);
+    ret = ParseCert(&aReq, CERTREQ_TYPE, NO_VERIFY, NULL);
+    if (ret != 0) {
+        goto err;
+    }
+
+    // ret = wc_AsymKey_PublicKeyDerDecode(aKey, aReq.publicKey, aReq.pubKeySize);
+    // if (ret != 0) {
+    //     goto err;
+    // }
+
+    // Default values
+    tbsCert->version   = 2;
+    tbsCert->daysValid = 365;
+    
+    // Subject KeyId
+    ret = wc_SetSubjectKeyIdFromPublicKey_ex(tbsCert, aKey->type, &aKey->val);
+    if (ret != 0) {
+        goto err;
+    }
+
+    switch (template_id) {
+
+        // IETF Templates (RFC 5280)
+        case WC_CERT_TEMPLATE_IETF_ROOT_CA:
+            tbsCert->isCA = 1;
+            tbsCert->selfSigned = 1;
+            tbsCert->daysValid = 4347;
+            tbsCert->serialSz = 20;
+
+            tbsCert->keyUsage = WC_KU_KEY_CERT_SIGN | WC_KU_CRL_SIGN | WC_KU_DIGITAL_SIGNATURE;
+            break;
+
+        case WC_CERT_TEMPLATE_IETF_INTERMEDIATE_CA:
+            tbsCert->isCA = 1;
+            tbsCert->selfSigned = 0;
+            tbsCert->daysValid = 2922;
+            tbsCert->serialSz = 10;
+
+            tbsCert->keyUsage = WC_KU_KEY_CERT_SIGN | WC_KU_CRL_SIGN | WC_KU_DIGITAL_SIGNATURE;
+            break;
+
+        case WC_CERT_TEMPLATE_IETF_OCSP_SERVER:
+            tbsCert->daysValid = 548;
+            tbsCert->keyUsage = WC_KU_DIGITAL_SIGNATURE;
+            tbsCert->extKeyUsage = WC_EKU_OCSP_SIGNING;
+            tbsCert->serialSz = 10;
+            break;
+
+        case WC_CERT_TEMPLATE_IETF_CODE_SIGNING:
+            tbsCert->daysValid = 548;
+            tbsCert->keyUsage = WC_KU_DIGITAL_SIGNATURE;
+            tbsCert->extKeyUsage = WC_EKU_CODE_SIGNING;
+            tbsCert->serialSz = 10;
+            break;
+
+        case WC_CERT_TEMPLATE_IETF_TIME_STAMPING:
+            tbsCert->daysValid = 548;
+            tbsCert->keyUsage = WC_KU_DIGITAL_SIGNATURE;
+            tbsCert->extKeyUsage = WC_EKU_TIME_STAMPING;
+            tbsCert->serialSz = 10;
+            break;
+
+        case WC_CERT_TEMPLATE_IETF_TLS_SERVER:
+            tbsCert->daysValid = 548;
+            tbsCert->keyUsage = WC_KU_DIGITAL_SIGNATURE;
+            tbsCert->extKeyUsage = WC_EKU_SERVER_AUTH | WC_EKU_CLIENT_AUTH;
+            tbsCert->serialSz = 10;
+            break;
+
+        case WC_CERT_TEMPLATE_IETF_TLS_CLIENT:
+            tbsCert->daysValid = 548;
+            tbsCert->keyUsage = WC_KU_DIGITAL_SIGNATURE;
+            tbsCert->extKeyUsage = WC_EKU_CLIENT_AUTH;
+            tbsCert->serialSz = 10;
+            break;
+
+        case WC_CERT_TEMPLATE_IETF_EMAIL:
+            tbsCert->daysValid = 548;
+            tbsCert->keyUsage = WC_KU_DIGITAL_SIGNATURE;
+            tbsCert->extKeyUsage = WC_EKU_EMAIL | WC_EKU_CLIENT_AUTH;
+            tbsCert->serialSz = 10;
+            break;
+
+        case WC_CERT_TEMPLATE_IETF_802_1X:
+            tbsCert->daysValid = 548;
+            tbsCert->keyUsage = WC_KU_DIGITAL_SIGNATURE;
+            tbsCert->extKeyUsage = WC_EKU_CLIENT_AUTH | WC_EKU_SERVER_AUTH;
+            tbsCert->serialSz = 10;
+            break;
+
+        case WC_CERT_TEMPLATE_IETF_IPSEC:
+            tbsCert->daysValid = 548;
+            tbsCert->keyUsage = WC_KU_DIGITAL_SIGNATURE;
+            tbsCert->extKeyUsage = WC_EKU_CLIENT_AUTH | WC_EKU_SERVER_AUTH;
+            tbsCert->serialSz = 10;
+            break;
+
+        // X9.68 Templates
+        case WC_CERT_TEMPLATE_X9_RFC5280_ROOT_CA:
+        case WC_CERT_TEMPLATE_X9_INTERMEDIATE_CA:
+        case WC_CERT_TEMPLATE_X9_OCSP_SERVER:
+        case WC_CERT_TEMPLATE_X9_CODE_SIGNING:
+        case WC_CERT_TEMPLATE_X9_TIME_STAMPING:
+        case WC_CERT_TEMPLATE_X9_TLS_SERVER:
+        case WC_CERT_TEMPLATE_X9_TLS_CLIENT:
+        case WC_CERT_TEMPLATE_X9_EMAIL:
+        case WC_CERT_TEMPLATE_X9_802_1X:
+        case WC_CERT_TEMPLATE_X9_IPSEC:
+
+        case WC_CERT_TEMPLATE_UNKNOWN:
+            default:
+                return BAD_FUNC_ARG;
+    }
+
+    if (!tbsCert->selfSigned)
+        wc_SetAuthKeyIdFromPublicKey_ex(tbsCert, aKey->type, &aKey->val);
+
+    // Serial Number
+    if (tbsCert->serialSz > 0)
+        wc_RNG_GenerateBlock(&rng, tbsCert->serial, tbsCert->serialSz);
+
+err:
+
+    if (derBufAlloc) {
+        XFREE(derBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+
+    return 0;
+}
+
+int wc_AsymKey_SetCert_Issuer(Cert * tbsCert, DecodedCert * caCert, AsymKey * caKey) {
+
+    int ret = 0;
+    if (!tbsCert) {
+        ret = BAD_FUNC_ARG;
+    }
+
+    if (ret == 0 && caCert) {
+        XMEMCPY(&tbsCert->issuer, &caCert->subject, sizeof(CertName));
+    }
+
+    if (ret == 0 && caKey) {
+        if (&tbsCert->selfSigned) {
+            ret = wc_SetSubjectKeyIdFromPublicKey_ex(tbsCert, caKey->type, &caKey->val);
+        } else {
+            ret = wc_SetAuthKeyIdFromPublicKey_ex(tbsCert, caKey->type, &caKey->val);
+        }
+    }
+
+    return 0;
+}
+
+int wc_AsymKey_SetCert_Issuer_txt(Cert * tbsCert, const char * issuerStr, AsymKey * caKey) {
+
+    int ret = 0;
+
+    if (!tbsCert) {
+        ret = BAD_FUNC_ARG;
+    }
+
+    if (ret == 0 && issuerStr)
+        ret = wc_CertName_set(&tbsCert->issuer, issuerStr);
+
+    if (ret == 0 && caKey) {
+        if (&tbsCert->selfSigned) {
+            ret = wc_SetSubjectKeyIdFromPublicKey_ex(tbsCert, caKey->type, &caKey->val);
+        } else {
+            ret = wc_SetAuthKeyIdFromPublicKey_ex(tbsCert, caKey->type, &caKey->val);
+        }
+    }
+
+    return ret;
+}
+
+
 int wc_AsymKey_MakeReq_ex(byte* der, word32 derSz, wc_x509Req* req, enum wc_HashType hashType, int format, const AsymKey* key, WC_RNG* rng) {
 
     int ret = 0;

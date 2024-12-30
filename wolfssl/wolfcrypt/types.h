@@ -1133,6 +1133,29 @@ typedef struct w64wrapper {
         MIN_STACK_BUFFER = 8
     };
 
+    typedef enum wc_KeyUsage {
+        WC_KU_DIGITAL_SIGNATURE = 0x80,
+        WC_KU_CONTENT_COMMIT = 0x0040,
+        WC_KU_KEY_ENCIPHER   = 0x0020,
+        WC_KU_DATA_ENCIPHER  = 0x0010,
+        WC_KU_KEY_AGREE      = 0x0008,
+        WC_KU_KEY_CERT_SIGN  = 0x0004,
+        WC_KU_CRL_SIGN       = 0x0002,
+        WC_KU_ENCIPHER_ONLY  = 0x0001,
+        WC_KU_DECIPHER_ONLY  = 0x0080,
+    } wc_KeyUsage;
+
+    /* Extended Key Usage Flags */
+    typedef enum wc_ExtKeyUsage {
+        WC_EKU_USER        = 0x0080,
+        WC_EKU_OCSP_SIGNING   = 0x0040,
+        WC_EKU_TIME_STAMPING  = 0x0020,
+        WC_EKU_EMAIL       = 0x0010,
+        WC_EKU_CODE_SIGNING   = 0x0008,
+        WC_EKU_CLIENT_AUTH = 0x0004,
+        WC_EKU_SERVER_AUTH = 0x0002,
+        WC_EKU_ANY         = 0x0001,
+    } wc_ExtKeyUsage;
 
     /* Algorithm Types */
     enum wc_AlgoType {
