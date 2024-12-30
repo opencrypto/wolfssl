@@ -681,11 +681,10 @@ int main(int argc, char** argv) {
 
     int error = 0; /* error flag */
 
+    // test(WC_MLDSA44_ED25519_SHA256);
+
     // Gets the CMD
     if (argc < 2) {
-        // test(WC_MLDSA44_ED25519_SHA256);
-        test(WC_MLDSA44_ED25519_SHA256); // To Be Removed
-
         usage();
         return 1;
     }
