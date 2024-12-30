@@ -3,7 +3,7 @@
 OUTDIR=artifacts
 mkdir -p $OUTDIR
 
-TRADITIONAL_ALGOS="rsa2048 rsapss2048 rsa3072 rsapss3072 rsa4096 rsapss4096 p256 p384 p521 bp256 bp384 bp512 ed25519 ed448"
+TRADITIONAL_ALGOS="rsa2048 rsapss2048 p256 p384 p521 bp256 bp384 bp512 ed25519 ed448"
 
 for algo in $TRADITIONAL_ALGOS; do
     if [ "$algo" == "rsa2048" -o "$algo" == "rsapss2048" ]; then
@@ -12,6 +12,25 @@ for algo in $TRADITIONAL_ALGOS; do
         OPT="-bits 3072"
     elif [ "$algo" == "rsa4096" -o "$algo" == "rsapss4096" ]; then
         OPT="-bits 4096"
+    fi
+    if [ "$algo" == "p256" ]; then
+        algo="ec_p256"
+        OPT="-curve nistp256"
+    elif [ "$algo" == "p384" ]; then
+        algo="ec_p384"
+        OPT="-curve nistp384"
+    elif [ "$algo" == "p521" ]; then
+        algo="ec_p521"
+        OPT="-curve nistp521"
+    elif [ "$algo" == "bp256" ]; then
+        algo="ec_bp256"
+        OPT="-curve bpool256"
+    elif [ "$algo" == "bp384" ]; then
+        algo="ec_bp384"
+        OPT="-curve bpool384"
+    elif [ "$algo" == "bp512" ]; then
+        algo="ec_bp512"
+        OPT="-curve bpool512"
     fi
     echo -n "Generating key for $algo ... "
     examples/pktool/.libs/pktool genpkey -algorithm $algo $OPT -out $OUTDIR/$algo.key && echo "done" || ( echo "failed" && exit 1 )

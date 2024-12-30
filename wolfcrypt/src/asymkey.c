@@ -3655,7 +3655,7 @@ int wc_AsymKey_SigType(const AsymKey* key, enum wc_HashType hashType) {
     return 0;
 }
 
-int wc_AsymKey_MakeReq(byte* der, word32 derSz, const char * subjectDN, enum wc_HashType hashType, int format, const AsymKey* key) {
+int wc_AsymKey_MakeReq(byte* der, word32 derSz, const char * subjectDN, enum wc_HashType hashType, int format, const AsymKey* key /*, const AsymKey *alt_key */) {
 
     int ret = 0;
 
