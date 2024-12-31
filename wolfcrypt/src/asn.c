@@ -13391,6 +13391,28 @@ static int GetCertKey(DecodedCert* cert, const byte* source, word32* inOutIdx,
             ret = StoreKey(cert, source, &srcIdx, maxIdx);
             break;
     #endif /* HAVE_DILITHIUM */
+    #ifdef HAVE_MLDSA_COMPOSITE
+        case MLDSA44_RSAPSS2048k:
+        case MLDSA44_RSA2048k:
+        case MLDSA44_NISTP256k:
+        case MLDSA44_ED25519k:
+
+        case MLDSA65_RSAPSS3072k:
+        case MLDSA65_RSA3072k:
+        case MLDSA65_RSAPSS4096k:
+        case MLDSA65_RSA4096k:
+        // case MLDSA65_NISTP384k:
+        case MLDSA65_NISTP256k:
+        case MLDSA65_ED25519k:
+        case MLDSA65_BPOOL256k:
+
+        case MLDSA87_BPOOL384k:
+        case MLDSA87_NISTP384k:
+        case MLDSA87_ED448k:
+            cert->pkCurveOID = cert->keyOID;
+            ret = StoreKey(cert, source, &srcIdx, maxIdx);
+            break;
+    #endif /* HAVE_MLDSA_COMPOSITE */
     #ifdef HAVE_SPHINCS
         case SPHINCS_FAST_LEVEL1k:
             cert->pkCurveOID = SPHINCS_FAST_LEVEL1k;
@@ -13455,8 +13477,6 @@ int HashIdAlg(word32 oidSum)
         return WC_SM3;
     }
 #endif
-
-printf("asn.c: OID Sum: %d\n", oidSum);
 
 #if defined(NO_SHA) || (!defined(NO_SHA256) && defined(WC_ASN_HASH_SHA256))
     return WC_SHA256;
@@ -24546,7 +24566,7 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm, Signer 
         /* https://datatracker.ietf.org/doc/html/rfc5280#section-4.2.1.9
          *   If the cA boolean is not asserted, then the keyCertSign bit in the
          *   key usage extension MUST NOT be asserted. */
-        if (!cert->isCA && cert->extKeyUsageSet &&
+        if (!cert->isCSR && !cert->isCA && cert->extKeyUsageSet &&
                 (cert->extKeyUsage & KEYUSE_KEY_CERT_SIGN) != 0) {
             WOLFSSL_ERROR_VERBOSE(KEYUSAGE_E);
             return KEYUSAGE_E;
@@ -24554,7 +24574,7 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm, Signer 
     #endif
 
     #ifndef NO_SKID
-        if (cert->extSubjKeyIdSet == 0 && cert->publicKey != NULL &&
+        if (!cert->isCSR && cert->extSubjKeyIdSet == 0 && cert->publicKey != NULL &&
                                                          cert->pubKeySize > 0) {
             if (cert->signatureOID == CTC_SM3wSM2) {
                 /* TODO: GmSSL creates IDs this way but whole public key info
@@ -24573,8 +24593,10 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm, Signer 
         }
     #endif /* !NO_SKID */
 
-        if (!cert->selfSigned || (verify != NO_VERIFY && type != CA_TYPE &&
-                                                   type != TRUSTED_PEER_TYPE)) {
+        if (!cert->isCSR && (!cert->selfSigned ||
+                                (verify != NO_VERIFY && 
+                                 type != CA_TYPE &&
+                                 type != TRUSTED_PEER_TYPE))) {
             cert->ca = NULL;
 #ifdef HAVE_CERTIFICATE_STATUS_REQUEST_V2
         if (extraCAList != NULL) {
@@ -29879,6 +29901,9 @@ static int EncodePublicKey(int keyType, byte* output, int outLen,
         case D2_MLDSA87_BPOOL384_KEY:
         case D2_MLDSA87_ED448_KEY:
             ret = wc_MlDsaComposite_PublicKeyToDer(mldsaCompKey, output, (word32)outLen, 1);
+            if (ret <= 0) {
+                ret = PUBLIC_KEY_E;
+            }
             break;
             
     #endif /* HAVE_MLDSA_COMPOSITE */
@@ -31608,25 +31633,25 @@ static int MakeAnyCert(Cert* cert, byte* derBuffer, word32 derSz,
         }
 #ifdef HAVE_FALCON
         else if ((falconKey != NULL) && (falconKey->level == 1)) {
-            cert->keyType = FALCON_LEVEL1_KEY;
+            cert->keyType = FALCON_LEVEL1k;
         }
         else if ((falconKey != NULL) && (falconKey->level == 5)) {
-            cert->keyType = FALCON_LEVEL5_KEY;
+            cert->keyType = FALCON_LEVEL5k;
         }
 #endif /* HAVE_FALCON */
 #ifdef HAVE_DILITHIUM
     #ifdef WOLFSSL_DILITHIUM_FIPS204_DRAFT
         else if ((dilithiumKey != NULL) &&
                     (dilithiumKey->params->level == WC_ML_DSA_44_DRAFT)) {
-            cert->keyType = DILITHIUM_LEVEL2_KEY;
+            cert->keyType = DILITHIUM_LEVEL2k;
         }
         else if ((dilithiumKey != NULL) &&
                     (dilithiumKey->params->level == WC_ML_DSA_65_DRAFT)) {
-            cert->keyType = DILITHIUM_LEVEL3_KEY;
+            cert->keyType = DILITHIUM_LEVEL3k;
         }
         else if ((dilithiumKey != NULL) &&
                     (dilithiumKey->params->level == WC_ML_DSA_87_DRAFT)) {
-            cert->keyType = DILITHIUM_LEVEL5_KEY;
+            cert->keyType = DILITHIUM_LEVEL5k;
         }
     #endif
         else if ((dilithiumKey != NULL) &&
@@ -31717,7 +31742,7 @@ static int MakeAnyCert(Cert* cert, byte* derBuffer, word32 derSz,
         }
         else if ((mldsaCompKey != NULL) &&
                     (mldsaCompKey->type == MLDSA87_NISTP384_TYPE)) {
-            cert->keyType = MLDSA87_NISTP384_KEY;
+            cert->keyType = MLDSA65_NISTP384_KEY;
         }
         else if ((mldsaCompKey != NULL) &&
                     (mldsaCompKey->type == MLDSA87_BPOOL384_TYPE)) {
@@ -31778,7 +31803,7 @@ static int MakeAnyCert(Cert* cert, byte* derBuffer, word32 derSz,
             ret = BAD_FUNC_ARG;
         }
     }
-    if ((ret == 0) && (cert->serialSz == 0)) {
+    if ((ret == 0) && (cert->serialSz != 0 && cert->serial[0] == 0)) {
         /* Generate random serial number. */
         cert->serialSz = CTC_GEN_SERIAL_SZ;
         ret = GenerateInteger(rng, cert->serial, CTC_GEN_SERIAL_SZ);
@@ -31823,9 +31848,9 @@ static int MakeAnyCert(Cert* cert, byte* derBuffer, word32 derSz,
         ret = EncodePublicKey(cert->keyType, NULL, 0, rsaKey,
                 eccKey, ed25519Key, ed448Key, dsaKey, falconKey,
                 dilithiumKey, sphincsKey, mldsaCompKey);
-        publicKeySz = (word32)ret;
     }
     if (ret >= 0) {
+        publicKeySz = (word32)ret;
         /* Calculate extensions encoding size - may be 0. */
         ret = EncodeExtensions(cert, NULL, 0, 0);
         extSz = (word32)ret;
@@ -31959,6 +31984,11 @@ static int MakeAnyCert(Cert* cert, byte* derBuffer, word32 derSz,
         /* Calculate encoded certificate body size. */
         ret = SizeASN_Items(x509CertASN, dataASN, x509CertASN_Length, &sz);
     }
+    /* Returns the expected size for the output if no output buffer was provided */
+    if (derBuffer == NULL) {
+        FREE_ASNSETDATA(dataASN, cert->heap);
+        return sz;
+    }
     /* Check buffer is big enough for encoded data. */
     if ((ret == 0) && (sz > (int)derSz)) {
         ret = BUFFER_E;
@@ -32037,6 +32067,9 @@ int wc_MakeCert_ex(Cert* cert, byte* derBuffer, word32 derSz, int keyType,
     dilithium_key*     dilithiumKey = NULL;
     sphincs_key*       sphincsKey = NULL;
     mldsa_composite_key * mldsaCompKey = NULL;
+
+    if (!key || !cert)
+        return BAD_FUNC_ARG;
 
     if (keyType == RSA_TYPE)
         rsaKey = (RsaKey*)key;

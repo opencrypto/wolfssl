@@ -789,6 +789,186 @@ int wc_AsymKey_CertType(const AsymKey* key) {
   return ret;
 }
 
+int wc_AsymKey_KeyType(const AsymKey* key) {
+
+    int ret = 0;
+    if (!key || key->type <= 0)
+        return BAD_FUNC_ARG;
+
+    switch (key->type) {
+
+#ifdef HAVE_DSA
+        case DSA_TYPE:
+            ret = DSA_KEY;
+            break;
+#endif
+#ifndef NO_RSA
+        case RSA_TYPE:
+            ret = RSA_KEY;
+            break;
+#endif
+#ifdef HAVE_ECC
+        case ECC_TYPE:
+            ret = ECC_KEY;
+            break;
+#endif
+#ifdef HAVE_ED25519
+        case ED25519_TYPE:
+            ret = ED25519_KEY;
+            break;
+#endif
+#ifdef HAVE_ED448
+        case ED448_TYPE:
+            ret = ED448_KEY;
+            break;
+#endif
+#ifdef HAVE_DILITHIUM
+        case ML_DSA_LEVEL2_TYPE:
+            ret = ML_DSA_LEVEL2_KEY;
+            break;
+        case ML_DSA_LEVEL3_TYPE:
+            ret = ML_DSA_LEVEL3_KEY;
+            break;
+        case ML_DSA_LEVEL5_TYPE:
+            ret = ML_DSA_LEVEL5_KEY;
+            break;
+#endif
+#ifdef HAVE_FALCON
+        case FALCON_LEVEL1_TYPE:
+            ret = FALCON_LEVEL1_KEY;
+            break;
+
+        case FALCON_LEVEL5_TYPE:
+            ret = FALCON_LEVEL5_KEY;
+            break;
+#endif
+#ifdef HAVE_MLDSA_COMPOSITE
+        case MLDSA44_RSAPSS2048_TYPE:
+            ret = MLDSA44_RSAPSS2048_KEY;
+            break;
+        case MLDSA44_RSA2048_TYPE:
+            ret = MLDSA44_RSA2048_KEY;
+            break;
+        case MLDSA44_NISTP256_TYPE:
+            ret = MLDSA44_NISTP256_KEY;
+            break;
+        case MLDSA44_ED25519_TYPE:
+            ret = MLDSA44_ED25519_KEY;
+            break;
+        case MLDSA65_ED25519_TYPE:
+            ret = MLDSA65_ED25519_KEY;
+            break;
+        case MLDSA65_RSAPSS4096_TYPE:
+            ret = MLDSA65_RSAPSS4096_KEY;
+            break;
+        case MLDSA65_RSA4096_TYPE:
+            ret = MLDSA65_RSA4096_KEY;
+            break;
+        case MLDSA65_RSAPSS3072_TYPE:
+            ret = MLDSA65_RSAPSS3072_KEY;
+            break;
+        case MLDSA65_RSA3072_TYPE:
+            ret = MLDSA65_RSA3072_KEY;
+            break;
+        case MLDSA65_NISTP256_TYPE:
+            ret = MLDSA65_NISTP256_KEY;
+            break;
+        case MLDSA65_BPOOL256_TYPE:
+            ret = MLDSA65_BPOOL256_KEY;
+            break;
+        case MLDSA87_BPOOL384_TYPE:
+            ret = MLDSA87_BPOOL384_KEY;
+            break;
+        case MLDSA87_NISTP384_TYPE:
+            ret = MLDSA87_NISTP384_KEY;
+            break;
+        case MLDSA87_ED448_TYPE:
+            ret = MLDSA87_ED448_KEY;
+            break;
+        // ------- Draft 2 ------
+        case D2_MLDSA44_RSAPSS2048_SHA256_TYPE:
+            ret = D2_MLDSA44_RSAPSS2048_KEY;
+            break;
+        case D2_MLDSA44_RSA2048_SHA256_TYPE:
+            ret = D2_MLDSA44_RSA2048_KEY;
+            break;
+        case D2_MLDSA44_NISTP256_SHA256_TYPE:
+            ret = D2_MLDSA44_NISTP256_KEY;
+            break;
+        case D2_MLDSA44_ED25519_SHA256_TYPE:
+            ret = D2_MLDSA44_ED25519_KEY;
+            break;
+        case D2_MLDSA65_ED25519_SHA512_TYPE:
+            ret = D2_MLDSA65_ED25519_KEY;
+            break;
+        case D2_MLDSA65_BPOOL256_SHA512_TYPE:
+            ret = D2_MLDSA65_BPOOL256_KEY;
+            break;
+        case D2_MLDSA65_NISTP256_SHA512_TYPE:
+            ret = D2_MLDSA65_NISTP256_KEY;
+            break;
+        case D2_MLDSA65_RSAPSS3072_SHA512_TYPE:
+            ret = D2_MLDSA65_RSAPSS3072_KEY;
+            break;
+        case D2_MLDSA65_RSA3072_SHA512_TYPE:
+            ret = D2_MLDSA65_RSA3072_KEY;
+            break;
+        case D2_MLDSA87_BPOOL384_SHA512_TYPE:
+            ret = D2_MLDSA87_BPOOL384_KEY;
+            break;
+        case D2_MLDSA87_NISTP384_SHA512_TYPE:
+            ret = D2_MLDSA87_NISTP384_KEY;
+            break;
+        case D2_MLDSA87_ED448_SHA512_TYPE:
+            ret = D2_MLDSA87_ED448_KEY;
+            break;
+#endif
+#ifdef HAVE_SPHINCS
+        case SPHINCS_HARAKA_128S_ROBUST_TYPE:
+            ret = SPHINCS_HARAKA_128S_ROBUST_KEY;
+            break;
+        case SPHINCS_HARAKA_128S_SIMPLE_TYPE:
+            ret = SPHINCS_HARAKA_128S_SIMPLE_KEY;
+            break;
+        case SPHINCS_HARAKA_192S_ROBUST_TYPE:
+            ret = SPHINCS_HARAKA_192S_ROBUST_KEY;
+            break;
+        case SPHINCS_HARAKA_192S_SIMPLE_TYPE:
+            ret = SPHINCS_HARAKA_192S_SIMPLE_KEY;
+            break;
+        case SPHINCS_HARAKA_256S_ROBUST_TYPE:
+            ret = SPHINCS_HARAKA_256S_ROBUST_KEY;
+            break;
+        case SPHINCS_HARAKA_256S_SIMPLE_TYPE:
+            ret = SPHINCS_HARAKA_256S_SIMPLE_KEY;
+            break;
+        case SPHINCS_SHAKE_128S_ROBUST_TYPE:
+            ret = SPHINCS_SHAKE_128S_ROBUST_KEY;
+            break;
+        case SPHINCS_SHAKE_128S_SIMPLE_TYPE:
+            ret = SPHINCS_SHAKE_128S_SIMPLE_KEY;
+            break;
+        case SPHINCS_SHAKE_192S_ROBUST_TYPE:
+            ret = SPHINCS_SHAKE_192S_ROBUST_KEY;
+            break;
+        case SPHINCS_SHAKE_192S_SIMPLE_TYPE:
+            ret = SPHINCS_SHAKE_192S_SIMPLE_KEY;
+            break;
+        case SPHINCS_SHAKE_256S_ROBUST_TYPE:
+            ret = SPHINCS_SHAKE_256S_ROBUST_KEY;
+            break;
+        case SPHINCS_SHAKE_256S_SIMPLE_TYPE:
+            ret = SPHINCS_SHAKE_256S_SIMPLE_KEY;
+            break;
+#endif
+
+        default:
+            ret = BAD_FUNC_ARG;
+    }
+
+    return ret;
+}
+
 int wc_AsymKey_size(const AsymKey* key) {
 
   int ret = 0;
@@ -3794,6 +3974,7 @@ int wc_AsymKey_CertReq_SetTemplate(Cert * tbsCert, enum wc_CertTemplate template
             break;
 
         case WC_CERT_TEMPLATE_IETF_OCSP_SERVER:
+            tbsCert->isCA = 0;
             tbsCert->daysValid = 548;
             tbsCert->keyUsage = WC_KU_DIGITAL_SIGNATURE;
             tbsCert->extKeyUsage = WC_EKU_OCSP_SIGNING;
@@ -3801,6 +3982,7 @@ int wc_AsymKey_CertReq_SetTemplate(Cert * tbsCert, enum wc_CertTemplate template
             break;
 
         case WC_CERT_TEMPLATE_IETF_CODE_SIGNING:
+            tbsCert->isCA = 0;
             tbsCert->daysValid = 548;
             tbsCert->keyUsage = WC_KU_DIGITAL_SIGNATURE;
             tbsCert->extKeyUsage = WC_EKU_CODE_SIGNING;
@@ -3808,6 +3990,7 @@ int wc_AsymKey_CertReq_SetTemplate(Cert * tbsCert, enum wc_CertTemplate template
             break;
 
         case WC_CERT_TEMPLATE_IETF_TIME_STAMPING:
+            tbsCert->isCA = 0;
             tbsCert->daysValid = 548;
             tbsCert->keyUsage = WC_KU_DIGITAL_SIGNATURE;
             tbsCert->extKeyUsage = WC_EKU_TIME_STAMPING;
@@ -3815,6 +3998,7 @@ int wc_AsymKey_CertReq_SetTemplate(Cert * tbsCert, enum wc_CertTemplate template
             break;
 
         case WC_CERT_TEMPLATE_IETF_TLS_SERVER:
+            tbsCert->isCA = 0;
             tbsCert->daysValid = 548;
             tbsCert->keyUsage = WC_KU_DIGITAL_SIGNATURE;
             tbsCert->extKeyUsage = WC_EKU_SERVER_AUTH | WC_EKU_CLIENT_AUTH;
@@ -3822,6 +4006,7 @@ int wc_AsymKey_CertReq_SetTemplate(Cert * tbsCert, enum wc_CertTemplate template
             break;
 
         case WC_CERT_TEMPLATE_IETF_TLS_CLIENT:
+            tbsCert->isCA = 0;
             tbsCert->daysValid = 548;
             tbsCert->keyUsage = WC_KU_DIGITAL_SIGNATURE;
             tbsCert->extKeyUsage = WC_EKU_CLIENT_AUTH;
@@ -3829,6 +4014,7 @@ int wc_AsymKey_CertReq_SetTemplate(Cert * tbsCert, enum wc_CertTemplate template
             break;
 
         case WC_CERT_TEMPLATE_IETF_EMAIL:
+            tbsCert->isCA = 0;
             tbsCert->daysValid = 548;
             tbsCert->keyUsage = WC_KU_DIGITAL_SIGNATURE;
             tbsCert->extKeyUsage = WC_EKU_EMAIL | WC_EKU_CLIENT_AUTH;
@@ -3836,6 +4022,7 @@ int wc_AsymKey_CertReq_SetTemplate(Cert * tbsCert, enum wc_CertTemplate template
             break;
 
         case WC_CERT_TEMPLATE_IETF_802_1X:
+            tbsCert->isCA = 0;
             tbsCert->daysValid = 548;
             tbsCert->keyUsage = WC_KU_DIGITAL_SIGNATURE;
             tbsCert->extKeyUsage = WC_EKU_CLIENT_AUTH | WC_EKU_SERVER_AUTH;
@@ -3843,6 +4030,7 @@ int wc_AsymKey_CertReq_SetTemplate(Cert * tbsCert, enum wc_CertTemplate template
             break;
 
         case WC_CERT_TEMPLATE_IETF_IPSEC:
+            tbsCert->isCA = 0;
             tbsCert->daysValid = 548;
             tbsCert->keyUsage = WC_KU_DIGITAL_SIGNATURE;
             tbsCert->extKeyUsage = WC_EKU_CLIENT_AUTH | WC_EKU_SERVER_AUTH;
@@ -3883,20 +4071,19 @@ err:
     return ret;
 }
 
-WOLFSSL_API int wc_AsymKey_CertReq_SetSigType(Cert * tbsCert, enum wc_HashType hashType, const AsymKey* key) {
+WOLFSSL_API int wc_AsymKey_CertReq_SetSigType(Cert * tbsCert, enum wc_HashType hashType, const AsymKey* caKey) {
 
     int ret = 0;
 
-    if (!tbsCert || !key) {
+    if (!tbsCert || !caKey)
         return BAD_FUNC_ARG;
-    }
 
-    ret = wc_AsymKey_SigType(key, hashType);
-    if (ret < 0) {
+    ret = wc_AsymKey_SigType(caKey, hashType);
+    if (ret < 0) 
         return ret;
-    }
 
     tbsCert->sigType = ret;
+
     return 0;
 }
 
@@ -3928,15 +4115,15 @@ int wc_AsymKey_CertReq_SetIssuer(Cert * tbsCert, const char * issuerStr) {
     return ret;
 }
 
-int wc_AsymKey_CertReq_SetIssuer_CaCert(Cert * tbsCert, DecodedCert * caCert) {
+int wc_AsymKey_CertReq_SetIssuer_CaCert(Cert * tbsCert, const byte * der, word32 derSz) {
 
     int ret = 0;
-    if (!tbsCert) {
+    if (!tbsCert || !der || derSz <= 0) {
         ret = BAD_FUNC_ARG;
     }
 
-    if (ret == 0 && caCert) {
-        XMEMCPY(&tbsCert->issuer, &caCert->subject, sizeof(CertName));
+    if (ret == 0) {
+        ret = wc_SetIssuerBuffer(tbsCert, der, derSz);
     }
 
     // if (ret == 0 && caCert) {
@@ -3947,7 +4134,177 @@ int wc_AsymKey_CertReq_SetIssuer_CaCert(Cert * tbsCert, DecodedCert * caCert) {
     //     }
     // }
 
-    return 0;
+    return ret;
+}
+
+int wc_AsymKey_CertReq_SetPublicKey(Cert * tbsCert, const AsymKey * key) {
+
+    int ret = NOT_COMPILED_IN;
+
+    if (!tbsCert || !key) {
+        ret = BAD_FUNC_ARG;
+    }
+    if (ret == 0) {
+        
+
+    }
+
+    return ret;
+}
+
+int wc_AsymKey_CertReq_GetPublicKey(AsymKey * aKey, byte *req, word32 reqSz) {
+
+    int ret = 0;
+    word32 idx = 0;
+
+    DecodedCert decReq;
+
+    // Loads the CSR
+    InitDecodedCert(&decReq, req, reqSz, NULL);
+    ret = ParseCert(&decReq, CERTREQ_TYPE, NO_VERIFY, NULL);
+    if (ret != 0)
+        return ret;
+
+    switch (decReq.keyOID) {
+#ifndef NO_RSA
+        case RSAPSSk:
+        case RSAk:
+            idx = 0;
+            ret = wc_RsaPublicKeyDecode(decReq.publicKey, &idx, &aKey->val.rsaKey, decReq.pubKeySize);
+            if (ret != 0) {
+                MADWOLF_DEBUG("Error decoding RSA public key (%d)\n", ret);
+                return ret;
+            }
+            aKey->type = RSA_TYPE;
+            break;
+#endif
+#ifdef HAVE_ECC
+        case ECDSAk:
+            // ret = wc_ecc_import_x963(decReq.publicKey, decReq.pubKeySize, &aKey->val.eccKey);
+            ret = wc_EccPublicKeyDecode(decReq.publicKey, &idx, &aKey->val.eccKey, decReq.pubKeySize);
+            if (ret != 0)
+                return ret;
+            aKey->type = ECC_TYPE;
+            break;
+#endif
+#ifdef HAVE_ED25519
+        case ED25519k:
+            ret = wc_ed25519_import_public(decReq.publicKey, decReq.pubKeySize, &aKey->val.ed25519Key);
+            // ret = wc_Ed25519PublicKeyDecode(decReq.publicKey, &idx, &aKey->val.ed25519Key, decReq.pubKeySize);
+            if (ret != 0)
+                return ret;
+            aKey->type = ED25519_TYPE;
+            break;
+#endif
+#ifdef HAVE_ED448
+        case ED448k:
+            ret = wc_ed448_import_public(decReq.publicKey, decReq.pubKeySize, &aKey->val.ed448Key);
+            // ret = wc_Ed448PublicKeyDecode(decReq.publicKey, &idx, &aKey->val.ed448Key, decReq.pubKeySize);
+            if (ret != 0)
+                return ret;
+            aKey->type = ED448_TYPE;
+            break;
+#endif
+#ifdef HAVE_DILITHIUM
+        case ML_DSA_LEVEL2k:
+        case ML_DSA_LEVEL3k:
+        case ML_DSA_LEVEL5k:
+            if (decReq.keyOID == ML_DSA_LEVEL2k) {
+                aKey->type = ML_DSA_LEVEL2_TYPE;
+                wc_dilithium_set_level(&aKey->val.dilithiumKey, WC_ML_DSA_44);
+            } else if (decReq.keyOID == ML_DSA_LEVEL3k) {
+                aKey->type = ML_DSA_LEVEL3_TYPE;
+                wc_dilithium_set_level(&aKey->val.dilithiumKey, WC_ML_DSA_65);
+            } else if (decReq.keyOID == ML_DSA_LEVEL5k) {
+                aKey->type = ML_DSA_LEVEL5_TYPE;
+                wc_dilithium_set_level(&aKey->val.dilithiumKey, WC_ML_DSA_87);
+            }
+            ret = wc_dilithium_import_public(decReq.publicKey, decReq.pubKeySize, &aKey->val.dilithiumKey);
+            // ret = wc_Dilithium_PublicKeyDecode(decReq.publicKey, &idx, &aKey->val.dilithiumKey, decReq.pubKeySize);
+            if (ret != 0)
+                return ret;
+            break;
+#endif
+#ifdef HAVE_FALCON
+        case FALCON_LEVEL1k:
+        case FALCON_LEVEL5k:
+            if (decReq.keyOID == FALCON_LEVEL1k) {
+                aKey->type = FALCON_LEVEL1_TYPE;
+                wc_falcon_set_level(&aKey->val.falconKey, 1);
+            } else if (decReq.keyOID == FALCON_LEVEL5k) {
+                aKey->type = FALCON_LEVEL5_TYPE;
+                wc_falcon_set_level(&aKey->val.falconKey, 5);
+            }
+            // ret = wc_falcon_import_public(decReq.publicKey, decReq.pubKeySize, &aKey->val.falconKey);
+            ret = wc_FalconPublicKeyDecode(decReq.publicKey, &idx, &aKey->val.falconKey, decReq.pubKeySize);
+            if (ret != 0)
+                return ret;
+            break;
+#endif
+#ifdef HAVE_MLDSA_COMPOSITE
+        case MLDSA44_RSAPSS2048k:
+        case MLDSA44_RSA2048k:
+        case MLDSA44_NISTP256k:
+        // case MLDSA44_BPOOL256k:
+        case MLDSA44_ED25519k:
+        case MLDSA65_RSAPSS3072k:
+        case MLDSA65_RSA3072k:
+        case MLDSA65_RSAPSS4096k:
+        case MLDSA65_RSA4096k:
+        case MLDSA65_NISTP256k:
+        case MLDSA65_ED25519k:
+        case MLDSA65_BPOOL256k:
+        case MLDSA87_BPOOL384k:
+        case MLDSA87_NISTP384k:
+        case MLDSA87_ED448k:
+            // ret = wc_mldsa_composite_import_public(decReq.publicKey, decReq.pubKeySize, &aKey->val.mldsaCompKey);
+            int level = wc_mldsa_composite_key_sum_level(decReq.keyOID);
+            if (level < 0)
+                return BAD_FUNC_ARG;
+
+            ret = wc_MlDsaComposite_PublicKeyDecode(decReq.publicKey, &idx, &aKey->val.mldsaCompKey, decReq.pubKeySize, level);
+            if (ret != 0)
+                return ret;
+
+            aKey->type = wc_mldsa_composite_level_type(level);
+            if (aKey->type < 0)
+                return BAD_FUNC_ARG;
+
+            break;
+#endif
+#ifdef HAVE_SPHINCS
+        case SPHINCS_FAST_LEVEL1k:
+        case SPHINCS_FAST_LEVEL3k:
+        case SPHINCS_FAST_LEVEL5k:
+        case SPHINCS_SMALL_LEVEL1k:
+        case SPHINCS_SMALL_LEVEL3k:
+        case SPHINCS_SMALL_LEVEL5k:
+            // ret = wc_sphincs_import_public(decReq.publicKey, decReq.pubKeySize, &aKey->val.sphincsKey);
+            ret = wc_SphincsPublicKeyDecode(decReq.publicKey, &idx, &aKey->val.sphincsKey, decReq.pubKeySize);
+            if (ret != 0)
+                return ret;
+
+            if (decReq.keyOID == SPHINCS_FAST_LEVEL1k) {
+                aKey->type = SPHINCS_FAST_LEVEL1_TYPE;
+            } else if (decReq.keyOID == SPHINCS_FAST_LEVEL3k) {
+                aKey->type = SPHINCS_FAST_LEVEL3_TYPE;
+            } else if (decReq.keyOID == SPHINCS_FAST_LEVEL5k) {
+                aKey->type = SPHINCS_FAST_LEVEL5_TYPE;
+            } else if (decReq.keyOID == SPHINCS_SMALL_LEVEL1k) {
+                aKey->type = SPHINCS_SMALL_LEVEL1_TYPE;
+            } else if (decReq.keyOID == SPHINCS_SMALL_LEVEL3k) {
+                aKey->type = SPHINCS_SMALL_LEVEL3_TYPE;
+            } else if (decReq.keyOID == SPHINCS_SMALL_LEVEL5k) {
+                aKey->type = SPHINCS_SMALL_LEVEL5_TYPE;
+            }
+            break;
+#endif
+        default:
+            return BAD_FUNC_ARG;
+            break;
+    }
+
+    return ret;
 }
 
 int wc_AsymKey_MakeReq_ex(byte* der, word32 derSz, wc_x509Req* req, enum wc_HashType hashType, int format, const AsymKey* key, WC_RNG* rng) {

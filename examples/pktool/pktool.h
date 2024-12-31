@@ -41,3 +41,6 @@ int gen_keypair(AsymKey ** key, int type, int param);
 int gen_csr(const AsymKey * key, const AsymKey * altkey, const char * out_filename, int out_format);
 
 int gen_cert(const AsymKey * key, const AsymKey * altkey, const char * out_filename, int out_format);
+
+int sign_cert(const char * req_file, int reqFormat, const char * outCertFilename, int outCertFormat, const char * caCertFilename, int caCertFormat, const AsymKey * caKeyPair, const AsymKey * caAltKeyPair);
+

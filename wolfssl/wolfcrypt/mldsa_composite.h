@@ -515,7 +515,7 @@ WOLFSSL_API int wc_mldsa_composite_type(const mldsa_composite_key* key);
 
 /* Get the level of the composite key.
  *
- * key   [in]  MlDsaComposite key.
+ * key   [in]  The ML-DSA composite key type (e.g., MLDSA44_ED25519_TYPE)
  * returns a value from enum MlDsaCompositeLevel for the key.
  * returns BAD_FUNC_ARG when key is NULL or level has not been set.
  */

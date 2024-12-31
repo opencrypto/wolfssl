@@ -506,6 +506,8 @@ WOLFSSL_API int wc_AsymKey_Verify_ex(const byte* sig, word32 sigLen, const byte*
  */
 WOLFSSL_API int wc_AsymKey_SigType(const AsymKey* key, enum wc_HashType hashType);
 
+WOLFSSL_API int wc_AsymKey_KeyType(const AsymKey* key);
+
 WOLFSSL_API int wc_AsymKey_CertReq_SetTemplate(Cert * tbsCert, enum wc_CertTemplate template_id);
 
 WOLFSSL_API int wc_AsymKey_CertReq_SetSigType(Cert * tbsCert, enum wc_HashType hashType, const AsymKey* key);
@@ -514,7 +516,11 @@ WOLFSSL_API int wc_AsymKey_CertReq_SetSubject(Cert * tbsCert, const char * subje
 
 WOLFSSL_API int wc_AsymKey_CertReq_SetIssuer(Cert * tbsCert, const char * issuerStr);
 
-WOLFSSL_API int wc_AsymKey_CertReq_SetIssuer_CaCert(Cert * tbsCert, DecodedCert * caCert);
+WOLFSSL_API int wc_AsymKey_CertReq_SetIssuer_CaCert(Cert * tbsCert, const byte * caDer, word32 caDerSz);
+
+WOLFSSL_API int wc_AsymKey_CertReq_SetPublicKey(Cert * tbsCert, const AsymKey * key);
+
+WOLFSSL_API int wc_AsymKey_CertReq_GetPublicKey(AsymKey * aKey, byte *req, word32 reqSz);
 
 /* Make a new certificate request (PKCS#10).
  *

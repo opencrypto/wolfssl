@@ -453,6 +453,332 @@ exit:
     return ret;
 }
 
+
+int sign_cert(const char * req_file, int reqFormat, const char * outCertFilename, int outCertFormat, const char * caCertFilename, int caCertFormat, const AsymKey * caKeyPair, const AsymKey * caAltKeyPair)
+{
+    int ret = NOT_COMPILED_IN;
+#ifdef WOLFSSL_CERT_REQ
+    int certType = 0; // MLDSA87_ED448_TYPE
+    // void* keyPtr = NULL;
+    WC_RNG rng;
+    // byte der[12240];
+    // int  derSz = 12240;
+    byte * data = NULL;
+    int  dataSz = 0;
+#ifdef WOLFSSL_DER_TO_PEM
+    // byte pem[12240];
+    // int  pemSz = 12240;
+    FILE* file = NULL;
+    // char outFile[255];
+#endif
+
+    byte *pem = NULL;
+    word32 pemSz = 0;
+        // PEM temp buffer
+
+    byte *req = NULL;
+    word32 reqSz = 0;
+        // DER encoded request
+
+    byte *ca = NULL;
+    word32 caSz = 0;
+        // DER encoded request and CA certificate
+
+    byte *cert = NULL;
+    word32 certSz = 0;
+        // DER encoded certificate
+
+    // DecodedCert decReq;
+    // DecodedCert decCaCert;
+        // Parsed request and CA certificate
+
+//     XMEMSET(der, 0, 12240);
+// #ifdef WOLFSSL_DER_TO_PEM
+//     // XMEMSET(pem, 0, 12240);
+// #endif
+
+    Cert aCert;
+    enum Key_Sum keySum;
+
+    AsymKey reqKey;
+
+
+    if (!caKeyPair) {
+        printf("Invalid key\n");
+        return BAD_FUNC_ARG;
+    }
+
+    if (req_file) {
+
+        if (load_file(&data, (int *)&dataSz, req_file) < 0) {
+            printf("Cannot open the request file (%s)\n", req_file);
+            return -1;
+        }
+
+        if (reqFormat != 0) {
+            // We cannot get the size from wc_CertPemToDer() because it
+            // requires the DER buffer to be allocated. Instead, we use
+            // the same size for the DER data, since it should only be
+            // smaller than the PEM.
+            reqSz = dataSz;
+            req = (byte *)XMALLOC(reqSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            if (req == NULL) {
+                goto exit;
+            }
+            reqSz = ret = wc_CertPemToDer(data, dataSz, req, reqSz, CERTREQ_TYPE);
+            // If we cannot parse the PEM, if it was not requested,
+            // we proceed with DER.
+            if (ret == ASN_NO_PEM_HEADER && reqFormat == 1) {
+                XFREE(data, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                // Error parsing the PEM
+                return -1;
+            }
+            if (ret > 0) {
+                req = (byte *)XREALLOC(req, reqSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                if (req == NULL) {
+                    ret = MEMORY_E;
+                    goto exit;
+                }
+                ret = wc_CertPemToDer(data, dataSz, req, reqSz, CERTREQ_TYPE);
+                if (ret < 0) {
+                    goto exit;
+                }
+                reqSz = ret;
+            } else {
+                req = data;
+                reqSz = dataSz;
+
+                data = NULL;
+                dataSz = 0;
+            }
+        }
+    }
+
+    if (caCertFilename) {
+        if (load_file(&pem, (int *)&pemSz, caCertFilename) < 0) {
+            printf("Cannot open the CA certificate file (%s)\n", caCertFilename);
+            goto exit;
+        }
+
+        if (caCertFormat != 0) {
+            // We cannot get the size from wc_CertPemToDer() because it
+            // requires the DER buffer to be allocated. Instead, we use
+            // the same size for the DER data, since it should only be
+            // smaller than the PEM.
+            caSz = pemSz;
+            ca = (byte *)XMALLOC(caSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            if (ca == NULL) {
+                goto exit;
+            }
+            caSz = ret = wc_CertPemToDer(pem, pemSz, ca, caSz, CERT_TYPE);
+            // If we cannot parse the PEM, if it was not requested,
+            // we proceed with DER.
+            if (ret == ASN_NO_PEM_HEADER && reqFormat == 1) {
+                // Error parsing the PEM
+                printf("Error parsing the CA certificate (ret: %d)\n", ret);
+                goto exit;
+            }
+            if (ret > 0) {
+                ca = (byte *)XREALLOC(ca, caSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                if (ca == NULL) {
+                    ret = MEMORY_E;
+                    goto exit;
+                }
+                ret = wc_CertPemToDer(pem, pemSz, ca, caSz, CERT_TYPE);
+                if (ret < 0) {
+                    goto exit;
+                }
+                caSz = ret;
+            } else {
+                ca = pem;
+                caSz = pemSz;
+
+                pem = NULL;
+                pemSz = 0;
+            }
+        }
+    }
+
+    ret = wc_InitCert(&aCert);
+    if (ret != 0) {
+        printf("Init Cert failed: %d\n", ret);
+        goto exit;
+    }
+    
+    // Extracts the type of key
+    keySum = wc_AsymKey_Oid(caKeyPair);
+    const char * algName = (char *)wc_KeySum_name(keySum);
+    if (algName == NULL) {
+        printf("Cannot Retreieve Alg Name for key, aborting (type: %d)\n", keySum);
+        goto exit;
+    }
+
+    ret = wc_AsymKey_CertReq_SetTemplate(&aCert, WC_CERT_TEMPLATE_IETF_TLS_CLIENT);
+    if (ret < 0) {
+        printf("Init Cert failed: %d\n", ret);
+        goto exit;
+    }
+
+    if (req) {
+
+        ret = wc_AsymKey_CertReq_GetPublicKey(&reqKey, req, reqSz);
+        if (ret < 0) {
+            printf("Error getting the public key\n");
+            goto exit;
+        }
+
+        certType = wc_AsymKey_CertType(&reqKey);
+        if (certType <= 0) {
+            printf("Error getting the certificate type\n");
+            goto exit;
+        }
+
+        // Sets the subject from the CSR
+        ret = wc_SetSubjectBuffer(&aCert, req, reqSz);
+        if (ret < 0) {
+            printf("Error setting the subject\n");
+            wc_AsymKey_CertReq_SetSubject(&aCert, "C=US, O=wolfSSL, OU=Test, CN=EE Cert");
+        }
+    } else {
+        
+        certType = wc_AsymKey_CertType(caKeyPair);
+        printf("CertType for the CA Key: %d\n", certType);
+
+    }
+
+    if (ca) {
+        ret = wc_SetIssuerBuffer(&aCert, ca, caSz);
+        if (ret < 0) {
+            printf("Error setting the issuer\n");
+            goto exit;
+        }
+    }
+
+    // Sets the Static parts of the DN
+    if (wc_AsymKey_CertReq_SetSubject(&aCert, "C=US, O=wolfSSL, OU=Test, CN=EE Cert") < 0) {
+        printf("Error setting the subject\n");
+        return -1;
+    }
+
+    // Sets the static parts of the DN
+    ret = wc_AsymKey_CertReq_SetSigType(&aCert, WC_HASH_TYPE_SHA384, caKeyPair);
+    if (ret < 0) {
+        printf("Error retrieving the signature type: %d\n", ret);
+        goto exit;
+    }
+
+    // Sets the key type
+    void * pubKeyPtr = NULL;
+    if (req) {
+        aCert.keyType = wc_AsymKey_KeyType(&reqKey);
+        pubKeyPtr = (void *)&reqKey.val;
+    } else {
+        aCert.keyType = wc_AsymKey_KeyType(caKeyPair);
+        pubKeyPtr = (void *)&caKeyPair->val;
+    }
+
+    // Generates the DER certificate (unsigned)
+    certSz = ret = wc_MakeCert_ex(&aCert, NULL, certSz, certType, pubKeyPtr, &rng);
+    if (ret <= 0) {
+        printf("Make Cert failed: %d\n", ret);
+        goto exit;
+    }
+
+    // Adds the missing size for the signature
+    certSz += wc_AsymKey_sig_size(caKeyPair) + MAX_SEQ_SZ * 3;
+
+    // Allocates the needed size
+    cert = (byte *)XMALLOC(certSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (cert == NULL) {
+        printf("Memory Error exporting key\n");
+        goto exit;
+    }
+
+    // Signs the tbsCert
+    ret = wc_MakeCert_ex(&aCert, cert, certSz, certType, pubKeyPtr, &rng);
+    if (ret <= 0) {
+        printf("Make Cert failed: %d\n", ret);
+        goto exit;
+    }
+
+    do {
+        FILE * file44 = fopen("cert.der", "wb");
+        if (file44) {
+            fwrite(cert, 1, certSz, file44);
+            fclose(file44);
+        }
+    } while (0);
+
+    // Signs the certificate
+    ret = wc_InitRng(&rng);
+    if (ret != 0) {
+        printf("RNG initialization failed: %d\n", ret);
+        goto exit;
+    }
+
+    certType = wc_AsymKey_CertType(caKeyPair);
+    ret = wc_SignCert_ex(aCert.bodySz, aCert.sigType, 
+                         cert, certSz, certType,
+                         (void *)&caKeyPair->val, &rng);
+    if (ret <= 0) {
+        printf("Sign Cert failed: %d\n", ret);
+        goto exit;
+    }
+    certSz = ret;
+
+#ifdef WOLFSSL_DER_TO_PEM
+    byte * pem_data = NULL;
+    int pem_dataSz = 0;
+
+    ret = wc_DerToPem(cert, certSz, NULL, pem_dataSz, CERT_TYPE);
+    if (ret <= 0) {
+        printf("Cannot get the size of the PEM...: %d\n", ret);
+        goto exit;
+    }
+    pem_dataSz = ret;
+    pem_data = (byte *)XMALLOC(pem_dataSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (pem_data == NULL) {
+        printf("Memory Error exporting key\n");
+        goto exit;
+    }
+    ret = wc_DerToPem(cert, certSz, pem_data, pem_dataSz, CERT_TYPE);
+    if (ret <= 0) {
+        printf("CSR DER to PEM failed: %d\n", ret);
+        goto exit;
+    }
+    if (outCertFilename) {
+        file = fopen(outCertFilename, "wb");
+        if (file) {
+            ret = (int)fwrite(pem_data, 1, pem_dataSz, file);
+            fclose(file);
+        }
+    } else {
+        int fd = fileno(stdout);
+        ret = write(fd, pem_data, pem_dataSz);
+    }
+#endif
+
+    ret = 0; /* success */
+    
+exit:
+
+    if (req) XFREE(req, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (pem) XFREE(pem, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+    wc_FreeRng(&rng);
+
+#endif /* WOLFSSL_CERT_REQ */
+
+    (void)req_file;
+    (void)caAltKeyPair;
+    (void)outCertFormat;
+    (void)outCertFilename;
+    (void)caKeyPair;
+    (void)ret;
+
+    return ret;
+}
+
 #ifdef WOLFSSL_KEY_GEN
 
 int gen_keypair(AsymKey ** key, int keySum, int param) {
@@ -630,21 +956,6 @@ int test(int param) {
         return -1;
     }
 
-    // ret = wc_EccPublicKeyDecode(buff, &idx, &eccKey, buffSz);
-    // if (ret < 0) {
-    //     printf("[2] Error decoding public key (ret: %d)\n", ret);
-    //     return -1;
-    // }
-    // buffSz = idx;
-
-    do {
-        FILE * file = fopen("EccPublicKeyToDer.der", "wb");
-        if (file) {
-            fwrite(buff, 1, buffSz, file);
-            fclose(file);
-        }
-    } while (0);
-
     return 0;
 }
 
@@ -681,6 +992,8 @@ int main(int argc, char** argv) {
 
     int error = 0; /* error flag */
 
+    (void)cert_file;
+
     // test(WC_MLDSA44_ED25519_SHA256);
 
     // Gets the CMD
@@ -695,6 +1008,8 @@ int main(int argc, char** argv) {
         cmd = 1;
     } else if (!XSTRNCMP(argv[i], "gencert", 7)) {
         cmd = 2;
+    } else if (!XSTRNCMP(argv[i], "signcert", 8)) {
+        cmd = 4;
     } else {
         usage();
         return 1;
@@ -843,8 +1158,6 @@ int main(int argc, char** argv) {
                 return 1;
             }
             cert_file = argv[i];
-            wolfSSL_X509_load_certificate_file(cert_file, WOLFSSL_FILETYPE_PEM);
-            
         } else if (XSTRNCMP(argv[i], "-ca", 3) == 0) {
             i++;
             if (i >= argc) {
@@ -944,6 +1257,32 @@ int main(int argc, char** argv) {
                 }
             }
             if (gen_cert(keyPtr, altKeyPtr, out_file, out_format) < 0) {
+                printf("Error generating certificate\n");
+                return -1;
+            }
+            return 0;
+        } break;
+
+        // Sign CERT
+        case 4: {
+            printf("Signing CERT\n");
+            if (in_file == NULL && key_file == NULL) {
+                printf("Missing keypair or request filename\n");
+                return 1;
+            }
+            if (load_key_p8(&keyPtr, keySum, key_file, in_format) < 0) {
+                printf("Error loading keypair\n");
+                return -1;
+            }
+
+            if (altkey_file) {
+                if (load_key_p8(&altKeyPtr, keySum, altkey_file, in_format) < 0) {
+                    printf("Error loading alt keypair\n");
+                    return -1;
+                }
+            }
+
+            if (sign_cert(csr_file, in_format, out_file, out_format, ca_file, in_format, keyPtr, altKeyPtr) < 0) {
                 printf("Error generating certificate\n");
                 return -1;
             }
