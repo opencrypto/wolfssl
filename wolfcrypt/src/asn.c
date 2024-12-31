@@ -24566,7 +24566,9 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm, Signer 
         /* https://datatracker.ietf.org/doc/html/rfc5280#section-4.2.1.9
          *   If the cA boolean is not asserted, then the keyCertSign bit in the
          *   key usage extension MUST NOT be asserted. */
-        if (!cert->isCSR && !cert->isCA && cert->extKeyUsageSet &&
+        // The isCSR seems to be stripped out with some compilation options,
+        // until we can figure out how to efficiently address it, let's remove it.
+        if ( /* !cert->isCSR && */ !cert->isCA && cert->extKeyUsageSet &&
                 (cert->extKeyUsage & KEYUSE_KEY_CERT_SIGN) != 0) {
             WOLFSSL_ERROR_VERBOSE(KEYUSAGE_E);
             return KEYUSAGE_E;
@@ -24574,7 +24576,7 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm, Signer 
     #endif
 
     #ifndef NO_SKID
-        if (!cert->isCSR && cert->extSubjKeyIdSet == 0 && cert->publicKey != NULL &&
+        if (/* !cert->isCSR && */ cert->extSubjKeyIdSet == 0 && cert->publicKey != NULL &&
                                                          cert->pubKeySize > 0) {
             if (cert->signatureOID == CTC_SM3wSM2) {
                 /* TODO: GmSSL creates IDs this way but whole public key info
@@ -24593,7 +24595,7 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm, Signer 
         }
     #endif /* !NO_SKID */
 
-        if (!cert->isCSR && (!cert->selfSigned ||
+        if (/* !cert->isCSR && */(!cert->selfSigned ||
                                 (verify != NO_VERIFY && 
                                  type != CA_TYPE &&
                                  type != TRUSTED_PEER_TYPE))) {
