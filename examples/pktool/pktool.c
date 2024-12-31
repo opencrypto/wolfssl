@@ -625,7 +625,19 @@ int sign_cert(const char * req_file, int reqFormat, const char * outCertFilename
     } else {
         
         certType = wc_AsymKey_CertType(caKeyPair);
+        if (certType <= 0) {
+            printf("Error getting the certificate type\n");
+            goto exit;
+        }
         printf("CertType for the CA Key: %d\n", certType);
+
+        if (ca) {
+            ret = wc_SetSubjectBuffer(&aCert, ca, caSz);
+            if (ret < 0) {
+                printf("Error setting the subject\n");
+                wc_AsymKey_CertReq_SetSubject(&aCert, "C=US, O=wolfSSL, OU=Test, CN=EE Cert");
+            }
+        }
 
     }
 
@@ -655,9 +667,11 @@ int sign_cert(const char * req_file, int reqFormat, const char * outCertFilename
     if (req) {
         aCert.keyType = wc_AsymKey_KeyType(&reqKey);
         pubKeyPtr = (void *)&reqKey.val;
+        aCert.selfSigned = 0;
     } else {
         aCert.keyType = wc_AsymKey_KeyType(caKeyPair);
         pubKeyPtr = (void *)&caKeyPair->val;
+        aCert.selfSigned = 1;
     }
 
     // Generates the DER certificate (unsigned)
@@ -668,7 +682,10 @@ int sign_cert(const char * req_file, int reqFormat, const char * outCertFilename
     }
 
     // Adds the missing size for the signature
-    certSz += wc_AsymKey_sig_size(caKeyPair) + MAX_SEQ_SZ * 3;
+    if (req) 
+        certSz += wc_AsymKey_sig_size(&reqKey) + MAX_SEQ_SZ * 3;
+    else 
+        certSz += wc_AsymKey_sig_size(caKeyPair) + MAX_SEQ_SZ * 3;
 
     // Allocates the needed size
     cert = (byte *)XMALLOC(certSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
