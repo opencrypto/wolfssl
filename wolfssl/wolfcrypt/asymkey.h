@@ -183,7 +183,7 @@ WOLFSSL_API int wc_AsymKey_free(AsymKey * key);
  * @return  MEMORY_E when memory allocation fails.
  * @return  Other negative when an error occurs.
  */
-WOLFSSL_API int wc_AsymKey_gen(AsymKey      ** key,
+WOLFSSL_API int wc_AsymKey_MakeKey(AsymKey      ** key,
                                enum Key_Sum    type,
                                int             param,
                                byte          * seed,
@@ -199,7 +199,7 @@ WOLFSSL_API int wc_AsymKey_gen(AsymKey      ** key,
  * returns enum Key_Sum value of the key.
  * returns BAD_FUNC_ARG when key is NULL or not initialized.
  */
-WOLFSSL_API int wc_AsymKey_Oid(const AsymKey * key);
+WOLFSSL_API int wc_AsymKey_GetOid(const AsymKey * key);
 
 /* Get the type of certificate associated with the key.
  *
@@ -207,7 +207,22 @@ WOLFSSL_API int wc_AsymKey_Oid(const AsymKey * key);
  * returns a value from enum CertType for the key.
  * returns BAD_FUNC_ARG when key is NULL or type has not been set.
  */
-WOLFSSL_API int wc_AsymKey_CertType(const AsymKey* key);
+WOLFSSL_API int wc_AsymKey_GetCertType(const AsymKey* key);
+
+/* Retrieves the signature type based on key and hash used.
+ *
+ * @param [in] key      The key to query.
+ * @param [in] hashType The hash type used for the signature
+ *                      (e.g., WC_HASH_TYPE_SHA256). Use WC_HASH_TYPE_NONE
+ *                      for no hash (or for algorithms that do not support
+ *                      hashing).
+ * @return  0 on success.
+ * @return  BAD_FUNC_ARG when a parameter is NULL.
+ */
+WOLFSSL_API int wc_AsymKey_GetSigType(const AsymKey* key, enum wc_HashType hashType);
+
+WOLFSSL_API int wc_AsymKey_GetKeyType(const AsymKey* key);
+
 
 /* Returns the size of a private plus public key.
  *
@@ -254,7 +269,7 @@ WOLFSSL_API int wc_AsymKey_check(const AsymKey* key);
  * @return  0 on success.
  * @return  BAD_FUNC_ARG when in or key is NULL or key format is not supported.
  */
-WOLFSSL_API int wc_AsymKey_Public_import(AsymKey* key, int type, const byte* in, word32 inLen, int format);
+WOLFSSL_API int wc_AsymKey_public_import(AsymKey* key, int type, const byte* in, word32 inLen, int format);
 
 /* Export the public key.
  *
@@ -267,7 +282,7 @@ WOLFSSL_API int wc_AsymKey_Public_import(AsymKey* key, int type, const byte* in,
  * @return  BAD_FUNC_ARG when a parameter is NULL.
  * @return  BUFFER_E when outLen is less than the required size
  */
-WOLFSSL_API int wc_AsymKey_Public_export(byte* buff, word32 buffLen, int withAlg, int format, const AsymKey* key);
+WOLFSSL_API int wc_AsymKey_public_export(byte* buff, word32 buffLen, int withAlg, int format, const AsymKey* key);
 
 #endif /* WOLFSSL_PUBLIC_KEY */
 
@@ -424,6 +439,10 @@ WOLFSSL_API int wc_AsymKey_PrivateKeyToPem_ex(const AsymKey * key,
                                               const byte    * pwd,
                                               word32          pwdSz);
 
+WOLFSSL_API int wc_AsymKey_Decode(AsymKey ** key, const byte * data, word32 dataSz, int format);
+
+WOLFSSL_API int wc_CertReqToDer(byte ** out, word32 * outSz, const byte * data, word32 dataSz);
+
 /* Sign a message with the key.
  *
  * @param [out] sig    Array to hold the signature.
@@ -494,31 +513,17 @@ WOLFSSL_API int wc_AsymKey_Verify(const byte* sig, word32 sigLen,
 */
 WOLFSSL_API int wc_AsymKey_Verify_ex(const byte* sig, word32 sigLen, const byte* in, word32 inLen, enum wc_HashType hashType, const AsymKey* key, const byte* context, byte contextLen);
 
-/* Retrieves the signature type based on key and hash used.
- *
- * @param [in] key      The key to query.
- * @param [in] hashType The hash type used for the signature
- *                      (e.g., WC_HASH_TYPE_SHA256). Use WC_HASH_TYPE_NONE
- *                      for no hash (or for algorithms that do not support
- *                      hashing).
- * @return  0 on success.
- * @return  BAD_FUNC_ARG when a parameter is NULL.
- */
-WOLFSSL_API int wc_AsymKey_SigType(const AsymKey* key, enum wc_HashType hashType);
-
-WOLFSSL_API int wc_AsymKey_KeyType(const AsymKey* key);
-
 WOLFSSL_API int wc_AsymKey_CertReq_SetTemplate(Cert * tbsCert, enum wc_CertTemplate template_id);
 
-WOLFSSL_API int wc_AsymKey_CertReq_SetSigType(Cert * tbsCert, enum wc_HashType hashType, const AsymKey* key);
+WOLFSSL_API int wc_AsymKey_CertReq_SetSerial(Cert * tbsCert, const byte * serial, word32 serialSz);
+
+WOLFSSL_API int wc_AsymKey_CertReq_SetSigtype(Cert * tbsCert, enum wc_HashType hashType, const AsymKey* key);
 
 WOLFSSL_API int wc_AsymKey_CertReq_SetSubject(Cert * tbsCert, const char * subjectStr);
 
 WOLFSSL_API int wc_AsymKey_CertReq_SetIssuer(Cert * tbsCert, const char * issuerStr);
 
 WOLFSSL_API int wc_AsymKey_CertReq_SetIssuer_CaCert(Cert * tbsCert, const byte * caDer, word32 caDerSz);
-
-WOLFSSL_API int wc_AsymKey_CertReq_SetPublicKey(Cert * tbsCert, const AsymKey * key);
 
 WOLFSSL_API int wc_AsymKey_CertReq_GetPublicKey(AsymKey * aKey, byte *req, word32 reqSz);
 
@@ -561,7 +566,21 @@ WOLFSSL_API int wc_AsymKey_MakeReq_ex(byte* der, word32 derSz, wc_x509Req* req, 
  * @return  BAD_FUNC_ARG when a parameter is NULL.
  * @return  NOT_COMPILED_IN when the function is not compiled in.
  */
-WOLFSSL_API int wc_AsymKey_MakeCert(byte * der, word32 derLen, wc_x509Cert* req, const AsymKey* key, WC_RNG* rng);
+
+WOLFSSL_API int wc_AsymKey_MakeCert(byte * out, word32 outSz, int outform, 
+                                    Cert* tbsCert, const AsymKey * reqPubKey,
+                                    enum wc_HashType hashType, const AsymKey* caKey,
+                                    WC_RNG* rng);
+
+WOLFSSL_API int wc_AsymKey_MakeCert_ex(byte * out, word32 outSz, int outform, 
+                                       byte * caCert, word32 caCertSz, Cert* tbsCert,  
+                                       const AsymKey * reqPubKey, enum wc_HashType hashType,
+                                       const AsymKey * caKey, const AsymKey * caAltPrivKey,
+                                       WC_RNG* rng) ;
+
+WOLFSSL_API int wc_AsymKey_MakeCert_Template(byte * out, word32 outSz, int format, byte * req, word32 reqSz, byte * ca, word32 caSz,
+                        enum wc_CertTemplate templateId, const char * subjectOverride, enum wc_HashType hashType, const AsymKey* priv_key,
+                        WC_RNG* rng);
 
 WOLFSSL_API int wc_X509_Req_Sign(byte * der, word32 derLen, wc_x509Req * req, enum wc_HashType htype, const AsymKey* key, WC_RNG* rng);
 WOLFSSL_API int wc_X509_Req_Sign_ex(byte * der, word32 derLen, wc_x509Req * req, enum wc_HashType htype, const byte* context, byte contextLen, const AsymKey* key, WC_RNG* rng);

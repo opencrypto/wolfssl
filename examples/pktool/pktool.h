@@ -34,7 +34,7 @@ int export_key_p8(AsymKey * key, const char * out_file, int format);
 
 int load_file(byte ** data, int *len, const char * filename);
 
-int load_key_p8(AsymKey ** key, int type, const char * key_file, int format);
+int load_key_p8(AsymKey ** key, const char * key_file, int format);
 
 int gen_keypair(AsymKey ** key, int type, int param);
 
@@ -42,5 +42,5 @@ int gen_csr(const AsymKey * key, const AsymKey * altkey, const char * out_filena
 
 int gen_cert(const AsymKey * key, const AsymKey * altkey, const char * out_filename, int out_format);
 
-int sign_cert(const char * req_file, int reqFormat, const char * outCertFilename, int outCertFormat, const char * caCertFilename, int caCertFormat, const AsymKey * caKeyPair, const AsymKey * caAltKeyPair);
+int sign_cert(const char * req_file, const char * outCertFilename, int outCertFormat, const char * caCertFilename, int caCertFormat, const AsymKey * caKeyPair, const AsymKey * caAltKeyPair);
 
