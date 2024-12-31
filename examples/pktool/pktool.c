@@ -459,18 +459,10 @@ int sign_cert(const char * req_file, int reqFormat, const char * outCertFilename
     int ret = NOT_COMPILED_IN;
 #ifdef WOLFSSL_CERT_REQ
     int certType = 0; // MLDSA87_ED448_TYPE
-    // void* keyPtr = NULL;
     WC_RNG rng;
-    // byte der[12240];
-    // int  derSz = 12240;
     byte * data = NULL;
     int  dataSz = 0;
-#ifdef WOLFSSL_DER_TO_PEM
-    // byte pem[12240];
-    // int  pemSz = 12240;
     FILE* file = NULL;
-    // char outFile[255];
-#endif
 
     byte *pem = NULL;
     word32 pemSz = 0;
@@ -487,15 +479,6 @@ int sign_cert(const char * req_file, int reqFormat, const char * outCertFilename
     byte *cert = NULL;
     word32 certSz = 0;
         // DER encoded certificate
-
-    // DecodedCert decReq;
-    // DecodedCert decCaCert;
-        // Parsed request and CA certificate
-
-//     XMEMSET(der, 0, 12240);
-// #ifdef WOLFSSL_DER_TO_PEM
-//     // XMEMSET(pem, 0, 12240);
-// #endif
 
     Cert aCert;
     enum Key_Sum keySum;
