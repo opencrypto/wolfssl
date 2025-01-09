@@ -91257,6 +91257,10 @@ static int test_wolfSSL_dtls_set_mtu(void)
     ExpectIntEQ(wolfSSL_CTX_dtls_set_mtu(ctx, 1488), WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_dtls_set_mtu(ssl, 1488), WOLFSSL_SUCCESS);
 
+#ifdef OPENSSL_EXTRA
+    ExpectIntEQ(SSL_set_mtu(ssl, 1488), WOLFSSL_SUCCESS);
+#endif
+
     wolfSSL_free(ssl);
     wolfSSL_CTX_free(ctx);
 #endif
@@ -100286,7 +100290,7 @@ static int test_dtls12_basic_connection_id(void)
             WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
             struct test_memio_ctx test_ctx;
 
-            printf("Testing %s run #%ld ... ", params[i], j);
+            printf("Testing %s run #%ld ... ", params[i], (long int)j);
 
             XMEMSET(&test_ctx, 0, sizeof(test_ctx));
 
