@@ -1,8 +1,6 @@
 /* asymkey.c */
 
-#ifndef WOLF_CRYPT_ASYMKEY_H
 #include <wolfssl/wolfcrypt/asymkey.h>
-#endif
 
 /* Log a message that has the printf format string.
  *
@@ -17,19 +15,8 @@
     }                                                 \
     while (0)
 
-#define MADWOLF_DEBUG0(a)                         \
-    do {                                              \
-        printf("[%s:%d] %s(): " a "\n", __FILE__, __LINE__, __func__);      \
-        fflush(stdout);                               \
-    } while (0)
-
-
-#define MADWOLF_DEBUG(a, ...)                         \
-    do {                                              \
-        printf("[%s:%d] %s(): " a "\n", __FILE__, __LINE__, __func__, __VA_ARGS__);      \
-        fflush(stdout);                               \
-    } while (0)
-
+#define MADWOLF_DEBUG  WOLFSSL_MSG_VSNPRINTF
+#define MADWOLF_DEBUG0  WOLFSSL_MSG_VSNPRINTF
 
 /* Functions */
 
