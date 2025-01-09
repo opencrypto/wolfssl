@@ -560,167 +560,6 @@ int gen_keypair(AsymKey ** key, int keySum, int param) {
 }
 #endif // WOLFSSL_KEY_GEN
 
-int test(int param) {
-
-    word32 idx = 0;
-    ed25519_key ed25519Key;
-    // ed448_key ed448Key;
-
-    MlDsaCompositeKey key;
-    WC_RNG rng;
-    int ret;
-
-    byte buff[65535];
-    word32 buffSz = sizeof(buff);
-
-    wc_InitRng(&rng);
-
-    wc_mldsa_composite_init(&key);
-    if (wc_mldsa_composite_make_key(&key, param, &rng) < 0) {
-        printf("Error generating key\n");
-        return -1;
-    }
-
-    ret = wc_mldsa_composite_export_public(&key, buff, &buffSz);
-    if (ret < 0) {
-        printf("Error exporting public key\n");
-        return -1;
-    }
-    printf("[1] Exported MLDSA Composite Public Key (type: %d, ret: %d, Sz: %d)\n", param, ret, buffSz);
-    do {
-        FILE * file = fopen("public_export.der", "wb");
-        if (file) {
-            fwrite(buff, 1, buffSz, file);
-            fclose(file);
-        }
-    } while (0);
-
-    buffSz = sizeof(buff);
-
-    ret = wc_MlDsaComposite_PublicKeyToDer(&key, buff, buffSz, 0);
-    if (ret < 0) {
-        printf("Error exporting public key\n");
-        return -1;
-    }
-
-    buffSz = ret;
-    printf("[2] Exported MLDSA Composite Public Key (ret and Sz: %d)\n", buffSz);
-    do {
-        FILE * file = fopen("PublicKeyToDer.der", "wb");
-        if (file) {
-            fwrite(buff, 1, buffSz, file);
-            fclose(file);
-        }
-    } while (0);
-
-    wc_mldsa_composite_free(&key);
-
-
-    wc_ed25519_init(&ed25519Key);
-    if (wc_ed25519_make_key(&rng, ED25519_KEY_SIZE, &ed25519Key) < 0) {
-        printf("Error generating key\n");
-        return -1;
-    }
-    ret = wc_ed25519_export_public(&ed25519Key, buff, &buffSz);
-    if (ret < 0) {
-        printf("Error exporting public key\n");
-        return -1;
-    }
-    printf("[1] Exported ED25519 Public Key (ret and Sz: %d)\n", buffSz);
-
-    do {
-        FILE * file = fopen("ed25519_public_export.der", "wb");
-        if (file) {
-            fwrite(buff, 1, buffSz, file);
-            fclose(file);
-        }
-    } while (0);
-
-    buffSz = sizeof(buff);
-    ret = wc_Ed25519PublicKeyToDer(&ed25519Key, buff, buffSz, 0);
-    if (ret < 0) {
-        printf("Error exporting public key\n");
-        return -1;
-    }
-    buffSz = ret;
-    printf("[2] Exported ED25519 Public Key (ret and Sz: %d)\n", buffSz);
-    do {
-        FILE * file = fopen("Ed25519PublicKeyToDer.der", "wb");
-        if (file) {
-            fwrite(buff, 1, buffSz, file);
-            fclose(file);
-        }
-    } while (0);
-
-    wc_ed25519_free(&ed25519Key);
-
-    buffSz = sizeof(buff);
-
-    ecc_key eccKey;
-    wc_ecc_init(&eccKey);
-
-    wc_ecc_set_curve(&eccKey, 32, ECC_SECP256R1);
-    if (wc_ecc_make_key(&rng, 32, &eccKey) < 0) {
-        printf("Error generating key\n");
-        return -1;
-    }
-    buffSz = ret = wc_EccPublicKeyToDer(&eccKey, buff, buffSz, 1);
-    // ret = wc_ecc_export_x963(&eccKey, buff, &buffSz);
-    if (ret < 0) {
-        printf("Error exporting public key (%d)\n", ret);
-        return -1;
-    }
-    printf("[1] Exported ECC Public Key (Sz: %d)\n", buffSz);
-
-    do {
-        FILE * file = fopen("ecc_public_export.der", "wb");
-        if (file) {
-            fwrite(buff, 1, buffSz, file);
-            fclose(file);
-        }
-    } while (0);
-
-    // ret = wc_ecc_import_x963(buff, buffSz, &eccKey);
-    // if (ret < 0) {
-    //     printf("[0] Error importing public key (ret: %d)\n", ret);
-    //     return -1;
-    // }
-    // wc_ecc_free(&eccKey);
-
-    idx = 0;
-    ret = wc_EccPublicKeyDecode(buff, &idx, &eccKey, buffSz);
-    if (ret < 0) {
-        printf("[1] Error decoding public key (ret: %d)\n", ret);
-        return -1;
-    }
-    buffSz = idx;
-
-    printf("[1] Decoded ECC Public Key on the same data as the import x963 (ret: %d, Sz: %d)\n", ret, idx);
-
-    buffSz = sizeof(buff);
-    ret = wc_EccPublicKeyDerSize(&eccKey, 0);
-    if (ret < 0) {
-        printf("Error getting the size for ECC public key\n");
-        return -1;
-    }
-    buffSz = ret;
-    ret = wc_EccPublicKeyToDer(&eccKey, buff, buffSz, 0);
-    if (ret < 0) {
-        printf("Error exporting ECC public key\n");
-        return -1;
-    }
-    buffSz = ret;
-    printf("[2] Exported ECC Public Key (Sz: %d)\n", buffSz);
-
-    ret = wc_ecc_import_x963(buff, buffSz, &eccKey);
-    if (ret < 0) {
-        printf("[2] Error importing public key, ret: %d\n", ret);
-        return -1;
-    }
-
-    return 0;
-}
-
 int main(int argc, char** argv) {
 
 #if !defined(WOLFSSL_CERT_REQ) || !defined(WOLFSSL_CERT_GEN) || !defined(WOLFSSL_KEY_GEN) || !defined(WOLFSSL_CERT_EXT) 
@@ -975,6 +814,7 @@ int main(int argc, char** argv) {
 
         // Gen CSR
         case 1: {
+#ifdef WOLFSSL_CERT_REQ
             printf("Generating CSR\n");
             if (in_file == NULL && key_file == NULL) {
                 printf("Missing keypair or request filename\n");
@@ -996,10 +836,15 @@ int main(int argc, char** argv) {
                 return -1;
             }
             return 0;
+#else
+            printf("CSR generation not supported\n");
+            return 1;
+#endif
         } break;
 
         // Gen CERT
         case 2: {
+#ifdef WOLFSSL_CERT_GEN
             printf("Generating CERT\n");
             if (in_file == NULL && key_file == NULL) {
                 printf("Missing keypair or request filename\n");
@@ -1023,10 +868,15 @@ int main(int argc, char** argv) {
                 return -1;
             }
             return 0;
+#else
+            printf("Certificate generation not supported\n");
+            return 1;
+#endif
         } break;
 
         // Sign CERT
         case 4: {
+#if defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_REQ)
             if (in_file == NULL && key_file == NULL) {
                 printf("Missing keypair or request filename\n");
                 return 1;
@@ -1048,6 +898,10 @@ int main(int argc, char** argv) {
                 return -1;
             }
             return 0;
+#else
+            printf("Certificate signing not supported\n");
+            return 1;
+#endif
         } break;
 
         default:
