@@ -125,11 +125,6 @@ int wc_AsymKey_free(AsymKey * key) {
     case MLDSA87_BPOOL384_TYPE:
     case MLDSA87_NISTP384_TYPE:
     case MLDSA87_ED448_TYPE: {
-        // if (!key->key.mldsaCompKey) {
-        //   wc_mldsa_composite_free(key->key.mldsaCompKey);
-        //   XFREE(key->key.mldsaCompKey, NULL, DYNAMIC_TYPE_MLDSA_COMPOSITE);
-        //   key->key.mldsaCompKey = NULL;
-        // }
         wc_mldsa_composite_free(&key->val.mldsaCompKey);
     } break;
 #endif
@@ -2670,7 +2665,7 @@ int wc_AsymKey_Decode(AsymKey ** key, const byte * keyData, word32 keySz, int fo
     return 0;
 }
 
-int wc_CertReqToDer(byte ** out, word32 * outSz, const byte * data, word32 dataSz) {
+int wc_CertReqToDer(byte ** out, word32 * outSz, const byte * data, word32 dataSz, byte isReq) {
 
     int ret = 0;
         // Return value
@@ -2679,9 +2674,15 @@ int wc_CertReqToDer(byte ** out, word32 * outSz, const byte * data, word32 dataS
     word32 derSz = 0;
         // DER buffer and size
     
-    int type = CERTREQ_TYPE;
+    int type = CERT_TYPE;
         // Certificate request type
 
+    if (!outSz) {
+        return BAD_FUNC_ARG;
+    }
+    if (isReq) {
+        type = CERTREQ_TYPE;
+    }
     // We cannot get the size from wc_CertPemToDer() because it
     // requires the DER buffer to be allocated. Instead, we use
     // the same size for the DER data, since it should only be
@@ -2691,7 +2692,6 @@ int wc_CertReqToDer(byte ** out, word32 * outSz, const byte * data, word32 dataS
     if (der == NULL) {
         return MEMORY_E;
     }
-    type = CERTREQ_TYPE;
     ret = wc_CertPemToDer(data, dataSz, der, derSz, type);
     // If we cannot parse the PEM, if it was not requested,
     // we proceed with DER.
@@ -2747,6 +2747,7 @@ int wc_CertReqToDer(byte ** out, word32 * outSz, const byte * data, word32 dataS
 
     return ret;
 }
+
 
 int wc_AsymKey_Sign(byte* sig, word32* sigLen, const byte* msg, word32 msgLen,
                     enum wc_HashType hashType, const AsymKey* key, WC_RNG* rng) {
@@ -3615,11 +3616,13 @@ int wc_AsymKey_CertReq_SetIssuer_CaCert(Cert * tbsCert, const byte * der, word32
 
     int ret = 0;
     if (!tbsCert || !der || derSz <= 0) {
+        printf("Error: %s: %d\n", __FILE__, __LINE__);
         ret = BAD_FUNC_ARG;
     }
 
     if (ret == 0) {
         ret = wc_SetIssuerBuffer(tbsCert, der, derSz);
+        printf("Issuer Set %d\n", ret);
     }
 
     return ret;

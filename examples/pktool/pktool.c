@@ -418,6 +418,7 @@ exit:
 int sign_cert(const char * req_file, const char * outCertFilename, int outCertFormat, const char * caCertFilename, int caCertFormat, const AsymKey * caKeyPair, const AsymKey * caAltKeyPair)
 {
     int ret = NOT_COMPILED_IN;
+
 #ifdef WOLFSSL_CERT_REQ
     WC_RNG rng;
     byte * data = NULL;
@@ -426,6 +427,9 @@ int sign_cert(const char * req_file, const char * outCertFilename, int outCertFo
 
     byte *pem = NULL;
     word32 pemSz = 0;
+
+    byte * derReq = NULL;
+    word32 derReqSz = 0;
         // PEM temp buffer
 
     byte *req = NULL;
@@ -442,6 +446,9 @@ int sign_cert(const char * req_file, const char * outCertFilename, int outCertFo
     Cert aCert;
         // Certificate Template
 
+    AsymKey reqPubKey = { 0x0 };
+        // Public key from the request
+
     if (!caKeyPair) {
         printf("Invalid key\n");
         return BAD_FUNC_ARG;
@@ -452,11 +459,10 @@ int sign_cert(const char * req_file, const char * outCertFilename, int outCertFo
             printf("Cannot open the request file (%s)\n", req_file);
             return -1;
         }
-        byte * derData = NULL;
-        word32 derDataSz = 0;
-        ret = wc_CertReqToDer(&derData, &derDataSz, data, dataSz);
+
+        ret = wc_CertReqToDer(&derReq, &derReqSz, data, dataSz, 1);
         if (ret < 0) {
-            printf("1 Error converting the request to DER: %d\n", ret);
+            printf("Error converting the request to DER: %d\n", ret);
             return ret;
         }
     }
@@ -466,9 +472,7 @@ int sign_cert(const char * req_file, const char * outCertFilename, int outCertFo
             printf("Cannot open the CA certificate file (%s)\n", caCertFilename);
             goto exit;
         }
-        byte * derData = NULL;
-        word32 derDataSz = 0;
-        ret = wc_CertReqToDer(&derData, &derDataSz, pem, pemSz);
+        ret = wc_CertReqToDer(&ca, &caSz, pem, pemSz, 0);
         if (ret < 0) {
             printf("2 Error converting the request to DER: %d\n", ret);
             return ret;
@@ -478,15 +482,38 @@ int sign_cert(const char * req_file, const char * outCertFilename, int outCertFo
     wc_InitRng(&rng);
     wc_InitCert(&aCert);
 
-    wc_AsymKey_CertReq_SetSerial(&aCert, NULL, 15);
-    wc_AsymKey_CertReq_SetSubject(&aCert, "C=US, O=wolfSSL, OU=Test, CN=Test");
+    wc_AsymKey_CertReq_SetTemplate(&aCert, WC_CERT_TEMPLATE_IETF_TLS_CLIENT);
 
-    aCert.skidSz = 20; // Enables the Subject Key Identifier
-    aCert.selfSigned = 1; // Self-signed certificate
-    aCert.version = 2; // Version 3
-    aCert.daysValid = 365; // 1 year
+    ret = wc_AsymKey_CertReq_SetSerial(&aCert, NULL, 15);
+    if (ret < 0) {
+        printf("Error setting the serial number: %d\n", ret);
+        return ret;
+    }
 
-    ret = wc_AsymKey_MakeCert(NULL, 0, 1, &aCert, NULL, 0, caKeyPair, &rng);
+    ret = wc_AsymKey_CertReq_SetSubject(&aCert, "C=US, O=wolfSSL, OU=Test, CN=EE Cert");
+    if (ret < 0) {
+        printf("Error setting the subject: %d\n", ret);
+        return ret;
+    }
+    
+    ret = wc_AsymKey_CertReq_GetPublicKey(&reqPubKey, data, dataSz);
+    if (ret < 0) {
+        printf("Error getting the public key: %d\n", ret);
+        return ret;
+    }
+
+    ret = wc_AsymKey_CertReq_SetIssuer_CaCert(&aCert, ca, caSz);
+    if (ret < 0) {
+        printf("Error setting the issuer: %d\n", ret);
+        return ret;
+    }
+
+    // aCert.skidSz = 20; // Enables the Subject Key Identifier
+    // aCert.selfSigned = 1; // Self-signed certificate
+    // aCert.version = 2; // Version 3
+    // aCert.daysValid = 365; // 1 year
+
+    ret = wc_AsymKey_MakeCert_ex(NULL, 0, 1, ca, caSz, &aCert, &reqPubKey, 0, caKeyPair, NULL, &rng);
     if (ret < 0) {
         printf("Error generating the certificate: %d\n", ret);
         return ret;
@@ -499,7 +526,7 @@ int sign_cert(const char * req_file, const char * outCertFilename, int outCertFo
         return -1;
     }
 
-    ret = wc_AsymKey_MakeCert_ex(cert, certSz, 1, NULL, 0, &aCert, NULL, 0, caKeyPair, NULL, &rng);
+    ret = wc_AsymKey_MakeCert_ex(cert, certSz, 1, ca, caSz, &aCert, &reqPubKey, 0, caKeyPair, NULL, &rng);
     if (ret < 0) {
         printf("Error generating the certificate: %d\n", ret);
         return ret;

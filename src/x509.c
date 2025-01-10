@@ -11169,9 +11169,6 @@ static int CertFromX509(Cert* cert, WOLFSSL_X509* x509)
     #if defined(HAVE_FIPS204)
     printf("[%s:%d] FIPS204: Missing Code\n", __FILE__, __LINE__);
     #endif
-    #if defined(HAVE_MLDSA_COMPOSITE)
-    printf("[%s:%d] MLDSA Composite: Missing Code\n", __FILE__, __LINE__);
-    #endif
     #if defined(HAVE_SPHINCS)
         if ((x509->pubKeyOID == SPHINCS_FAST_LEVEL1k) ||
             (x509->pubKeyOID == SPHINCS_FAST_LEVEL3k) ||

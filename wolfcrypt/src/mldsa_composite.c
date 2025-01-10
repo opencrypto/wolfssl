@@ -1048,7 +1048,6 @@ int wc_mldsa_composite_sign_msg_ex(const byte* msg, word32 msgLen, byte* sig,
 
     // Error Handling: Check for NULL pointers and invalid input lengths.
     if (!msg || !sig || !key || !sigLen || !rng || (!context && contextLen > 0)) {
-        MADWOLF_DEBUG0("Invalid input parameters");
         return BAD_FUNC_ARG; 
     }
 
@@ -1062,7 +1061,6 @@ int wc_mldsa_composite_sign_msg_ex(const byte* msg, word32 msgLen, byte* sig,
     /* Gets the tbs composite data */
     ret = wc_mldsa_compositeTBS_msg(tbsMsg, &tbsMsgLen, msg, msgLen, key, context, contextLen);
     if (ret < 0) {
-        MADWOLF_DEBUG("wc_mldsa_compositeTBS_msg() failed with error %d", ret);
         return ret;
     }
 
@@ -1075,7 +1073,6 @@ int wc_mldsa_composite_sign_msg_ex(const byte* msg, word32 msgLen, byte* sig,
                                          &mldsaSig_bufferLen,
                                          &key->mldsa_key,
                                          rng)) < 0) {
-        MADWOLF_DEBUG("wc_dilithium_sign_ctx_msg() failed with error %d", ret);
         return ret;
     }
 
@@ -1762,7 +1759,7 @@ int wc_mldsa_composite_type_level(int type) {
  *
  * key   [in]  MlDsaComposite key.
  * level [out] The level.
- * returns a value from enum mldsa_composite_type.
+ * returns a value from enum mldsa_composite_type (e.g., WC_MLDSA44_NISTP256_SHA256)
  * returns BAD_FUNC_ARG when key is NULL or level has not been set.
  */
 int wc_mldsa_composite_level(const mldsa_composite_key* key)
@@ -1904,10 +1901,9 @@ int wc_mldsa_composite_level(const mldsa_composite_key* key)
     return ret;
 }
 
-/* Get the level of the MlDsaComposite private/public key.
+/* Get the certType for the MlDsaComposite level.
  *
- * key   [in]  MlDsaComposite key.
- * level [out] The level.
+ * level   [in]  MlDsa level (e.g., WC_MLDSA44_RSAPSS2048_SHA256)
  * returns a value from enum CertType.
  * returns BAD_FUNC_ARG when key is NULL or level has not been set.
  */
@@ -2264,7 +2260,7 @@ int wc_mldsa_composite_key_sum_level(const enum Key_Sum keytype_sum) {
 * returns enum mldsa_composite_type value.
 * returns BAD_FUNC_ARG when keytype_sum is not a valid value.
 */
-int wc_composite_level_key_sum(const enum mldsa_composite_level type) {
+int wc_mldsa_composite_level_key_sum(const enum mldsa_composite_level type) {
 
     enum Key_Sum ret = 0;
 
@@ -4598,7 +4594,7 @@ int wc_MlDsaComposite_PrivateKeyDecode(const byte* input, word32* inOutIdx,
     XMEMCPY(local_buffer, input, inSz);
 
     /* Retrieves the OID SUM for the key type*/
-    if ((keySum = wc_composite_level_key_sum(composite_level)) < 0) {
+    if ((keySum = wc_mldsa_composite_level_key_sum(composite_level)) < 0) {
     }
 
     /* Remove the PKCS8 outer shell if present. */
@@ -4977,7 +4973,7 @@ int wc_MlDsaComposite_KeyToDer(mldsa_composite_key* key, byte* output, word32 le
 
         // Gets the key type (SUM)
         composite_level = wc_mldsa_composite_level(key);
-        if ((keySum = wc_composite_level_key_sum(composite_level)) < 0) {
+        if ((keySum = wc_mldsa_composite_level_key_sum(composite_level)) < 0) {
             return BAD_FUNC_ARG;
         }
 

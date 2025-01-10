@@ -7,12 +7,6 @@
 
 /* Interfaces for Asymmetric Keys */
 
-/* Possible Composite options:
- *
- * HAVE_MLDSA_COMPOSITE                                       Default: OFF
- *   Enables the code in this file to be compiled.
- */
-
 #ifdef HAVE_CONFIG_H
     #include <config.h>
 #endif
@@ -67,9 +61,7 @@
 #endif
 
 #ifdef HAVE_MLDSA_COMPOSITE
-# ifndef WOLF_CRYPT_MLDSA_COMPOSITE_H
-#  include <wolfssl/wolfcrypt/mldsa_composite.h>
-# endif
+# include <wolfssl/wolfcrypt/mldsa_composite.h>
 #endif
 
 #ifdef __cplusplus
@@ -441,7 +433,7 @@ WOLFSSL_API int wc_AsymKey_PrivateKeyToPem_ex(const AsymKey * key,
 
 WOLFSSL_API int wc_AsymKey_Decode(AsymKey ** key, const byte * data, word32 dataSz, int format);
 
-WOLFSSL_API int wc_CertReqToDer(byte ** out, word32 * outSz, const byte * data, word32 dataSz);
+WOLFSSL_API int wc_CertReqToDer(byte ** out, word32 * outSz, const byte * data, word32 dataSz, byte isReq);
 
 /* Sign a message with the key.
  *

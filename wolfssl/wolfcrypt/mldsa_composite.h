@@ -140,13 +140,13 @@
 // TODO: @madwolf Values need to be checked
 
 #define MLDSA44_RSA2048_KEY_SIZE        DILITHIUM_SEED_SZ + RSA2048_KEY_SIZE + 12
-#define MLDSA44_RSA2048_SIG_SIZE        DILITHIUM_ML_DSA_44_SIG_SIZE + RSA2048_SIG_SIZE + 12 + 2
-#define MLDSA44_RSA2048_PUB_KEY_SIZE    DILITHIUM_ML_DSA_44_PUB_KEY_SIZE + RSA2048_PUB_KEY_SIZE + 14
-#define MLDSA44_RSA2048_PRV_KEY_SIZE    DILITHIUM_ML_DSA_44_PRV_KEY_SIZE + RSA2048_PRV_KEY_SIZE + 14 + 2
+#define MLDSA44_RSA2048_SIG_SIZE        ML_DSA_LEVEL2_SIG_SIZE + RSA2048_SIG_SIZE + 12 + 2
+#define MLDSA44_RSA2048_PUB_KEY_SIZE    ML_DSA_LEVEL2_PUB_KEY_SIZE + RSA2048_PUB_KEY_SIZE + 14
+#define MLDSA44_RSA2048_PRV_KEY_SIZE    ML_DSA_LEVEL2_PRV_KEY_SIZE + RSA2048_PRV_KEY_SIZE + 14 + 2
 
 #define MLDSA44_NISTP256_KEY_SIZE       DILITHIUM_SEED_SZ + 32 + 12
-#define MLDSA44_NISTP256_SIG_SIZE       DILITHIUM_ML_DSA_44_SIG_SIZE + 72 + 12
-#define MLDSA44_NISTP256_PUB_KEY_SIZE   DILITHIUM_ML_DSA_44_PUB_KEY_SIZE + 64 + 12
+#define MLDSA44_NISTP256_SIG_SIZE       ML_DSA_LEVEL2_SIG_SIZE + 72 + 12
+#define MLDSA44_NISTP256_PUB_KEY_SIZE   ML_DSA_LEVEL2_PUB_KEY_SIZE + 64 + 12
 #define MLDSA44_NISTP256_PRV_KEY_SIZE   MLDSA44_NISTP256_KEY_SIZE
 
 /*
@@ -157,13 +157,13 @@
 */
 
 #define MLDSA44_ED25519_KEY_SIZE       2 + 2 + DILITHIUM_SEED_SZ + 2 + ED25519_KEY_SIZE
-#define MLDSA44_ED25519_SIG_SIZE       4 + 4 + DILITHIUM_ML_DSA_44_SIG_SIZE + 4 + ED25519_SIG_SIZE
-#define MLDSA44_ED25519_PUB_KEY_SIZE   4 + 4 + DILITHIUM_ML_DSA_44_PUB_KEY_SIZE + 4 + ED25519_PUB_KEY_SIZE
+#define MLDSA44_ED25519_SIG_SIZE       4 + 4 + ML_DSA_LEVEL2_SIG_SIZE + 4 + ED25519_SIG_SIZE
+#define MLDSA44_ED25519_PUB_KEY_SIZE   4 + 4 + ML_DSA_LEVEL2_PUB_KEY_SIZE + 4 + ED25519_PUB_KEY_SIZE
 #define MLDSA44_ED25519_PRV_KEY_SIZE   MLDSA44_ED25519_KEY_SIZE
 
 #define MLDSA44_BPOOL256_KEY_SIZE      DILITHIUM_SEED_SZ + 32 + 12
-#define MLDSA44_BPOOL256_SIG_SIZE      DILITHIUM_ML_DSA_44_SIG_SIZE + 72 + 12
-#define MLDSA44_BPOOL256_PUB_KEY_SIZE  DILITHIUM_ML_DSA_44_PUB_KEY_SIZE + 64 + 12
+#define MLDSA44_BPOOL256_SIG_SIZE      ML_DSA_LEVEL2_SIG_SIZE + 72 + 12
+#define MLDSA44_BPOOL256_PUB_KEY_SIZE  ML_DSA_LEVEL2_PUB_KEY_SIZE + 64 + 12
 #define MLDSA44_BPOOL256_PRV_KEY_SIZE  MLDSA44_BPOOL256_KEY_SIZE
 
 /* NOTE: There seems to be an issue with the _PRV_ sizes definitions
@@ -173,42 +173,42 @@
 */
 
 #define MLDSA65_NISTP256_KEY_SIZE           DILITHIUM_SEED_SZ + 32 + 16 + 7
-#define MLDSA65_NISTP256_SIG_SIZE           DILITHIUM_ML_DSA_65_SIG_SIZE + 72 + 16 + 7
-#define MLDSA65_NISTP256_PUB_KEY_SIZE       DILITHIUM_ML_DSA_65_PUB_KEY_SIZE + 64 + 16 + 7
+#define MLDSA65_NISTP256_SIG_SIZE           ML_DSA_LEVEL3_SIG_SIZE + 72 + 16 + 7
+#define MLDSA65_NISTP256_PUB_KEY_SIZE       ML_DSA_LEVEL3_PUB_KEY_SIZE + 64 + 16 + 7
 #define MLDSA65_NISTP256_PRV_KEY_SIZE       MLDSA65_NISTP256_KEY_SIZE + 32 + 16 + 7
 
 #define MLDSA65_ED25519_KEY_SIZE       DILITHIUM_SEED_SZ + ED25519_KEY_SIZE + 16 + 7
-#define MLDSA65_ED25519_SIG_SIZE       DILITHIUM_ML_DSA_65_SIG_SIZE + ED25519_SIG_SIZE + 16 + 7
-#define MLDSA65_ED25519_PUB_KEY_SIZE   DILITHIUM_ML_DSA_65_PUB_KEY_SIZE + ED25519_PUB_KEY_SIZE + 16 + 7
+#define MLDSA65_ED25519_SIG_SIZE       ML_DSA_LEVEL3_SIG_SIZE + ED25519_SIG_SIZE + 16 + 7
+#define MLDSA65_ED25519_PUB_KEY_SIZE   ML_DSA_LEVEL3_PUB_KEY_SIZE + ED25519_PUB_KEY_SIZE + 16 + 7
 #define MLDSA65_ED25519_PRV_KEY_SIZE   MLDSA65_ED25519_KEY_SIZE
 
 #define MLDSA65_RSA3072_KEY_SIZE       DILITHIUM_SEED_SZ + RSA3072_KEY_SIZE + 16 + 2
-#define MLDSA65_RSA3072_SIG_SIZE       DILITHIUM_ML_DSA_65_SIG_SIZE + RSA3072_SIG_SIZE + 16 + 2
-#define MLDSA65_RSA3072_PUB_KEY_SIZE   DILITHIUM_ML_DSA_65_PUB_KEY_SIZE + RSA3072_PUB_KEY_SIZE + 16
+#define MLDSA65_RSA3072_SIG_SIZE       ML_DSA_LEVEL3_SIG_SIZE + RSA3072_SIG_SIZE + 16 + 2
+#define MLDSA65_RSA3072_PUB_KEY_SIZE   ML_DSA_LEVEL3_PUB_KEY_SIZE + RSA3072_PUB_KEY_SIZE + 16
 #define MLDSA65_RSA3072_PRV_KEY_SIZE   MLDSA65_RSA3072_KEY_SIZE
 
 #define MLDSA65_RSA4096_KEY_SIZE       DILITHIUM_SEED_SZ + RSA4096_PRV_KEY_SIZE + 16 + 2
-#define MLDSA65_RSA4096_SIG_SIZE       DILITHIUM_ML_DSA_65_SIG_SIZE + RSA4096_SIG_SIZE + 16 + 2
-#define MLDSA65_RSA4096_PUB_KEY_SIZE   DILITHIUM_ML_DSA_65_PUB_KEY_SIZE + RSA4096_PUB_KEY_SIZE + 16
+#define MLDSA65_RSA4096_SIG_SIZE       ML_DSA_LEVEL3_SIG_SIZE + RSA4096_SIG_SIZE + 16 + 2
+#define MLDSA65_RSA4096_PUB_KEY_SIZE   ML_DSA_LEVEL3_PUB_KEY_SIZE + RSA4096_PUB_KEY_SIZE + 16
 #define MLDSA65_RSA4096_PRV_KEY_SIZE   MLDSA65_RSA4096_KEY_SIZE
 
 #define MLDSA87_NISTP384_KEY_SIZE      DILITHIUM_SEED_SZ + 48 + 16 + 7
-#define MLDSA87_NISTP384_SIG_SIZE      DILITHIUM_ML_DSA_87_SIG_SIZE + 96 + 16 + 7
-#define MLDSA87_NISTP384_PUB_KEY_SIZE  DILITHIUM_ML_DSA_87_PUB_KEY_SIZE + ECC_MAXSIZE + 18 + 16 + 7
+#define MLDSA87_NISTP384_SIG_SIZE      ML_DSA_LEVEL5_SIG_SIZE + 96 + 16 + 7
+#define MLDSA87_NISTP384_PUB_KEY_SIZE  ML_DSA_LEVEL5_PUB_KEY_SIZE + ECC_MAXSIZE + 18 + 16 + 7
 #define MLDSA87_NISTP384_PRV_KEY_SIZE  MLDSA87_NISTP384_KEY_SIZE
 
 #define MLDSA87_ED448_KEY_SIZE         DILITHIUM_SEED_SZ + ED448_KEY_SIZE + 16 + 7
-#define MLDSA87_ED448_SIG_SIZE         DILITHIUM_ML_DSA_87_SIG_SIZE + ED448_SIG_SIZE + 16 + 7
-#define MLDSA87_ED448_PUB_KEY_SIZE     DILITHIUM_ML_DSA_87_PUB_KEY_SIZE + ED448_PUB_KEY_SIZE + 16 + 7
+#define MLDSA87_ED448_SIG_SIZE         ML_DSA_LEVEL5_SIG_SIZE + ED448_SIG_SIZE + 16 + 7
+#define MLDSA87_ED448_PUB_KEY_SIZE     ML_DSA_LEVEL5_PUB_KEY_SIZE + ED448_PUB_KEY_SIZE + 16 + 7
 #define MLDSA87_ED448_PRV_KEY_SIZE     MLDSA87_ED448_KEY_SIZE
 
 #define MLDSA_COMPOSITE_MAX_OTHER_SIG_SZ RSA4096_SIG_SIZE + 16 + 7
 #define MLDSA_COMPOSITE_MAX_OTHER_KEY_SZ RSA4096_PRV_KEY_SIZE 
 
 #define MLDSA_COMPOSITE_MIN_KEY_SIZE   MLDSA44_ED25519_KEY_SIZE
-#define MLDSA_COMPOSITE_MAX_KEY_SIZE   DILITHIUM_LEVEL5_KEY_SIZE + MLDSA_COMPOSITE_MAX_OTHER_KEY_SZ + 16 + 7
+#define MLDSA_COMPOSITE_MAX_KEY_SIZE   ML_DSA_LEVEL5_KEY_SIZE + MLDSA_COMPOSITE_MAX_OTHER_KEY_SZ + 16 + 7
 #define MLDSA_COMPOSITE_MIN_SIG_SIZE   MLDSA44_ED25519_SIG_SIZE
-#define MLDSA_COMPOSITE_MAX_SIG_SIZE   DILITHIUM_LEVEL5_SIG_SIZE + MLDSA_COMPOSITE_MAX_OTHER_SIG_SZ + 16 + 7
+#define MLDSA_COMPOSITE_MAX_SIG_SIZE   ML_DSA_LEVEL5_SIG_SIZE + MLDSA_COMPOSITE_MAX_OTHER_SIG_SZ + 16 + 7
 
 #define MLDSA_COMPOSITE_MIN_PUB_KEY_SIZE MLDSA44_ED25519_PUB_KEY_SIZE
 #define MLDSA_COMPOSITE_MAX_PUB_KEY_SIZE MLDSA87_ED448_PUB_KEY_SIZE
@@ -569,7 +569,7 @@ WOLFSSL_API int wc_mldsa_composite_key_sum_level(const enum Key_Sum keytype_sum)
 * returns enum Key_Sum value.
 * returns BAD_FUNC_ARG when type is not a valid value.
 */
-WOLFSSL_API int wc_composite_level_key_sum(const enum mldsa_composite_level level);
+WOLFSSL_API int wc_mldsa_composite_level_key_sum(const enum mldsa_composite_level level);
 
 /* Clears the MlDsaComposite key data but does not release the memory.
  *
@@ -840,28 +840,48 @@ WOLFSSL_API int wc_MlDsaComposite_KeyToDer(mldsa_composite_key* key, byte* outpu
 #endif /* WOLFSSL_MLDSA_COMPOSITE_PRIVATE_KEY */
 #endif /* !WOLFSSL_MLDSA_COMPOSITE_NO_ASN1 */
 
-// #define MlDsaKey            dilithium_key
 #define MlDsaCompositeKey   mldsa_composite_key
 
-
-#define wc_MlDsaCompositeKey_Init(key, heap, devId)                      \
+#define wc_MlDsaCompositeKey_Init(key)                                   \
+    wc_mldsa_composite_init(key)
+#define wc_MlDsaCompositeKey_Init_ex(key, heap, devId)                   \
     wc_mldsa_composite_init_ex(key, heap, devId)
-#define wc_MlDsaCompositeKey_SetParams(key, id)                          \
-    wc_mldsa_composite_set_level(key, id)
-#define wc_MlDsaCompositeKey_GetParams(key, id)                          \
-    wc_mldsa_composite_get_level(key, id)
-#define wc_MlDsaCompositeKey_MakeKey(key, rng)                           \
-    wc_mldsa_composite_make_key(key, rng)
-#define wc_MlDsaCompositeKey_Sign(key, sig, sigSz, msg, msgSz, rng)      \
-    wc_mldsa_composite_sign_msg(msg, msgSz, sig, sigSz, key, rng)
 #define wc_MlDsaCompositeKey_Free(key)                                   \
     wc_mldsa_composite_free(key)
+#define wc_MlDsaCompositeKey_SetLevel(key, level)                        \
+    wc_mldsa_composite_set_level(key, level)
+#define wc_MlDsaCompositeKey_GetLevel(key)                               \
+    wc_mldsa_composite_level(key)
+#define wc_MlDsaCompositeKey_GetTypeFromLevel(level)                     \
+    wc_mldsa_composite_level_type(level)
+#define wc_MlDsaCompositeKey_GetOidSum(key)                              \
+    wc_mldsa_composite_key_sum(key)
+#define wc_MlDsaCompositeKey_GetSumFromLevel(sum)                        \
+    wc_mldsa_composite_key_sum_level(sum)
+#define wc_MlDsaCompositeKey_GetLevelFromSum(level)                      \
+    wc_mldsa_composite_level_key_sum(level)
+#define wc_MlDsaCompositeKey_MakeKey(key, level, rng)                    \
+    wc_mldsa_composite_make_key(key, level, rng)
 #define wc_MlDsaCompositeKey_ExportPubRaw(key, out, outLen)              \
     wc_mldsa_composite_export_public(key, out, outLen)
-#define wc_MlDsaCompositeKey_ImportPubRaw(key, in, inLen)                \
-    wc_mldsa_composite_import_public(out, outLen, key)
+#define wc_MlDsaCompositeKey_ImportPubRaw(key, in, inLen, level)         \
+    wc_mldsa_composite_import_public(in, inLen, key, level)
+#define wc_MlDsaCompositeKey_ExportPrivRaw(key, out, outLen)             \
+    wc_mldsa_composite_export_private(key, out, outLen)
+#define wc_MlDsaCompositeKey_ImportPrivRaw(key, in, inLen, level)        \
+    wc_mldsa_composite_import_private(in, inLen, key, level)
+#define wc_MlDsaCompositeKey_ExportPrivOnlyRaw(key, out, outLen)         \
+    wc_mldsa_composite_export_private_only(key, out, outLen)
+#define wc_MlDsaCompositeKey_ImportPKCS8(key, in, inLen)                 \
+    wc_MlDsaComposite_PrivateKeyDecode(in, inLen, key)
+#define wc_MlDsaCompositeKey_ExportPKCS8(key, out, outLen)               \
+    wc_MlDsaComposite_PrivateKeyToDer(key, out, outLen)
+#define wc_MlDsaCompositeKey_CheckKey(key)                               \
+    wc_mldsa_composite_check_key(key)
 #define wc_MlDsaCompositeKey_Verify(key, sig, sigSz, msg, msgSz, res)    \
     wc_mldsa_composite_verify_msg(sig, sigSz, msg, msgSz, res, key)
+#define wc_MlDsaCompositeKey_Sign(key, sig, sigSz, msg, msgSz, rng)      \
+    wc_mldsa_composite_sign_msg(msg, msgSz, sig, sigSz, key, rng)
 
 int wc_MlDsaCompositeKey_GetPrivLen(MlDsaCompositeKey* key, int* len);
 
