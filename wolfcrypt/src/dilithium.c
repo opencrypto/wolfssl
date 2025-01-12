@@ -2195,7 +2195,7 @@ static int dilithium_rej_ntt_poly_ex(wc_Shake* shake128, byte* seed, sword32* a,
 static int dilithium_rej_ntt_poly(wc_Shake* shake128, byte* seed, sword32* a,
     void* heap)
 {
-    int ret;
+    int ret = 0;
 #if defined(WOLFSSL_SMALL_STACK)
     byte* h = NULL;
 #else
@@ -2212,7 +2212,8 @@ static int dilithium_rej_ntt_poly(wc_Shake* shake128, byte* seed, sword32* a,
     }
 #endif
 
-    ret = dilithium_rej_ntt_poly_ex(shake128, seed, a, h);
+    if (ret == 0)
+        ret = dilithium_rej_ntt_poly_ex(shake128, seed, a, h);
 
 #if defined(WOLFSSL_SMALL_STACK)
     XFREE(h, heap, DYNAMIC_TYPE_DILITHIUM);
@@ -6077,6 +6078,7 @@ static int dilithium_sign_with_seed_mu(dilithium_key* key,
             ret = MEMORY_E;
         }
         else {
+            XMEMSET(key->s1, 0, params->aSz);
             key->s2 = key->s1  + params->s1Sz / sizeof(*s1);
             key->t0 = key->s2  + params->s2Sz / sizeof(*s2);
         }
@@ -7224,6 +7226,9 @@ static int dilithium_verify_mu(dilithium_key* key, const byte* mu,
         if (key->a == NULL) {
             ret = MEMORY_E;
         }
+        else {
+            XMEMSET(key->a, 0, params->aSz);
+        }
     }
 #endif
     if (ret == 0) {
@@ -7237,6 +7242,9 @@ static int dilithium_verify_mu(dilithium_key* key, const byte* mu,
             DYNAMIC_TYPE_DILITHIUM);
         if (key->t1 == NULL) {
             ret = MEMORY_E;
+        }
+        else {
+            XMEMSET(key->t1, 0, params->s2Sz);
         }
     }
 #endif
@@ -7260,6 +7268,7 @@ static int dilithium_verify_mu(dilithium_key* key, const byte* mu,
             ret = MEMORY_E;
         }
         else {
+            XMEMSET(z, 0, allocSz);
             c   = z  + params->s1Sz / sizeof(*z);
             w   = c  + DILITHIUM_N;
 #ifndef WC_DILITHIUM_CACHE_PUB_VECTORS
@@ -7388,6 +7397,7 @@ static int dilithium_verify_mu(dilithium_key* key, const byte* mu,
             ret = MEMORY_E;
         }
         else {
+            XMEMSET(z, 0, allocSz);
             c     = z + params->s1Sz / sizeof(*t1);
             w     = c + DILITHIUM_N;
             t1    = w + DILITHIUM_N;
@@ -8911,6 +8921,7 @@ int wc_dilithium_check_key(dilithium_key* key)
             ret = MEMORY_E;
         }
         else {
+            XMEMSET(s1, 0, allocSz);
             s2 = s1 + params->s1Sz / sizeof(*s1);
             t0 = s2 + params->s2Sz / sizeof(*s2);
             t  = t0 + params->s2Sz / sizeof(*t0);
@@ -9200,6 +9211,9 @@ int wc_dilithium_import_public(const byte* in, word32 inLen, dilithium_key* key)
             if (key->t1 == NULL) {
                 ret = MEMORY_E;
             }
+            else {
+                XMEMSET(key->t1, 0, key->params->s2Sz);
+            }
         }
     #endif
     }
@@ -9215,6 +9229,9 @@ int wc_dilithium_import_public(const byte* in, word32 inLen, dilithium_key* key)
                 DYNAMIC_TYPE_DILITHIUM);
             if (key->a == NULL) {
                 ret = MEMORY_E;
+            }
+            else {
+                XMEMSET(key->a, 0, params->aSz);
             }
         }
     #endif
@@ -9285,6 +9302,9 @@ static int dilithium_set_priv_key(const byte* priv, word32 privSz,
             if (key->a == NULL) {
                 ret = MEMORY_E;
             }
+            else {
+                XMEMSET(key->a, 0, params->aSz);
+            }
         }
     }
 #endif
@@ -9305,6 +9325,9 @@ static int dilithium_set_priv_key(const byte* priv, word32 privSz,
             key->heap, DYNAMIC_TYPE_DILITHIUM);
         if (key->s1 == NULL) {
             ret = MEMORY_E;
+        }
+        else {
+            XMEMSET(key->s1, 0, params->s1Sz + params->s2Sz + params->s2Sz);
         }
         if (ret == 0) {
             /* Set pointers into allocated memory. */
