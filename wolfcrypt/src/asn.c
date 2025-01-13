@@ -27495,6 +27495,33 @@ int wc_KeySum_get(const char * name) {
         }
     }
 
+    if (ret < 0) {
+
+        word32 idx = 0;
+        word32 keySum = 0;
+        byte tmpBuf[256];
+        word32 tmpBufSz = sizeof(tmpBuf);
+            // TMP buffer for the encoded OID
+
+        // Encodes the OID
+        ret = EncodePolicyOID(tmpBuf, &tmpBufSz, name, NULL);
+        if (ret < 0) {
+            return ret;
+        }
+
+        // Parses the OID
+        ret = GetAlgoId(tmpBuf, &idx, &keySum, oidKeyType, tmpBufSz);
+        if (ret < 0) {
+            printf("ERROR: Cannot get the Algo ID: %d\n", ret);
+            return ret;
+        }
+
+        ret = keySum;
+
+        printf("GetAlgoId: %d (keySum: %d)\n", ret, keySum);
+        
+    }
+
     return ret;
 }
 

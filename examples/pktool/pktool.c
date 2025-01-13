@@ -602,6 +602,7 @@ int main(int argc, char** argv) {
     char * in_file = NULL;
 
     int i = 1;
+    int ret = 0;
     
     int param = 0;
     int cmd = 0; /* 0 = pkey, 1 = req, 2 = cert */
@@ -683,11 +684,46 @@ int main(int argc, char** argv) {
         } else if ((XSTRNCMP(argv[i], "-algorithm", 10) == 0) ||
                    (XSTRNCMP(argv[i], "-algor", 6) == 0)) {
             i++;
-            keySum = wc_KeySum_get(argv[i]);
-            if ( keySum < 0) {
-                printf("Invalid algorithm type\n");
-                return 1;
+            ret = wc_KeySum_get(argv[i]);
+            if (ret < 0) {
+                printf("\n    ERROR: Cannot parse the Algorithm Identifier (%s)\n\n", argv[i]);
+                error = 1;
+                break;
             }
+            // if (ret > 0) {
+            //     // Parsed the Algo Name
+            //     keySum = ret;
+            // } else {
+
+            //     word32 idx = 0;
+            //     byte tmpBuf[256];
+            //     word32 tmpBufSz = sizeof(tmpBuf);
+            //         // TMP buffer for the encoded OID
+
+            //     printf("Cannot get the KeySum, trying parsing the OID...\n");
+
+            //     // Encodes the OID
+            //     ret = EncodePolicyOID(tmpBuf, &tmpBufSz, argv[i], NULL);
+            //     if (ret < 0) {
+            //         printf("\n    ERROR: Cannot parse the Algorithm Identifier (%s)\n\n", argv[i]);
+            //         error = 1;
+            //         break;
+            //     }
+
+            //     printf("EncodePolicyOid: %d (tmpBufSz: %d)", ret, tmpBufSz);
+
+            //     // Parses the OID
+            //     ret = GetAlgoId(tmpBuf, &idx, &keySum, oidKeyType, tmpBufSz);
+            //     if (ret < 0) {
+            //         error = 1;
+            //         break;
+            //     }
+
+            //     printf("GetAlgoId: %d (keySum: %d)\n", ret, keySum);
+            // }
+
+            printf(">>>>>>> Got Algo Id: %d (%s)\n", keySum, argv[i]);
+
         } else if (XSTRNCMP(argv[i], "-curve", 6) == 0) {
             i++;
                    if (!XSTRNCMP(argv[i], "nistp256", 8) ||
