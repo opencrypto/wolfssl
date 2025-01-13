@@ -190,18 +190,6 @@ static int wc_mldsa_compositeTBS_msg(byte* tbsMsg, word32 *tbsLen, const byte* m
             }
             *tbsLen += WC_SHA512_DIGEST_SIZE;
 
-            // // Calculates the Message Digest
-            // wc_Sha512 sha512_hash;
-            // if (!((ret = wc_InitSha512(&sha512_hash)) < 0) &&
-            //      !((ret = wc_Sha512Update(&sha512_hash, msg, msgLen)) < 0) &&
-            //      !((ret = wc_Sha512Final(&sha512_hash, tbsMsg + *tbsLen)) < 0)) {
-
-            //     // Adds the length of the hash to the total length
-            //     *tbsLen += WC_SHA512_DIGEST_SIZE;
-            // } else {
-            //     return ret;
-            // }
-
         } break;
 
         case D2_WC_MLDSA44_RSAPSS2048_SHA256:
@@ -218,20 +206,7 @@ static int wc_mldsa_compositeTBS_msg(byte* tbsMsg, word32 *tbsLen, const byte* m
                 MADWOLF_DEBUG("wc_Sha256Hash() failed with error %d", ret);
                 return ret;
             }
-
             *tbsLen += WC_SHA256_DIGEST_SIZE;
-
-            // // Calculates the Message Digest
-            // wc_Sha256 sha256_hash;
-            // if (!((ret = wc_InitSha256(&sha256_hash)) < 0) &&
-            //      !((ret = wc_Sha256Update(&sha256_hash, msg, msgLen)) < 0 ) &&
-            //      !((ret = wc_Sha256Final(&sha256_hash, tbsMsg + *tbsLen)) < 0)) {
-
-            //     // Adds the length of the hash to the total length
-            //     *tbsLen += WC_SHA256_DIGEST_SIZE;
-            // } else {
-            //     return ret;
-            // }
 
         } break;
 
@@ -253,18 +228,6 @@ static int wc_mldsa_compositeTBS_msg(byte* tbsMsg, word32 *tbsLen, const byte* m
                 return ret;
             }
             *tbsLen += WC_SHA384_DIGEST_SIZE;
-
-            // // Calculates the Message Digest
-            // wc_Sha384 sha384_hash;
-            // if (!((ret = wc_InitSha384(&sha384_hash)) <0) &&
-            //      !((ret = wc_Sha384Update(&sha384_hash, msg, msgLen)) <0) &&
-            //      !((ret = wc_Sha384Final(&sha384_hash, tbsMsg + *tbsLen)) < 0)) {
-
-            //     // Adds the length of the hash to the total length
-            //     *tbsLen += WC_SHA384_DIGEST_SIZE;
-            // } else {
-            //     return ret;
-            // }
 
         } break;
 #endif

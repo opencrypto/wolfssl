@@ -1510,40 +1510,6 @@ int wc_AsymKey_export_ex(const AsymKey * key,
                     return ret;
                 }
             }
-            // derPkcsPtr = derPtr;
-            // derPkcsSz = derSz;
-            
-            // // ----------------------
-            // // Export in PKCS8 format
-            // // ----------------------
-
-            // ret = wc_CreatePKCS8Key(NULL, &derPkcsSz, derPtr, derSz, keyOid, NULL, 0);
-            // if (ret != LENGTH_ONLY_E) {
-            //     MADWOLF_DEBUG("Error creating PKCS8 key (%d)\n", ret);
-            //     XFREE(derPtr, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-            //     return BAD_STATE_E;
-            // }
-
-            // derPkcsPtr = (byte *)XMALLOC(derPkcsSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-            // if (derPkcsPtr == NULL) {
-            //     XFREE(derPtr, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-            //     return MEMORY_E;
-            // }
-
-            // if (buff) {
-            //     ret = wc_CreatePKCS8Key(derPkcsPtr, &derPkcsSz, derPtr, derSz, keyOid, NULL, 0);
-            //     if (ret < 0) {
-            //         MADWOLF_DEBUG("Error creating PKCS8 key (%d)\n", ret);
-            //         XFREE(derPtr, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-            //         XFREE(derPkcsPtr, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-            //         return BAD_STATE_E;
-            //     }
-            // }
-
-            // // Free the DER buffer
-            // XFREE(derPtr, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-            // derPtr = NULL;
-            // derSz = 0;
 #else
             return -1;
 #endif // WOLFSSL_KEY_GEN || OPENSSL_EXTRA || WOLFSSL_KCAPI_RSA || WOLFSSL_SE050
@@ -1558,11 +1524,6 @@ int wc_AsymKey_export_ex(const AsymKey * key,
             if (ret <= 0) {
                 return BAD_FUNC_ARG;
             }
-            // // Get the size of the DER key
-            // derSz = ret = wc_EccKeyDerSize((ecc_key *)eccKey, 1);
-            // if (ret < 0) {
-            //     return BAD_FUNC_ARG;
-            // }
 
             if (buff) {
                 // Allocate memory for the DER key
@@ -1571,58 +1532,12 @@ int wc_AsymKey_export_ex(const AsymKey * key,
                     return MEMORY_E;
                 }
 
-                // // Export the key to DER format
-                // ret = wc_EccKeyToDer((ecc_key *)eccKey, derPtr, derSz);
-                // if (ret < 0) {
-                //     XFREE(derPtr, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-                //     return BAD_STATE_E;
-                // }
                 ret = wc_ecc_export_private_only((ecc_key *)eccKey, derPtr, &derSz);
                 if (ret < 0) {
                     XFREE(derPtr, NULL, DYNAMIC_TYPE_TMP_BUFFER);
                     return ret;
                 }
             }
-            // derPkcsPtr = derPtr;
-            // derPkcsSz = derSz;
-
-            // // ----------------------
-            // // Export in PKCS8 format
-            // // ----------------------
-
-            // byte * curveOid = NULL;
-            // word32 curveOidSz = 0;
-            // if ((ret = wc_ecc_get_oid(eccKey->dp->oidSum, (const byte **)&curveOid, &curveOidSz)) < 0){
-            //     XFREE(derPtr, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-            //     return ret;
-            // }
-
-            // ret = wc_CreatePKCS8Key(NULL, (word32 *)&derPkcsSz, derPtr, derSz, ECDSAk, curveOid, curveOidSz);
-            // if (ret != LENGTH_ONLY_E) {
-            //     MADWOLF_DEBUG("Error creating PKCS8 key (%d)\n", ret);
-            //     XFREE(derPtr, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-            //     return ret;
-            // }
-
-            // derPkcsPtr = (byte *)XMALLOC(derPkcsSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-            // if (derPkcsPtr == NULL) {
-            //     XFREE(derPtr, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-            //     return MEMORY_E;
-            // }
-
-            // if (buff) {
-            //     ret = wc_CreatePKCS8Key(derPkcsPtr, &derPkcsSz, derPtr, derSz, keyOid, curveOid, curveOidSz);
-            //     if (ret < 0) {
-            //         MADWOLF_DEBUG("Error creating PKCS8 key (%d)\n", ret);
-            //         XFREE(derPtr, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-            //         XFREE(derPkcsPtr, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-            //         return ret;
-            //     }
-            // }
-            // XFREE(derPtr, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-            // derPtr = NULL;
-            // derSz = 0;
-
             break;
 #endif
 #ifdef HAVE_ED25519
@@ -1632,30 +1547,11 @@ int wc_AsymKey_export_ex(const AsymKey * key,
 
             derSz = ret = ED25519_KEY_SIZE;
 
-            // // Get the size of the DER key
-            // derPkcsSz = ret = wc_Ed25519PrivateKeyToDer((ed25519_key *)ed25519Key, NULL, 0);
-            // if (ret < 0) {
-            //     return BAD_FUNC_ARG;
-            // }
-
-            // // Allocate memory for the DER key
-            // derPkcsPtr = (byte *)XMALLOC(derPkcsSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-            // if (derPkcsPtr == NULL) {
-            //     return MEMORY_E;
-            // }
-
             if (buff) {
                 derPtr = (byte *)XMALLOC(derSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
                 if (derPtr == NULL) {
                     return MEMORY_E;
                 }
-
-                // // Export the key to DER format
-                // ret = wc_Ed25519PrivateKeyToDer((ed25519_key *)ed25519Key, derPkcsPtr, derPkcsSz);
-                // if (ret < 0) {
-                //     XFREE(derPkcsPtr, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-                //     return ret;
-                // }
 
                 ret = wc_ed25519_export_private_only((ed25519_key *)ed25519Key, derPtr, &derSz);
                 if (ret < 0) {
@@ -1673,10 +1569,6 @@ int wc_AsymKey_export_ex(const AsymKey * key,
             const ed448_key * ed448Key = &key->val.ed448Key;
                 // Shortcut to the ED448 key
 
-            // derPkcsSz = ret = wc_Ed448PrivateKeyToDer((ed448_key *)ed448Key, NULL, 0);
-            // if (ret < 0) {
-            //     return BAD_FUNC_ARG;
-            // }
             derSz = ED448_KEY_SIZE;
 
             if (buff) {
@@ -1684,11 +1576,7 @@ int wc_AsymKey_export_ex(const AsymKey * key,
                 if (derPtr == NULL) {
                     return MEMORY_E;
                 }
-                // derPkcsSz = ret = wc_Ed448PrivateKeyToDer((ed448_key *)ed448Key, derPkcsPtr, derPkcsSz);
-                // if (ret < 0) {
-                //     XFREE(derPkcsPtr, NULL, DYNAMIC_TYPE_PRIVATE_KEY);
-                //     return ret;
-                // }
+
                 ret = wc_ed448_export_private_only((ed448_key *)ed448Key, derPtr, &derSz);
                 if (ret < 0) {
                     XFREE(derPtr, NULL, DYNAMIC_TYPE_PRIVATE_KEY);
@@ -1706,30 +1594,12 @@ int wc_AsymKey_export_ex(const AsymKey * key,
                 // Shortcut to the Dilithium key
 
             derSz = DILITHIUM_SEED_SZ;
-
-            // if (keyOid == ML_DSA_LEVEL2k) {
-            //     derSz = DILITHIUM_LEVEL2_KEY_SIZE;
-            // } else if (keyOid == ML_DSA_LEVEL3k) {
-            //     derSz = DILITHIUM_LEVEL3_KEY_SIZE;
-            // } else if (keyOid == ML_DSA_LEVEL5k) {
-            //     derSz = DILITHIUM_LEVEL5_KEY_SIZE;
-            // }
-
-            // derPkcsSz = ret = wc_Dilithium_PrivateKeyToDer((dilithium_key *)dilithiumKey, NULL, 0);
-            // if (ret < 0) {
-            //     return BAD_FUNC_ARG;
-            // }
             
             if (buff) {
                 derPtr = (byte *)XMALLOC(derSz, NULL, DYNAMIC_TYPE_PRIVATE_KEY);
                 if (derPtr == NULL) {
                     return MEMORY_E;
                 }
-                // derPkcsSz = ret = wc_Dilithium_PrivateKeyToDer((dilithium_key *)dilithiumKey, derPkcsPtr, derPkcsSz);
-                // if (ret < 0) {
-                //     XFREE(derPkcsPtr, NULL, DYNAMIC_TYPE_PRIVATE_KEY);
-                //     return ret;
-                // }
                 ret = wc_dilithium_export_private_only((dilithium_key *)dilithiumKey, derPtr, &derSz);
                 if (ret < 0) {
                     XFREE(derPtr, NULL, DYNAMIC_TYPE_PRIVATE_KEY);
@@ -1750,16 +1620,10 @@ int wc_AsymKey_export_ex(const AsymKey * key,
                 derSz = 2305;
             }
 
-            // derPkcsSz = ret = wc_Falcon_PrivateKeyToDer((falcon_key *)falconKey, NULL, 0);
-            // if (ret < 0) {
-            //     return BAD_FUNC_ARG;
-            // }
-            
             if (buff) {
                 if ((derPtr = (byte *)XMALLOC(derSz, NULL, DYNAMIC_TYPE_TMP_BUFFER)) == NULL) {
                     return MEMORY_E;
                 }
-                // derPkcsSz = ret = wc_Falcon_PrivateKeyToDer((falcon_key *)falconKey, derPkcsPtr, derPkcsSz);
                 ret = wc_falcon_export_private_only((falcon_key *)falconKey, derPtr, &derSz);
                 if (ret < 0) {
                     XFREE(derPtr, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -2665,7 +2529,7 @@ int wc_AsymKey_Decode(AsymKey ** key, const byte * keyData, word32 keySz, int fo
     return 0;
 }
 
-int wc_CertReqToDer(byte ** out, word32 * outSz, const byte * data, word32 dataSz, byte isReq) {
+int wc_CertReq_PemToDer(byte ** out, word32 * outSz, const byte * data, word32 dataSz, byte isReq) {
 
     int ret = 0;
         // Return value
@@ -2732,8 +2596,12 @@ int wc_CertReqToDer(byte ** out, word32 * outSz, const byte * data, word32 dataS
 
     *outSz = derSz;
 
-    if (*out == NULL) {
+    if (out == NULL) {
+        *outSz = derSz;
+        XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    } else if (*out == NULL) {
         *out = der;
+        *outSz = derSz;
     } else {
         if (*outSz < derSz) {
             XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -3351,7 +3219,7 @@ int wc_AsymKey_GetSigType(const AsymKey* key, enum wc_HashType hashType) {
     return ret;
 }
 
-int wc_AsymKey_MakeReq(byte* der, word32 derSz, const char * subjectDN, enum wc_HashType hashType, int format, const AsymKey* key /*, const AsymKey *alt_key */) {
+int wc_AsymKey_SignReq(byte* der, word32 derSz, const char * subjectDN, enum wc_HashType hashType, int format, const AsymKey* key /*, const AsymKey *alt_key */) {
 
     int ret = 0;
 
@@ -3376,7 +3244,7 @@ int wc_AsymKey_MakeReq(byte* der, word32 derSz, const char * subjectDN, enum wc_
         return BAD_FUNC_ARG;
     }
 
-    return wc_AsymKey_MakeReq_ex(der, derSz, &req, hashType, format, key, &rng);
+    return wc_AsymKey_SignReq_ex(der, derSz, &req, hashType, format, key, &rng);
 }
 
 int wc_AsymKey_CertReq_SetTemplate(Cert * tbsCert, enum wc_CertTemplate template_id) {
@@ -3538,7 +3406,7 @@ err:
     return ret;
 }
 
-WOLFSSL_API int wc_AsymKey_CertReq_SetSigtype(Cert * tbsCert, enum wc_HashType hashType, const AsymKey* caKey) {
+int wc_AsymKey_CertReq_SetSigtype(Cert * tbsCert, enum wc_HashType hashType, const AsymKey* caKey) {
 
     int ret = 0;
 
@@ -3622,7 +3490,6 @@ int wc_AsymKey_CertReq_SetIssuer_CaCert(Cert * tbsCert, const byte * der, word32
 
     if (ret == 0) {
         ret = wc_SetIssuerBuffer(tbsCert, der, derSz);
-        printf("Issuer Set %d\n", ret);
     }
 
     return ret;
@@ -3811,7 +3678,7 @@ int wc_AsymKey_CertReq_GetPublicKey(AsymKey * aKey, byte *reqData, word32 reqDat
     return ret;
 }
 
-int wc_AsymKey_MakeReq_ex(byte* der, word32 derSz, wc_x509Req* req, enum wc_HashType hashType, int format, const AsymKey* key, WC_RNG* rng) {
+int wc_AsymKey_SignReq_ex(byte* der, word32 derSz, wc_x509Req* req, enum wc_HashType hashType, int format, const AsymKey* key, WC_RNG* rng) {
 
     int ret = 0;
     int certType = 0;
@@ -3894,16 +3761,16 @@ int wc_AsymKey_MakeReq_ex(byte* der, word32 derSz, wc_x509Req* req, enum wc_Hash
     return ret;
 }
 
-int wc_AsymKey_MakeCert(byte * out, word32 outSz, int outform, 
+int wc_AsymKey_SignCert(byte * out, word32 outSz, int outform, 
                         Cert* tbsCert, const AsymKey * req_pub_key,
                         enum wc_HashType hashType, const AsymKey* priv_key,
                         WC_RNG* rng) {
 
-    return wc_AsymKey_MakeCert_ex(out, outSz, outform, NULL, 0, tbsCert, req_pub_key, hashType, priv_key, NULL, rng);
+    return wc_AsymKey_SignCert_ex(out, outSz, outform, NULL, 0, tbsCert, req_pub_key, hashType, priv_key, NULL, rng);
 
 }
 
-int wc_AsymKey_MakeCert_ex(byte * out, word32 outSz, int outform, 
+int wc_AsymKey_SignCert_ex(byte * out, word32 outSz, int outform, 
                            byte * caCert, word32 caCertSz, Cert* tbsCert,  
                            const AsymKey * reqPubKey, enum wc_HashType hashType,
                            const AsymKey * caKey, const AsymKey * caAltKey,
@@ -4102,7 +3969,7 @@ exit:
     return ret;
 }
 
-int wc_AsymKey_MakeCert_Template(byte * out, word32 outSz, int outform, byte * reqData, word32 reqDataSz, byte * ca, word32 caSz,
+int wc_AsymKey_SignCertTemplate(byte * out, word32 outSz, int outform, byte * reqData, word32 reqDataSz, byte * ca, word32 caSz,
                         enum wc_CertTemplate templateId, const char * subjectOverride, enum wc_HashType hashType, const AsymKey* priv_key,
                         WC_RNG* rng) {
     
@@ -4194,11 +4061,11 @@ int wc_AsymKey_MakeCert_Template(byte * out, word32 outSz, int outform, byte * r
     
     // Generates the Certificate
     if (derReq) {
-        ret = wc_AsymKey_MakeCert_ex(out, outSz, outform, 
+        ret = wc_AsymKey_SignCert_ex(out, outSz, outform, 
                                      ca, caSz, &myCert, &pub_key,
                                      hashType, priv_key, NULL, rng);
     } else {
-        ret = wc_AsymKey_MakeCert_ex(out, outSz, outform, 
+        ret = wc_AsymKey_SignCert_ex(out, outSz, outform, 
                                      ca, caSz, &myCert, NULL,
                                      hashType, priv_key, NULL, rng);
     }
