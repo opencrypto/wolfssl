@@ -238,7 +238,7 @@ int gen_csr(const AsymKey * keyPair, const AsymKey * altkey, const char * out_fi
     }
 
     wc_InitRng(&rng);
-    ret = wc_AsymKey_MakeReq_ex(der, derSz, &aReq, WC_HASH_TYPE_SHA512, 1, keyPair, &rng);
+    ret = wc_AsymKey_SignReq_ex(der, derSz, &aReq, WC_HASH_TYPE_SHA512, 1, keyPair, &rng);
     if (ret < 0) {
         printf("Error Generating the Request: ret = %d, derSz = %d\n", ret, derSz);
         return ret;
@@ -454,35 +454,44 @@ int sign_cert(const char * req_file, const char * outCertFilename, int outCertFo
         return BAD_FUNC_ARG;
     }
 
+    // Loads the request
     if (req_file) {
         if (load_file(&data, (int *)&dataSz, req_file) < 0) {
             printf("Cannot open the request file (%s)\n", req_file);
             return -1;
         }
 
-        ret = wc_CertReqToDer(&derReq, &derReqSz, data, dataSz, 1);
+        ret = wc_CertReq_PemToDer(&derReq, &derReqSz, data, dataSz, 1);
         if (ret < 0) {
             printf("Error converting the request to DER: %d\n", ret);
             return ret;
         }
     }
 
+    // Loads the CA certificate
     if (caCertFilename) {
         if (load_file(&pem, (int *)&pemSz, caCertFilename) < 0) {
             printf("Cannot open the CA certificate file (%s)\n", caCertFilename);
             goto exit;
         }
-        ret = wc_CertReqToDer(&ca, &caSz, pem, pemSz, 0);
+        ret = wc_CertReq_PemToDer(&ca, &caSz, pem, pemSz, 0);
         if (ret < 0) {
             printf("2 Error converting the request to DER: %d\n", ret);
             return ret;
         }
     }
 
+    // Initializes the random number generator
     wc_InitRng(&rng);
+
+    // Initializes the certificate structure
     wc_InitCert(&aCert);
 
-    wc_AsymKey_CertReq_SetTemplate(&aCert, WC_CERT_TEMPLATE_IETF_TLS_CLIENT);
+    ret = wc_AsymKey_CertReq_SetTemplate(&aCert, WC_CERT_TEMPLATE_IETF_TLS_CLIENT);
+    if (ret < 0) {
+        printf("Error setting the template: %d\n", ret);
+        return ret;
+    }
 
     ret = wc_AsymKey_CertReq_SetSerial(&aCert, NULL, 15);
     if (ret < 0) {
@@ -513,12 +522,11 @@ int sign_cert(const char * req_file, const char * outCertFilename, int outCertFo
     // aCert.version = 2; // Version 3
     // aCert.daysValid = 365; // 1 year
 
-    ret = wc_AsymKey_MakeCert_ex(NULL, 0, 1, ca, caSz, &aCert, &reqPubKey, 0, caKeyPair, NULL, &rng);
+    certSz = ret = wc_AsymKey_SignCert_ex(NULL, 0, 1, ca, caSz, &aCert, &reqPubKey, 0, caKeyPair, NULL, &rng);
     if (ret < 0) {
         printf("Error generating the certificate: %d\n", ret);
         return ret;
     }
-    certSz = ret;
 
     cert = (byte *)XMALLOC(certSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (cert == NULL) {
@@ -526,7 +534,7 @@ int sign_cert(const char * req_file, const char * outCertFilename, int outCertFo
         return -1;
     }
 
-    ret = wc_AsymKey_MakeCert_ex(cert, certSz, 1, ca, caSz, &aCert, &reqPubKey, 0, caKeyPair, NULL, &rng);
+    ret = wc_AsymKey_SignCert_ex(cert, certSz, 1, ca, caSz, &aCert, &reqPubKey, 0, caKeyPair, NULL, &rng);
     if (ret < 0) {
         printf("Error generating the certificate: %d\n", ret);
         return ret;
