@@ -214,8 +214,11 @@ int gen_csr(const AsymKey * keyPair, const AsymKey * altkey, const char * out_fi
 
     Cert aReq;
 
-    byte der[WC_CTC_MAX_ALT_SIZE];
-    int  derSz = WC_CTC_MAX_ALT_SIZE;
+    // byte der[WC_CTC_MAX_ALT_SIZE];
+    // int  derSz = WC_CTC_MAX_ALT_SIZE;
+
+    byte* der = NULL;
+    word32 derSz = 0;
 
     if (!keyPair) {
         printf("Invalid key\n");
@@ -238,7 +241,7 @@ int gen_csr(const AsymKey * keyPair, const AsymKey * altkey, const char * out_fi
     }
 
     wc_InitRng(&rng);
-    ret = wc_AsymKey_SignReq_ex(der, derSz, &aReq, WC_HASH_TYPE_SHA512, 1, keyPair, &rng);
+    ret = wc_AsymKey_SignReq_ex(&der, &derSz, &aReq, WC_HASH_TYPE_SHA512, 1, keyPair, &rng);
     if (ret < 0) {
         printf("Error Generating the Request: ret = %d, derSz = %d\n", ret, derSz);
         return ret;

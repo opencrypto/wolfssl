@@ -531,13 +531,14 @@ WOLFSSL_API int wc_AsymKey_CertReq_GetPublicKey(AsymKey * aKey, byte *req, word3
  * @return  BAD_FUNC_ARG when a parameter is NULL.
  * @return  NOT_COMPILED_IN when the function is not compiled in.
  */
-WOLFSSL_API int wc_AsymKey_SignReq(byte* der, word32 derSz, const char * subjectDN, enum wc_HashType htype, int format, const AsymKey* key);
+WOLFSSL_API int wc_AsymKey_SignReq(byte** der, word32* derSz, const char * subjectDN,
+                                   enum wc_HashType htype, int format, const AsymKey* key);
 
 /* Make a new certificate request (PKCS#10).
  *
- * @param [in]  der     The DER encoded certificate request.
- * @param [in]  derSz   The size of the DER encoded certificate request.
- * @param [out] req     The certificate request.
+ * @param [out]  out     The DER encoded certificate request.
+ * @param [in]  outSz   The size of the DER encoded certificate request.
+ * @param [out] req     The certificate request config.
  * @param [in]  hashType  Hash type to use for the request.
  * @param [in]  format  Format of key data (1 = PEM, 0 = DER).
  * @param [in]  key     The key to make the request with.
@@ -546,7 +547,9 @@ WOLFSSL_API int wc_AsymKey_SignReq(byte* der, word32 derSz, const char * subject
  * @return  BAD_FUNC_ARG when a parameter is NULL.
  * @return  NOT_COMPILED_IN when the function is not compiled in.
  */
-WOLFSSL_API int wc_AsymKey_SignReq_ex(byte* der, word32 derSz, wc_x509Req* req, enum wc_HashType hashType, int format, const AsymKey* key, WC_RNG* rng);
+WOLFSSL_API int wc_AsymKey_SignReq_ex(byte** out, word32 *outSz, Cert* req, 
+                                      enum wc_HashType hashType, int format,
+                                      const AsymKey* key, WC_RNG* rng);
 
 /* Make a new certificate (X509).
  *

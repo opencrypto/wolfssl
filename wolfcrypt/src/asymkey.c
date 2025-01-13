@@ -3219,29 +3219,32 @@ int wc_AsymKey_GetSigType(const AsymKey* key, enum wc_HashType hashType) {
     return ret;
 }
 
-int wc_AsymKey_SignReq(byte* der, word32 derSz, const char * subjectDN, enum wc_HashType hashType, int format, const AsymKey* key /*, const AsymKey *alt_key */) {
+int wc_AsymKey_SignReq(byte** der, word32 *derSz, const char * subjectDN, enum wc_HashType hashType, int format, const AsymKey* key /*, const AsymKey *alt_key */) {
 
     int ret = 0;
 
-    wc_x509Req req;
+    Cert req;
 
     WC_RNG rng;
 
-    if (!key || !der || derSz <= 0)
+    if (!key || !derSz || *derSz <= 0)
         return BAD_FUNC_ARG;
-
-    XMEMSET(&req, 0, sizeof(wc_x509Req));
-
-    if (wc_InitCert(&req) < 0) {
-        return BAD_FUNC_ARG;
-    }
-    req.version = 0;
-    ret = wc_CertName_set(&req.subject, subjectDN);
-    if (ret != 0)
-        return ret;
 
     if (wc_InitRng(&rng) < 0) {
         return BAD_FUNC_ARG;
+    }
+
+    XMEMSET(&req, 0, sizeof(Cert));
+    if (wc_InitCert(&req) < 0) {
+        return BAD_FUNC_ARG;
+    }
+
+    req.version = 0;
+    
+    if (subjectDN != NULL) {
+        ret = wc_CertName_set(&req.subject, subjectDN);
+        if (ret != 0)
+            return ret;
     }
 
     return wc_AsymKey_SignReq_ex(der, derSz, &req, hashType, format, key, &rng);
@@ -3678,7 +3681,7 @@ int wc_AsymKey_CertReq_GetPublicKey(AsymKey * aKey, byte *reqData, word32 reqDat
     return ret;
 }
 
-int wc_AsymKey_SignReq_ex(byte* der, word32 derSz, wc_x509Req* req, enum wc_HashType hashType, int format, const AsymKey* key, WC_RNG* rng) {
+int wc_AsymKey_SignReq_ex(byte** out, word32 *outSz, Cert* req, enum wc_HashType hashType, int format, const AsymKey* key, WC_RNG* rng) {
 
     int ret = 0;
     int certType = 0;
@@ -3686,7 +3689,7 @@ int wc_AsymKey_SignReq_ex(byte* der, word32 derSz, wc_x509Req* req, enum wc_Hash
     byte* tbsReq = NULL;
     word32 tbsReqSz = WC_CTC_MAX_ALT_SIZE;
 
-    if (!req || !key || !rng || !der || derSz <= 0)
+    if (!req || !key || !rng)
         return BAD_FUNC_ARG;
 
     // Retrieves the key type
@@ -3727,34 +3730,33 @@ int wc_AsymKey_SignReq_ex(byte* der, word32 derSz, wc_x509Req* req, enum wc_Hash
             return ret;
         }
 
-        if (der) {
+        if (out) {
             pem_data = (byte *)XMALLOC(pem_dataSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
             if (pem_data == NULL) {
                 XFREE(tbsReq, NULL, DYNAMIC_TYPE_TMP_BUFFER);
                 return MEMORY_E;
             }
-            ret = wc_DerToPem(tbsReq, tbsReqSz, pem_data, pem_dataSz, CERTREQ_TYPE);
+            tbsReqSz = ret = wc_DerToPem(tbsReq, tbsReqSz, pem_data, pem_dataSz, CERTREQ_TYPE);
+            XFREE(tbsReq, NULL, DYNAMIC_TYPE_TMP_BUFFER);
             if (ret <= 0) {
-                XFREE(tbsReq, NULL, DYNAMIC_TYPE_TMP_BUFFER);
                 XFREE(pem_data, NULL, DYNAMIC_TYPE_TMP_BUFFER);
                 return ret;
             }
-
-            XFREE(tbsReq, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-
             tbsReq = pem_data;
-            tbsReqSz = pem_dataSz;
         }
 #endif
     }
 
-    if (der) {
-        if (tbsReqSz > derSz) {
+    if (out && *out) {
+        if (tbsReqSz > *outSz) {
             XFREE(tbsReq, NULL, DYNAMIC_TYPE_TMP_BUFFER);
             return BUFFER_E;
         }
-        XMEMCPY(der, tbsReq, tbsReqSz);
+        XMEMCPY(*out, tbsReq, tbsReqSz);
+    } else if (out) {
+        *out = tbsReq;
     }
+    *outSz = tbsReqSz;
 
     XFREE(tbsReq, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
