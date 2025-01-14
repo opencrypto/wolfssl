@@ -6052,12 +6052,9 @@ const byte* OidFromString(const char* oidStr, word32 type, word32 *oidSz, word32
         } else if (*endPtr == '\0') {
             break;
         } else {
-            printf("Invalid OID string: %s\n", oidStr);
             return NULL;
         }
     }
-
-    printf("keySum: %d (%s)\n", *keySum, oidStr);
 
     return OidFromId(*keySum, type, oidSz);
 }

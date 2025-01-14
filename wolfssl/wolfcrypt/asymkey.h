@@ -110,7 +110,7 @@ typedef struct AsymKey {
 
 /* Type Defs for More Expressive Names */
 typedef struct Cert wc_x509Cert;
-typedef struct Cert wc_x509Req;
+typedef struct Cert Cert;
 
 enum wc_CertTemplate {
     WC_CERT_TEMPLATE_UNKNOWN = 0,
@@ -141,6 +141,8 @@ enum wc_CertTemplate {
 };
 
 typedef enum wc_CertTemplate WC_CERT_TEMPLATE;
+
+#define WC_CERT_TEMPLATE_MAX WC_CERT_TEMPLATE_X9_IPSEC
 
 /* Functions */
 
@@ -577,14 +579,14 @@ WOLFSSL_API int wc_AsymKey_SignCertTemplate(byte * out, word32 outSz, int format
                         enum wc_CertTemplate templateId, const char * subjectOverride, enum wc_HashType hashType, const AsymKey* priv_key,
                         WC_RNG* rng);
 
-WOLFSSL_API int wc_X509_Req_Sign(byte * der, word32 derLen, wc_x509Req * req, enum wc_HashType htype, const AsymKey* key, WC_RNG* rng);
-WOLFSSL_API int wc_X509_Req_Sign_ex(byte * der, word32 derLen, wc_x509Req * req, enum wc_HashType htype, const byte* context, byte contextLen, const AsymKey* key, WC_RNG* rng);
+WOLFSSL_API int wc_X509_Req_Sign(byte * der, word32 derLen, Cert * req, enum wc_HashType htype, const AsymKey* key, WC_RNG* rng);
+WOLFSSL_API int wc_X509_Req_Sign_ex(byte * der, word32 derLen, Cert * req, enum wc_HashType htype, const byte* context, byte contextLen, const AsymKey* key, WC_RNG* rng);
 
 WOLFSSL_API int wc_X509_Req_Verify(const byte * der, word32 derLen);
 WOLFSSL_API int wc_X509_Req_Verify_ex(const byte * der, word32 derLen, const byte* context, byte contextLen, const AsymKey* caKey);
 
-WOLFSSL_API int wc_X509_Cert_Sign(byte * der, word32 derLen, wc_x509Req * req, enum wc_HashType htype, const AsymKey* caKey, WC_RNG* rng);
-WOLFSSL_API int wc_X509_Cert_Sign_ex(byte * der, word32 derLen, wc_x509Req * req, enum wc_HashType htype, const byte* context, byte contextLen, const AsymKey* key, WC_RNG* rng);
+WOLFSSL_API int wc_X509_Cert_Sign(byte * der, word32 derLen, Cert * req, enum wc_HashType htype, const AsymKey* caKey, WC_RNG* rng);
+WOLFSSL_API int wc_X509_Cert_Sign_ex(byte * der, word32 derLen, Cert * req, enum wc_HashType htype, const byte* context, byte contextLen, const AsymKey* key, WC_RNG* rng);
 
 WOLFSSL_API int wc_X509_Cert_Verify(const byte * der, word32 derLen, const AsymKey * key);
 WOLFSSL_API int wc_X509_Cert_Verify_ex(const byte * der, word32 derLen, const byte* context, byte contextLen, const AsymKey * caKey);

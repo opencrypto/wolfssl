@@ -10,19 +10,45 @@ void usage(void) {
     printf(" genpkey .............: generate a private key\n");
     printf(" genreq ..............: generate a certificate request\n");
     printf(" gencert .............: generate a certificate\n\n");
+    
     printf("Where [ options ] are:\n");
-
     printf(" -in <file> .......: input file\n");
     printf(" -out <file> ......: output file\n");
     printf(" -inform <format> .: input format (DER, PEM)\n");
     printf(" -outform <format> : output format (DER, PEM)\n");
+    printf(" -template_id <id> : certificate template to use (0-20)\n");
+    printf(" -subject <DN> ... : certificate subject (e.g., 'O=wolfSSL, OU=Test, CN=John Doe')\n");
     printf(" -algor <name> ....: use the named algorithm (e.g., rsa, ec, mldsa44, mldsa65-ed25519)\n");
     printf(" -curve <name> ....: use the named curve (e.g., nistp256, nistp384, nistp521, bpool256, bpool384, bpool512)\n");
     printf(" -bits <num> ......: number of bits in the key (RSA only)\n");
-
     printf(" -v ...............: verbose\n");
     printf(" -d ...............: debug\n");
-    printf(" -h ...............: help\n");
+    printf(" -h ...............: help\n\n");
+
+    printf("Where IETF template_id(s) are:\n");
+    printf(" 1 ................: WC_CERT_TEMPLATE_IETF_ROOT_CA\n");
+    printf(" 2 ................: WC_CERT_TEMPLATE_IETF_INTERMEDIATE_CA\n");
+    printf(" 3 ................: WC_CERT_TEMPLATE_IETF_OCSP_SERVER\n");
+    printf(" 4 ................: WC_CERT_TEMPLATE_IETF_CODE_SIGNING\n");
+    printf(" 5 ................: WC_CERT_TEMPLATE_IETF_TIME_STAMPING\n");
+    printf(" 6 ................: WC_CERT_TEMPLATE_IETF_TLS_SERVER\n");
+    printf(" 7 ................: WC_CERT_TEMPLATE_IETF_TLS_CLIENT\n");
+    printf(" 8 ................: WC_CERT_TEMPLATE_IETF_EMAIL\n");
+    printf(" 9 ................: WC_CERT_TEMPLATE_IETF_802_1X\n");
+    printf("10 ................: WC_CERT_TEMPLATE_IETF_IPSEC\n");
+
+    printf("Where ASC X9 template_id(s) are:\n");
+    printf("11 ................: WC_CERT_TEMPLATE_X9_RFC5280_ROOT_CA\n");
+    printf("12 ................: WC_CERT_TEMPLATE_X9_INTERMEDIATE_CA\n");
+    printf("13 ................: WC_CERT_TEMPLATE_X9_OCSP_SERVER\n");
+    printf("14 ................: WC_CERT_TEMPLATE_X9_CODE_SIGNING\n");
+    printf("15 ................: WC_CERT_TEMPLATE_X9_TIME_STAMPING\n");
+    printf("16 ................: WC_CERT_TEMPLATE_X9_TLS_SERVER\n");
+    printf("17 ................: WC_CERT_TEMPLATE_X9_TLS_CLIENT\n");
+    printf("18 ................: WC_CERT_TEMPLATE_X9_EMAIL\n");
+    printf("19 ................: WC_CERT_TEMPLATE_X9_802_1X\n");
+    printf("20 ................: WC_CERT_TEMPLATE_X9_IPSEC\n");
+
     printf("\n");
 }
 
@@ -205,27 +231,23 @@ int load_file(byte ** data, int *len, const char * filename) {
     return ret;
 }
 
-int gen_csr(const AsymKey * keyPair, const AsymKey * altkey, const char * out_filename, int out_format)
+int gen_csr(const AsymKey * keyPair, const AsymKey * altkey,
+            const char * out_filename, int out_format, const char * subject_dn)
 {
     int ret = NOT_COMPILED_IN;
 
 #ifdef WOLFSSL_CERT_REQ
-    WC_RNG rng;
 
+    WC_RNG rng;
     Cert aReq;
 
-    // byte der[WC_CTC_MAX_ALT_SIZE];
-    // int  derSz = WC_CTC_MAX_ALT_SIZE;
-
-    byte* der = NULL;
-    word32 derSz = 0;
+    byte* out = NULL;
+    word32 outSz = 0;
 
     if (!keyPair) {
         printf("Invalid key\n");
         return BAD_FUNC_ARG;
     }
-
-    XMEMSET(der, 0, WC_CTC_MAX_ALT_SIZE);
 
     wc_InitCert(&aReq);
     ret = wc_AsymKey_CertReq_SetTemplate(&aReq, WC_CERT_TEMPLATE_IETF_ROOT_CA);
@@ -235,24 +257,18 @@ int gen_csr(const AsymKey * keyPair, const AsymKey * altkey, const char * out_fi
     }
 
     // Sets the Static parts of the DN
-    if (wc_AsymKey_CertReq_SetSubject(&aReq, "C=US, O=wolfSSL, OU=Test, CN=Test") < 0) {
+    if (wc_AsymKey_CertReq_SetSubject(&aReq, subject_dn) < 0) {
         printf("Error setting the subject\n");
         return -1;
     }
 
     wc_InitRng(&rng);
-    ret = wc_AsymKey_SignReq_ex(&der, &derSz, &aReq, WC_HASH_TYPE_SHA512, 1, keyPair, &rng);
+    ret = wc_AsymKey_SignReq_ex(&out, &outSz, &aReq, WC_HASH_TYPE_SHA512, 1, keyPair, &rng);
     if (ret < 0) {
-        printf("Error Generating the Request: ret = %d, derSz = %d\n", ret, derSz);
+        printf("Error Generating the Request: ret = %d, derSz = %d\n", ret, outSz);
         return ret;
     }
-
-    // ret = wc_AsymKey_MakeReq(der, derSz, "C=US, O=wolfSSL, OU=Test, CN=Test", WC_HASH_TYPE_SHA512, 1, keyPair);
-    // if (ret < 0) {
-    //     printf("Error retrieving the size for the DER certificate request: %d\n", ret);
-    //     return ret;
-    // }
-    derSz = ret;
+    outSz = ret;
 
     if (out_filename) {
         FILE * aFile = fopen(out_filename, "wb");
@@ -260,11 +276,11 @@ int gen_csr(const AsymKey * keyPair, const AsymKey * altkey, const char * out_fi
             printf("Error opening file for writing: %s\n", out_filename);
             return -1;
         }
-        fwrite(der, 1, derSz, aFile);
+        fwrite(out, outSz, 1, aFile);
         fclose(aFile);
     } else {
         int fd = fileno(stdout);
-        write(fd, der, derSz);
+        write(fd, out, outSz);
     }
 
     wc_FreeRng(&rng);
@@ -280,7 +296,7 @@ int gen_csr(const AsymKey * keyPair, const AsymKey * altkey, const char * out_fi
     return 0;
 }
 
-int gen_cert(const AsymKey * keyPair, const AsymKey * altkey, const char * out_filename, int out_format)
+int gen_cert(const AsymKey * keyPair, const AsymKey * altkey, const char * out_filename, int out_format, int templateId)
 {
     int ret = NOT_COMPILED_IN;
 #ifdef WOLFSSL_CERT_REQ
@@ -325,7 +341,14 @@ int gen_cert(const AsymKey * keyPair, const AsymKey * altkey, const char * out_f
         algName = "Unknown";
     }
 
-    ret = wc_AsymKey_CertReq_SetTemplate(&aCert, WC_CERT_TEMPLATE_IETF_ROOT_CA);
+    if (templateId == 0 || templateId > 20) {
+        printf("Invalid template ID: %d\n", templateId);
+        goto exit;
+    } else if (templateId < 0) {
+        templateId = 1;
+    }
+
+    ret = wc_AsymKey_CertReq_SetTemplate(&aCert, templateId);
     if (ret < 0) {
         printf("Init Cert failed: %d\n", ret);
         goto exit;
@@ -418,7 +441,9 @@ exit:
     return ret;
 }
 
-int sign_cert(const char * req_file, const char * outCertFilename, int outCertFormat, const char * caCertFilename, int caCertFormat, const AsymKey * caKeyPair, const AsymKey * caAltKeyPair)
+int sign_cert(const char * req_file, const char * outCertFilename, int outCertFormat, 
+              const char * caCertFilename, int caCertFormat, const char * subject_dn, int templateId,
+              const AsymKey * caKeyPair, const AsymKey * caAltKeyPair)
 {
     int ret = NOT_COMPILED_IN;
 
@@ -490,9 +515,9 @@ int sign_cert(const char * req_file, const char * outCertFilename, int outCertFo
     // Initializes the certificate structure
     wc_InitCert(&aCert);
 
-    ret = wc_AsymKey_CertReq_SetTemplate(&aCert, WC_CERT_TEMPLATE_IETF_TLS_CLIENT);
+    ret = wc_AsymKey_CertReq_SetTemplate(&aCert, templateId);
     if (ret < 0) {
-        printf("Error setting the template: %d\n", ret);
+        printf("Error setting the template (id: %d): ret = %d\n", templateId, ret);
         return ret;
     }
 
@@ -502,7 +527,7 @@ int sign_cert(const char * req_file, const char * outCertFilename, int outCertFo
         return ret;
     }
 
-    ret = wc_AsymKey_CertReq_SetSubject(&aCert, "C=US, O=wolfSSL, OU=Test, CN=EE Cert");
+    ret = wc_AsymKey_CertReq_SetSubject(&aCert, subject_dn);
     if (ret < 0) {
         printf("Error setting the subject: %d\n", ret);
         return ret;
@@ -629,12 +654,12 @@ int main(int argc, char** argv) {
     char * cert_file = NULL; /* cert file */
     char * altkey_file = NULL; /* alt key file */
     char * ca_file = NULL; /* ca file */
+    char * subject_dn = NULL; /* subject distinguished name */
 
+    int templateId = 0; /* template number */
     int error = 0; /* error flag */
 
     (void)cert_file;
-
-    // test(WC_MLDSA44_ED25519_SHA256);
 
     // Gets the CMD
     if (argc < 2) {
@@ -703,6 +728,25 @@ int main(int argc, char** argv) {
             }
             keySum = ret;
 
+        } else if (XSTRNCMP(argv[i], "-subject", 8) == 0) {
+            i++;
+            if (i >= argc) {
+                printf("Missing Subject Distinguished Name\n\n");
+                usage();
+                return 1;
+            }
+            subject_dn = argv[i];
+
+        } else if (XSTRNCMP(argv[i], "-template_id", 12) == 0) {
+            i++;
+            if ((templateId = atoi(argv[i])) <= 0) {
+                printf("Invalid template id\n");
+                return 1;
+            }
+            if (templateId > WC_CERT_TEMPLATE_MAX) {
+                printf("Invalid template id (accepted: 1-%d)\n", WC_CERT_TEMPLATE_MAX);
+                return 1;
+            }
         } else if (XSTRNCMP(argv[i], "-curve", 6) == 0) {
             i++;
                    if (!XSTRNCMP(argv[i], "nistp256", 8) ||
@@ -874,7 +918,7 @@ int main(int argc, char** argv) {
                     return -1;
                 }
             }
-            if (gen_csr(keyPtr, altKeyPtr, out_file, out_format) < 0) {
+            if (gen_csr(keyPtr, altKeyPtr, out_file, out_format, subject_dn) < 0) {
                 return -1;
             }
             return 0;
@@ -905,7 +949,7 @@ int main(int argc, char** argv) {
                     return -1;
                 }
             }
-            if (gen_cert(keyPtr, altKeyPtr, out_file, out_format) < 0) {
+            if (gen_cert(keyPtr, altKeyPtr, out_file, out_format, WC_CERT_TEMPLATE_IETF_ROOT_CA) < 0) {
                 printf("Error generating certificate\n");
                 return -1;
             }
@@ -935,7 +979,7 @@ int main(int argc, char** argv) {
                 }
             }
 
-            if (sign_cert(csr_file, out_file, out_format, ca_file, in_format, keyPtr, altKeyPtr) < 0) {
+            if (sign_cert(csr_file, out_file, out_format, ca_file, in_format, subject_dn, templateId, keyPtr, altKeyPtr) < 0) {
                 printf("Error generating certificate\n");
                 return -1;
             }
