@@ -6029,6 +6029,39 @@ const byte* OidFromId(word32 id, word32 type, word32* oidSz)
     return oid;
 }
 
+const byte* OidFromString(const char* oidStr, word32 type, word32 *oidSz, word32* keySum) {
+    if (oidStr == NULL || keySum == NULL) {
+        return NULL;
+    }
+
+    *keySum = 0;
+    const char* token = oidStr;
+    char* endPtr;
+    word32 value;
+
+    while (*token) {
+        value = (word32)strtoul(token, &endPtr, 10);
+        if (token == endPtr) {
+            return NULL;
+        }
+
+        *keySum = (*keySum * 40) + value;
+
+        if (*endPtr == '.') {
+            token = endPtr + 1;
+        } else if (*endPtr == '\0') {
+            break;
+        } else {
+            printf("Invalid OID string: %s\n", oidStr);
+            return NULL;
+        }
+    }
+
+    printf("keySum: %d (%s)\n", *keySum, oidStr);
+
+    return OidFromId(*keySum, type, oidSz);
+}
+
 #ifdef HAVE_ECC
 
 /* Check the OID id is for a known elliptic curve.
@@ -27497,38 +27530,77 @@ int wc_KeySum_get(const char * name) {
 
     if (ret < 0) {
 
-        word32 idx = 0;
+        // word32 idx = 0;
         word32 keySum = 0;
-        byte tmpBuf[256];
-        word32 tmpBufSz = sizeof(tmpBuf);
-            // TMP buffer for the encoded OID
+        // byte tmpBuf[256];
+        // word32 tmpBufSz = sizeof(tmpBuf);
+        //     // TMP buffer for the encoded OID
 
-        // Encodes the OID
-        ret = EncodePolicyOID(tmpBuf, &tmpBufSz, name, NULL);
+        ret = wc_GetOid_ex(name, oidKeyType, NULL, NULL, &keySum);
         if (ret < 0) {
             return ret;
         }
 
-        // Parses the OID
-        ret = GetAlgoId(tmpBuf, &idx, &keySum, oidKeyType, tmpBufSz);
-        if (ret < 0) {
-            printf("ERROR: Cannot get the Algo ID: %d\n", ret);
-            return ret;
-        }
+        // // Encodes the OID
+        // ret = EncodePolicyOID(tmpBuf, &tmpBufSz, name, NULL);
+        // if (ret < 0) {
+        //     return ret;
+        // }
+        // ret = GetOID(tmpBuf, &idx, &keySum, oidKeyType, tmpBufSz);
+        // if (ret < 0) {
+        //     return ret;
+        // }
 
         ret = keySum;
+    }
+    return ret;
+}
 
-        printf("GetAlgoId: %d (keySum: %d)\n", ret, keySum);
-        
+int wc_GetOid_ex(const char* text, word32 oidType, byte *oid, 
+                 word32 *oidSz, word32* oid_ID) {
+
+    int ret = 0;
+    word32 idx = 0;
+    word32 keySum = 0;
+    byte tmpBuf[256];
+    word32 tmpBufSz = sizeof(tmpBuf);
+        // TMP buffer for the encoded OID
+
+    if (!text) {
+        return BAD_FUNC_ARG;
     }
 
+    // Encodes the string as an OID
+    ret = EncodePolicyOID(tmpBuf, &tmpBufSz, text, NULL);
+    if (ret < 0) {
+        return ret;
+    }
+
+    // // Parses the OID and retrieves the keySum
+    // int _type = 0;
+    // for (_type = 0; _type < oidIgnoreType; _type++) {
+    //     ret = GetOID(tmpBuf, &idx, &keySum, _type, tmpBufSz);
+    //     if (ret == 0) {
+    //         break;
+    //     }
+    // }
+    ret = GetOID(tmpBuf, &idx, &keySum, oidType, tmpBufSz);
+    if (ret < 0) {
+        return ret;
+    }
+
+    // Sets the output variables
+    if (oid) *oid = keySum;
+    if (oidSz) *oidSz = idx;
+    if (oid_ID) *oid_ID = keySum;
+
+    // All Done
     return ret;
 }
 
 const char * wc_KeySum_name(const int keySum) {
 
     if (keySum <= 0) {
-        printf("[%s:%d] KeySum not found (%d)\n", __FILE__, __LINE__, keySum);
         return NULL;
     }
 

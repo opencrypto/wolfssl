@@ -701,39 +701,7 @@ int main(int argc, char** argv) {
                 error = 1;
                 break;
             }
-            // if (ret > 0) {
-            //     // Parsed the Algo Name
-            //     keySum = ret;
-            // } else {
-
-            //     word32 idx = 0;
-            //     byte tmpBuf[256];
-            //     word32 tmpBufSz = sizeof(tmpBuf);
-            //         // TMP buffer for the encoded OID
-
-            //     printf("Cannot get the KeySum, trying parsing the OID...\n");
-
-            //     // Encodes the OID
-            //     ret = EncodePolicyOID(tmpBuf, &tmpBufSz, argv[i], NULL);
-            //     if (ret < 0) {
-            //         printf("\n    ERROR: Cannot parse the Algorithm Identifier (%s)\n\n", argv[i]);
-            //         error = 1;
-            //         break;
-            //     }
-
-            //     printf("EncodePolicyOid: %d (tmpBufSz: %d)", ret, tmpBufSz);
-
-            //     // Parses the OID
-            //     ret = GetAlgoId(tmpBuf, &idx, &keySum, oidKeyType, tmpBufSz);
-            //     if (ret < 0) {
-            //         error = 1;
-            //         break;
-            //     }
-
-            //     printf("GetAlgoId: %d (keySum: %d)\n", ret, keySum);
-            // }
-
-            printf(">>>>>>> Got Algo Id: %d (%s)\n", keySum, argv[i]);
+            keySum = ret;
 
         } else if (XSTRNCMP(argv[i], "-curve", 6) == 0) {
             i++;

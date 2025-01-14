@@ -992,6 +992,8 @@ WOLFSSL_API int wc_CreateEncryptedPKCS8Key(byte* key, word32 keySz, byte* out,
         word32* outSz, const char* password, int passwordSz, int vPKCS,
         int pbeOid, int encAlgId, byte* salt, word32 saltSz, int itt,
         WC_RNG* rng, void* heap);
+WOLFSSL_API int wc_GetOid_ex(const char* text, word32 oidType, byte *oid, word32 *oidSz,
+         word32* oid_ID);
 
 #ifndef NO_ASN_TIME
 /* Time */
