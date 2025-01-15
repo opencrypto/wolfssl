@@ -3708,7 +3708,7 @@ int wc_AsymKey_SignReq_ex(byte** der, word32 *derSz, Cert* req, enum wc_HashType
         XFREE(tbsReq, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         return ret;
     }
-    
+
     ret = wc_MakeCertReq_ex(req, tbsReq, WC_CTC_MAX_ALT_SIZE, certType, (void *)&key->val);
     if (ret <= 0) {
         XFREE(tbsReq, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -3881,7 +3881,6 @@ int wc_AsymKey_SignCert_ex(byte * out, word32 outSz, int outform,
         ret = wc_SetAuthKeyIdFromPublicKey_ex(tbsCert, 
                                               authKeyType,
                                               (void *)&caKey->val);
-        // ret = wc_SetAuthKeyIdFromCert(tbsCert, derCa, derCaSz);
         if (ret != 0) {
             printf("Error setting the Authority Key ID: %d\n", ret);
             goto exit;

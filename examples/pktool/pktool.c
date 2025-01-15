@@ -9,7 +9,7 @@ void usage(void) {
     printf("Where <CMD> is one of the following:\n");
     printf(" genpkey .............: generate a private key\n");
     printf(" genreq ..............: generate a certificate request\n");
-    printf(" gencert .............: generate a certificate\n\n");
+    printf(" signcert ............: generate a certificate\n\n");
     
     printf("Where [ options ] are:\n");
     printf(" -in <file> .......: input file\n");
@@ -21,8 +21,9 @@ void usage(void) {
     printf(" -algor <name> ....: use the named algorithm (e.g., rsa, ec, mldsa44, mldsa65-ed25519)\n");
     printf(" -curve <name> ....: use the named curve (e.g., nistp256, nistp384, nistp521, bpool256, bpool384, bpool512)\n");
     printf(" -bits <num> ......: number of bits in the key (RSA only)\n");
-    printf(" -v ...............: verbose\n");
-    printf(" -d ...............: debug\n");
+    printf(" -key <file> ......: signing private key filename\n");
+    printf(" -altkey <file> ...: filename for the secondary signing private key\n");
+    printf(" -cacert <file> ...: CA certificate filename\n");
     printf(" -h ...............: help\n\n");
 
     printf("Where IETF template_id(s) are:\n");
@@ -35,7 +36,7 @@ void usage(void) {
     printf(" 7 ................: WC_CERT_TEMPLATE_IETF_TLS_CLIENT\n");
     printf(" 8 ................: WC_CERT_TEMPLATE_IETF_EMAIL\n");
     printf(" 9 ................: WC_CERT_TEMPLATE_IETF_802_1X\n");
-    printf("10 ................: WC_CERT_TEMPLATE_IETF_IPSEC\n");
+    printf("10 ................: WC_CERT_TEMPLATE_IETF_IPSEC\n\n");
 
     printf("Where ASC X9 template_id(s) are:\n");
     printf("11 ................: WC_CERT_TEMPLATE_X9_RFC5280_ROOT_CA\n");
@@ -48,7 +49,6 @@ void usage(void) {
     printf("18 ................: WC_CERT_TEMPLATE_X9_EMAIL\n");
     printf("19 ................: WC_CERT_TEMPLATE_X9_802_1X\n");
     printf("20 ................: WC_CERT_TEMPLATE_X9_IPSEC\n");
-
     printf("\n");
 }
 
@@ -296,151 +296,6 @@ int gen_csr(const AsymKey * keyPair, const AsymKey * altkey,
     return 0;
 }
 
-int gen_cert(const AsymKey * keyPair, const AsymKey * altkey, const char * out_filename, int out_format, int templateId)
-{
-    int ret = NOT_COMPILED_IN;
-#ifdef WOLFSSL_CERT_REQ
-    int certType = MLDSA44_NISTP256_TYPE; // MLDSA87_ED448_TYPE
-    // void* keyPtr = NULL;
-    WC_RNG rng;
-    byte der[12240];
-    int  derSz = 12240;
-#ifdef WOLFSSL_DER_TO_PEM
-    // byte pem[12240];
-    // int  pemSz = 12240;
-    FILE* file = NULL;
-    // char outFile[255];
-#endif
-
-    XMEMSET(der, 0, 12240);
-#ifdef WOLFSSL_DER_TO_PEM
-    // XMEMSET(pem, 0, 12240);
-#endif
-
-    Cert aCert;
-    enum Key_Sum keySum;
-
-    if (!keyPair) {
-        printf("Invalid key\n");
-        return BAD_FUNC_ARG;
-    }
-    
-    ret = wc_InitCert(&aCert);
-    if (ret != 0) {
-        printf("Init Cert failed: %d\n", ret);
-        goto exit;
-    }
-
-    // Extracts the type of key
-    keySum = wc_AsymKey_GetOid(keyPair);
-    certType = wc_AsymKey_GetCertType(keyPair);
-
-    const char * algName = (char *)wc_KeySum_name(keySum);
-    if (algName == NULL) {
-        printf("Cannot Retreieve Alg Name for key type: %d\n", keySum);
-        algName = "Unknown";
-    }
-
-    if (templateId == 0 || templateId > 20) {
-        printf("Invalid template ID: %d\n", templateId);
-        goto exit;
-    } else if (templateId < 0) {
-        templateId = 1;
-    }
-
-    ret = wc_AsymKey_CertReq_SetTemplate(&aCert, templateId);
-    if (ret < 0) {
-        printf("Init Cert failed: %d\n", ret);
-        goto exit;
-    }
-
-    // Sets the static parts of the DN
-    ret = wc_AsymKey_CertReq_SetSigtype(&aCert, WC_HASH_TYPE_SHA384, keyPair);
-    if (ret < 0) {
-        printf("Error retrieving the signature type: %d\n", ret);
-        goto exit;
-    }
-
-    // Sets the Static parts of the DN
-    if (wc_AsymKey_CertReq_SetSubject(&aCert, "C=US, O=wolfSSL, OU=Test, CN=Test") < 0) {
-        printf("Error setting the subject\n");
-        return -1;
-    }
-
-    // Sets the dynamic parts of the DN
-    strncpy(aCert.subject.commonName, algName, CTC_NAME_SIZE);
-    
-    // Generates the DER certificate (unsigned)
-    ret = wc_MakeCert_ex(&aCert, der, sizeof(der), certType, (void *)&keyPair->val, &rng);
-    if (ret <= 0) {
-        printf("Make Cert failed: %d\n", ret);
-        goto exit;
-    }
-    derSz = ret;
-
-    // Signs the certificate
-    ret = wc_InitRng(&rng);
-    if (ret != 0) {
-        printf("RNG initialization failed: %d\n", ret);
-        goto exit;
-    }
-    ret = wc_SignCert_ex(aCert.bodySz, aCert.sigType, 
-                         der, sizeof(der), certType,
-                         (void *)&keyPair->val, &rng);
-    if (ret <= 0) {
-        printf("Sign Cert failed: %d\n", ret);
-        goto exit;
-    }
-    derSz = ret;
-
-#ifdef WOLFSSL_DER_TO_PEM
-    byte * pem_data = NULL;
-    int pem_dataSz = 0;
-
-    ret = wc_DerToPem(der, derSz, NULL, pem_dataSz, CERT_TYPE);
-    if (ret <= 0) {
-        printf("Cannot get the size of the PEM...: %d\n", ret);
-        goto exit;
-    }
-    pem_dataSz = ret;
-    pem_data = (byte *)XMALLOC(pem_dataSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    if (pem_data == NULL) {
-        printf("Memory Error exporting key\n");
-        goto exit;
-    }
-    ret = wc_DerToPem(der, derSz, pem_data, pem_dataSz, CERT_TYPE);
-    if (ret <= 0) {
-        printf("CSR DER to PEM failed: %d\n", ret);
-        goto exit;
-    }
-    if (out_filename) {
-        file = fopen(out_filename, "wb");
-        if (file) {
-            ret = (int)fwrite(pem_data, 1, pem_dataSz, file);
-            fclose(file);
-        }
-    } else {
-        int fd = fileno(stdout);
-        ret = write(fd, pem_data, pem_dataSz);
-    }
-#endif
-
-    ret = 0; /* success */
-    
-exit:
-    wc_FreeRng(&rng);
-
-#endif /* WOLFSSL_CERT_REQ */
-
-    (void)altkey;
-    (void)out_format;
-    (void)out_filename;
-    (void)keyPair;
-    (void)ret;
-
-    return ret;
-}
-
 int sign_cert(const char * req_file, const char * outCertFilename, int outCertFormat, 
               const char * caCertFilename, int caCertFormat, const char * subject_dn, int templateId,
               const AsymKey * caKeyPair, const AsymKey * caAltKeyPair)
@@ -527,30 +382,48 @@ int sign_cert(const char * req_file, const char * outCertFilename, int outCertFo
         return ret;
     }
 
-    ret = wc_AsymKey_CertReq_SetSubject(&aCert, subject_dn);
+    if (subject_dn) {
+        ret = wc_AsymKey_CertReq_SetSubject(&aCert, subject_dn);
+        if (ret < 0) {
+            printf("Error setting the subject: %d\n", ret);
+            return ret;
+        }
+    }
+    
+    if (data) {
+        ret = wc_AsymKey_CertReq_GetPublicKey(&reqPubKey, data, dataSz);
+        if (ret < 0) {
+            printf("Error getting the public key: %d\n", ret);
+            return ret;
+        }
+    }
+
+    if (ca) {
+        ret = wc_AsymKey_CertReq_SetIssuer_CaCert(&aCert, ca, caSz);
+        aCert.selfSigned = 0;
+    } else if (subject_dn) {
+        ret = wc_AsymKey_CertReq_SetIssuer(&aCert, subject_dn);
+        aCert.selfSigned = 1;
+    } else {
+        ret = wc_AsymKey_CertReq_SetIssuer(&aCert, "O=wolfSSL");
+        aCert.selfSigned = 1;
+    }
     if (ret < 0) {
-        printf("Error setting the subject: %d\n", ret);
+        return ret;
+    }
+
+    AsymKey * pubKeyPnt = &reqPubKey;
+
+    if (aCert.selfSigned == 1)
+        pubKeyPnt = (AsymKey *)caKeyPair;
+
+    ret = wc_AsymKey_SignCert_ex(NULL, 0, 1, ca, caSz, &aCert, pubKeyPnt, 0, caKeyPair, NULL, &rng);
+    if (ret < 0) {
+        printf("Error generating the certificate: %d\n", ret);
         return ret;
     }
     
-    ret = wc_AsymKey_CertReq_GetPublicKey(&reqPubKey, data, dataSz);
-    if (ret < 0) {
-        printf("Error getting the public key: %d\n", ret);
-        return ret;
-    }
-
-    ret = wc_AsymKey_CertReq_SetIssuer_CaCert(&aCert, ca, caSz);
-    if (ret < 0) {
-        printf("Error setting the issuer: %d\n", ret);
-        return ret;
-    }
-
-    // aCert.skidSz = 20; // Enables the Subject Key Identifier
-    // aCert.selfSigned = 1; // Self-signed certificate
-    // aCert.version = 2; // Version 3
-    // aCert.daysValid = 365; // 1 year
-
-    certSz = ret = wc_AsymKey_SignCert_ex(NULL, 0, 1, ca, caSz, &aCert, &reqPubKey, 0, caKeyPair, NULL, &rng);
+    certSz = ret = wc_AsymKey_SignCert_ex(NULL, 0, 1, ca, caSz, &aCert, pubKeyPnt, 0, caKeyPair, NULL, &rng);
     if (ret < 0) {
         printf("Error generating the certificate: %d\n", ret);
         return ret;
@@ -562,7 +435,7 @@ int sign_cert(const char * req_file, const char * outCertFilename, int outCertFo
         return -1;
     }
 
-    ret = wc_AsymKey_SignCert_ex(cert, certSz, 1, ca, caSz, &aCert, &reqPubKey, 0, caKeyPair, NULL, &rng);
+    ret = wc_AsymKey_SignCert_ex(cert, certSz, 1, ca, caSz, &aCert, pubKeyPnt, 0, caKeyPair, NULL, &rng);
     if (ret < 0) {
         printf("Error generating the certificate: %d\n", ret);
         return ret;
@@ -631,8 +504,6 @@ int main(int argc, char** argv) {
     return 0;
 #else
     enum Key_Sum keySum = ML_DSA_LEVEL2k;
-    int verbose = 0;
-    int debug = 0;
     
     char * out_file = NULL;
     char * in_file = NULL;
@@ -671,10 +542,8 @@ int main(int argc, char** argv) {
         cmd = 0;
     } else if (!XSTRNCMP(argv[i], "genreq", 6)) {
         cmd = 1;
-    } else if (!XSTRNCMP(argv[i], "gencert", 7)) {
-        cmd = 2;
     } else if (!XSTRNCMP(argv[i], "signcert", 8)) {
-        cmd = 4;
+        cmd = 2;
     } else {
         usage();
         return 1;
@@ -684,11 +553,7 @@ int main(int argc, char** argv) {
 
     // Gets the parameters
     while (i < argc) {
-        if (!XSTRNCMP(argv[i], "-v", 2)) {
-            verbose = 1;
-        } else if (!XSTRNCMP(argv[i], "-d", 2)) {
-            debug = 1;
-        } else if (!XSTRNCMP(argv[i], "-inform", 7)) {
+        if (!XSTRNCMP(argv[i], "-inform", 7)) {
             i++;
             if (!XSTRNCMP(argv[i], "DER", 3) || 
                 !XSTRNCMP(argv[i], "der", 3)) {
@@ -837,15 +702,15 @@ int main(int argc, char** argv) {
                 return 1;
             }
             csr_file = argv[i];
-        } else if (XSTRNCMP(argv[i], "-cer", 4) == 0) {
-            i++;
-            if (i >= argc) {
-                printf("Missing certificate filename\n\n");
-                usage();
-                return 1;
-            }
-            cert_file = argv[i];
-        } else if (XSTRNCMP(argv[i], "-ca", 3) == 0) {
+        // } else if (XSTRNCMP(argv[i], "-cer", 4) == 0) {
+        //     i++;
+        //     if (i >= argc) {
+        //         printf("Missing certificate filename\n\n");
+        //         usage();
+        //         return 1;
+        //     }
+        //     cert_file = argv[i];
+        } else if (XSTRNCMP(argv[i], "-cacert", 7) == 0) {
             i++;
             if (i >= argc) {
                 printf("Missing CA filename\n\n");
@@ -901,7 +766,6 @@ int main(int argc, char** argv) {
         // Gen CSR
         case 1: {
 #ifdef WOLFSSL_CERT_REQ
-            printf("Generating CSR\n");
             if (in_file == NULL && key_file == NULL) {
                 printf("Missing keypair or request filename\n");
                 return 1;
@@ -928,40 +792,8 @@ int main(int argc, char** argv) {
 #endif
         } break;
 
-        // Gen CERT
-        case 2: {
-#ifdef WOLFSSL_CERT_GEN
-            printf("Generating CERT\n");
-            if (in_file == NULL && key_file == NULL) {
-                printf("Missing keypair or request filename\n");
-                return 1;
-            } else if (key_file == NULL) {
-                key_file = in_file;
-            }
-            if (load_key_p8(&keyPtr, key_file, -1) < 0) {
-                printf("Error loading keypair\n");
-                return -1;
-            }
-
-            if (altkey_file) {
-                if (load_key_p8(&altKeyPtr, altkey_file, -1) < 0) {
-                    printf("Error loading alt keypair\n");
-                    return -1;
-                }
-            }
-            if (gen_cert(keyPtr, altKeyPtr, out_file, out_format, WC_CERT_TEMPLATE_IETF_ROOT_CA) < 0) {
-                printf("Error generating certificate\n");
-                return -1;
-            }
-            return 0;
-#else
-            printf("Certificate generation not supported\n");
-            return 1;
-#endif
-        } break;
-
         // Sign CERT
-        case 4: {
+        case 2: {
 #if defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_REQ)
             if (in_file == NULL && key_file == NULL) {
                 printf("Missing keypair or request filename\n");
@@ -979,7 +811,8 @@ int main(int argc, char** argv) {
                 }
             }
 
-            if (sign_cert(csr_file, out_file, out_format, ca_file, in_format, subject_dn, templateId, keyPtr, altKeyPtr) < 0) {
+            if (sign_cert(csr_file, out_file, out_format, ca_file, in_format, 
+                          subject_dn, templateId, keyPtr, altKeyPtr) < 0) {
                 printf("Error generating certificate\n");
                 return -1;
             }
@@ -994,11 +827,10 @@ int main(int argc, char** argv) {
             return -1;
     }
 
-    (void)debug;
-    (void)verbose;
     (void)in_format;
     (void)ca_file;
     (void)csr_file;
+
 #endif
     (void)argv;
     (void)argc;
