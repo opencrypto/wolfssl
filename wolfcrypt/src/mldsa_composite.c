@@ -4,6 +4,8 @@
 /* Based on dilithium.c and Reworked for Composite by Dr. Pala.
  */
 
+// TODO: Enable FLAGS beyond HAVE_MLDSA_COMPOSITE
+
 /* Possible Composite options:
  *
  * HAVE_MLDSA_COMPOSITE                                       Default: OFF
@@ -122,10 +124,20 @@ static int wc_mldsa_compositeTBS_msg(byte* tbsMsg, word32 *tbsLen, const byte* m
     int compType = 0;
         // Composite Type
 
-    if (!tbsMsg || !tbsLen || !msg || !key) {
+    if (!tbsMsg || !tbsLen || !msg || !key || contextLen > 255) {
         return BAD_FUNC_ARG;
     }
 
+    // Sets the new tbsLen
+    *tbsMsgLen = 14 + contextLen + msgLen;
+
+    // Returns the size of the TBS, if no buffer
+    // was passed to the function
+    if (!tbsMsg) {
+        return 0;
+    }
+
+    // Checks we have enough space to generate the tbsMsg
     if ((contextLen > 0 && !context) || (msgLen <= 0) ||
             (*tbsLen < MLDSA_COMPOSITE_TBS_DATA_MIN_SZ)) {
         return BAD_FUNC_ARG;
@@ -136,59 +148,67 @@ static int wc_mldsa_compositeTBS_msg(byte* tbsMsg, word32 *tbsLen, const byte* m
     XMEMCPY(tbsMsg, mldsa_composite_oid_data[compType], 13);
     *tbsLen = 13;
 
+    // Adds the context length
+    tbsMsg[13] = contextLen;
+    *tbsLen++;
+
     // Adds the context, if any
     if (context) {
-        XMEMCPY(tbsMsg + 13, context, contextLen);
+        XMEMCPY(tbsMsg + *tbsLen, context, contextLen);
         *tbsLen += contextLen;
     }
 
-    /* Select the hash function to calculate the composite message */
-    switch (compType) {
+    // Copy the original message to the tbsMsg
+    XMEMCPY(tbsMsg + *tbsLen, msg, msgLen);
+    *tbsLen += msgLen;
 
-        case WC_MLDSA_COMPOSITE_UNDEF: {
-            return ALGO_ID_E;
-        } break;
+//     /* Select the hash function to calculate the composite message */
+//     switch (compType) {
+
+//         case WC_MLDSA_COMPOSITE_UNDEF: {
+//             return ALGO_ID_E;
+//         } break;
 
        
-        case WC_MLDSA44_RSAPSS2048_SHA256:
-        case WC_MLDSA44_RSA2048_SHA256:
-        case WC_MLDSA44_ED25519_SHA256:
-        case WC_MLDSA44_NISTP256_SHA256: {
+//         case WC_MLDSA44_RSAPSS2048_SHA256:
+//         case WC_MLDSA44_RSA2048_SHA256:
+//         case WC_MLDSA44_ED25519_SHA256:
+//         case WC_MLDSA44_NISTP256_SHA256: {
 
-            if ((ret = wc_Sha256Hash(msg, msgLen, tbsMsg + *tbsLen)) < 0) {
-                MADWOLF_DEBUG("wc_Sha256Hash() failed with error %d", ret);
-                return ret;
-            }
-            *tbsLen += WC_SHA256_DIGEST_SIZE;
+//             if ((ret = wc_Sha256Hash(msg, msgLen, tbsMsg + *tbsLen)) < 0) {
+//                 MADWOLF_DEBUG("wc_Sha256Hash() failed with error %d", ret);
+//                 return ret;
+//             }
+//             *tbsLen += WC_SHA256_DIGEST_SIZE;
 
-        } break;
+//         } break;
 
-#if defined(WOLFSSL_SHA384)
-        case WC_MLDSA65_RSAPSS3072_SHA384:
-        case WC_MLDSA65_RSA3072_SHA384:
-        case WC_MLDSA65_RSAPSS4096_SHA384:
-        case WC_MLDSA65_RSA4096_SHA384:
-        case WC_MLDSA65_ED25519_SHA384:
-        case WC_MLDSA65_NISTP256_SHA384:
-        case WC_MLDSA65_BPOOL256_SHA384:
-        case WC_MLDSA87_NISTP384_SHA384:
-        case WC_MLDSA87_BPOOL384_SHA384:
-        case WC_MLDSA87_ED448_SHA384: {
+// #if defined(WOLFSSL_SHA384)
+//         case WC_MLDSA65_RSAPSS3072_SHA384:
+//         case WC_MLDSA65_RSA3072_SHA384:
+//         case WC_MLDSA65_RSAPSS4096_SHA384:
+//         case WC_MLDSA65_RSA4096_SHA384:
+//         case WC_MLDSA65_ED25519_SHA384:
+//         case WC_MLDSA65_NISTP256_SHA384:
+//         case WC_MLDSA65_BPOOL256_SHA384:
+//         case WC_MLDSA87_NISTP384_SHA384:
+//         case WC_MLDSA87_BPOOL384_SHA384:
+//         case WC_MLDSA87_ED448_SHA384: {
 
-            ret = wc_Sha384Hash(msg, msgLen, tbsMsg + *tbsLen);
-            if (ret < 0) {
-                MADWOLF_DEBUG("wc_Sha384Hash() failed with error %d", ret);
-                return ret;
-            }
-            *tbsLen += WC_SHA384_DIGEST_SIZE;
+//             ret = wc_Sha384Hash(msg, msgLen, tbsMsg + *tbsLen);
+//             if (ret < 0) {
+//                 MADWOLF_DEBUG("wc_Sha384Hash() failed with error %d", ret);
+//                 return ret;
+//             }
+//             *tbsLen += WC_SHA384_DIGEST_SIZE;
 
-        } break;
-#endif
+//         } break;
+// #endif
     
-        default:
-            MADWOLF_DEBUG("Invalid Composite Type (%d)", compType);
-            return ALGO_ID_E;
-    }
+//         default:
+//             MADWOLF_DEBUG("Invalid Composite Type (%d)", compType);
+//             return ALGO_ID_E;
+//     }
 
     return ret;
 }
@@ -411,29 +431,29 @@ int wc_mldsa_composite_verify_msg_ex(const byte* sig, word32 sigLen, const byte*
     int composite_level = 0;
         // Composite Level
    
-    ASNItem sigsIT[3] = {
-        { 0, ASN_SEQUENCE, 1, 1, 0 },
-            { 1, ASN_BIT_STRING, 0, 0, 0 },
-            { 1, ASN_BIT_STRING, 0, 0, 0 },
-    };
-        // ASN.1 items for the composite signature
+    // ASNItem sigsIT[3] = {
+    //     { 0, ASN_SEQUENCE, 1, 1, 0 },
+    //         { 1, ASN_BIT_STRING, 0, 0, 0 },
+    //         { 1, ASN_BIT_STRING, 0, 0, 0 },
+    // };
+    //     // ASN.1 items for the composite signature
 
-    ASNGetData compSigsASN[3];
-        // ASN.1 data for the composite signature
+    // ASNGetData compSigsASN[3];
+    //     // ASN.1 data for the composite signature
 
-    byte mldsa_Buffer[DILITHIUM_ML_DSA_87_SIG_SIZE];
-    word32 mldsa_BufferLen = DILITHIUM_ML_DSA_87_SIG_SIZE;
+    byte* mldsa_Buffer = NULL;
+    word32 mldsa_BufferLen = 0;
         // Buffer to hold the ML-DSA public key
 
-    byte other_Buffer[MLDSA_COMPOSITE_MAX_OTHER_SIG_SZ];
-    word32 other_BufferLen = MLDSA_COMPOSITE_MAX_OTHER_SIG_SZ;
+    byte* other_Buffer = NULL;
+    word32 other_BufferLen = 0;
         // Buffer to hold the public key of the other DSA component
 
     word32 idx = 0;
         // Index for the ASN.1 data
 
-    word32 tbsMsgLen = MLDSA_COMPOSITE_TBS_DATA_MAX_SZ;
-    byte tbsMsg[MLDSA_COMPOSITE_TBS_DATA_MAX_SZ];
+    byte* tbsMsg = NULL;
+    word32 tbsMsgLen = 0;
         // Buffer to hold the TBS message
 
     // Error Handling: Check for NULL pointers and invalid input lengths. 
@@ -444,27 +464,80 @@ int wc_mldsa_composite_verify_msg_ex(const byte* sig, word32 sigLen, const byte*
     // Sets the error flag to 0 (error)
     *res = 0;
 
-    // Sets the buffers to 0
-    XMEMSET(compSigsASN, 0, sizeof(*compSigsASN) * 3);
+    // // Sets the buffers to 0
+    // XMEMSET(compSigsASN, 0, sizeof(*compSigsASN) * 3);
 
-    // Initialize the ASN data
-    GetASN_Buffer(&compSigsASN[MLDSA_COMPASN_IDX_MLDSA], mldsa_Buffer, &mldsa_BufferLen);
-    GetASN_Buffer(&compSigsASN[MLDSA_COMPASN_IDX_OTHER], other_Buffer, &other_BufferLen);
+    // // Initialize the ASN data
+    // GetASN_Buffer(&compSigsASN[MLDSA_COMPASN_IDX_MLDSA], mldsa_Buffer, &mldsa_BufferLen);
+    // GetASN_Buffer(&compSigsASN[MLDSA_COMPASN_IDX_OTHER], other_Buffer, &other_BufferLen);
 
-    // Parse the ASN.1 data
-    if ((ret = GetASN_Items(sigsIT, compSigsASN, 3, 1, sig, &idx, sigLen)) < 0) {
-        return ret;
-    }
+    // // Parse the ASN.1 data
+    // if ((ret = GetASN_Items(sigsIT, compSigsASN, 3, 1, sig, &idx, sigLen)) < 0) {
+    //     return ret;
+    // }
 
-    // Gets the CompositeTBS Message
-    if ((ret = wc_mldsa_compositeTBS_msg(tbsMsg, &tbsMsgLen, msg, msgLen, key, context, contextLen)) < 0) {
-        return ret;
-    }
 
     // Gets the Composite Level
     composite_level = wc_mldsa_composite_level(key);
-    if (composite_level <= 0) {
+    if (composite_level <= 0) {        
         return BAD_STATE_E;
+    }
+
+    // Sets the mldsa_Buffer to the beginning of the signature data
+    mldsa_Buffer = sig;
+
+    // Sets the boundaries of the concatenated components
+    switch(composite_level) {
+        case WC_MLDSA44_RSAPSS2048_SHA256:
+        case WC_MLDSA44_RSA2048_SHA256:
+        case WC_MLDSA44_ED25519_SHA256:
+        case WC_MLDSA44_NISTP256_SHA256:
+            mldsa_BufferLen = ML_DSA_LEVEL2_SIG_SIZE;
+            other_BufferLen = sigLen - mldsa_BufferLen;
+            other_Buffer = sig + mldsa_BufferLen;
+            break;
+
+        case WC_MLDSA65_RSAPSS3072_SHA384:
+        case WC_MLDSA65_RSA3072_SHA384:
+        case WC_MLDSA65_RSAPSS4096_SHA384:
+        case WC_MLDSA65_RSA4096_SHA384:
+        case WC_MLDSA65_NISTP256_SHA384:
+        case WC_MLDSA65_BPOOL256_SHA384:
+        case WC_MLDSA65_ED25519_SHA384:
+            mldsa_BufferLen = ML_DSA_LEVEL3_SIG_SIZE;
+            other_BufferLen = sigLen - mldsa_BufferLen;
+            other_Buffer = sig + mldsa_BufferLen;
+            break;
+
+        case WC_MLDSA87_NISTP384_SHA384:
+        case WC_MLDSA87_BPOOL384_SHA384:
+        case WC_MLDSA87_ED448_SHA384:
+            mldsa_BufferLen = ML_DSA_LEVEL5_SIG_SIZE;
+            other_BufferLen = sigLen - mldsa_BufferLen;
+            other_Buffer = sig + mldsa_BufferLen;
+            break;
+
+        default:
+            return ALGO_ID_E;
+    }
+
+    // Gets the required size for the tbsMsg
+    ret = wc_mldsa_compositeTBS_msg(NULL, &tbsMsgLen, msg, msgLen, 
+                                    key, context, contextLen);
+    if (ret < 0) {
+        return ret;
+    }
+
+    // Allocates the needed space to generate the tbsMsg according to the draft
+    tbsMsg = XMALLOC(tbsMsgLen, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (!tbsMsg) {
+        return MEMORY_E;
+    }
+
+    // Gets the CompositeTBS Message
+    if ((ret = wc_mldsa_compositeTBS_msg(tbsMsg, &tbsMsgLen, 
+                    msg, msgLen, key, context, contextLen)) < 0) {
+        return ret;
     }
 
     // Verify Individual DSA Components: 
@@ -485,6 +558,7 @@ int wc_mldsa_composite_verify_msg_ex(const byte* sig, word32 sigLen, const byte*
             if (key->mldsa_key.level != WC_ML_DSA_44) {
                 return BAD_STATE_E;
             }
+
             // Cehcks the RSA signature size
             if (other_BufferLen != RSA2048_SIG_SIZE) {
                 return BUFFER_E;
@@ -735,11 +809,14 @@ int wc_mldsa_composite_verify_msg_ex(const byte* sig, word32 sigLen, const byte*
     }
 
     // Checks the size of the ML-DSA signature
-    if (key->mldsa_key.level == WC_ML_DSA_44 && mldsa_BufferLen != DILITHIUM_ML_DSA_44_SIG_SIZE) {
+    if (key->mldsa_key.level == WC_ML_DSA_44 && 
+            mldsa_BufferLen != DILITHIUM_ML_DSA_44_SIG_SIZE) {
         return ASN_PARSE_E;
-    } else if (key->mldsa_key.level == WC_ML_DSA_65 && mldsa_BufferLen != DILITHIUM_ML_DSA_65_SIG_SIZE) {
+    } else if (key->mldsa_key.level == WC_ML_DSA_65 && 
+            mldsa_BufferLen != DILITHIUM_ML_DSA_65_SIG_SIZE) {
         return ASN_PARSE_E;
-    } else if (key->mldsa_key.level == WC_ML_DSA_87 && mldsa_BufferLen != DILITHIUM_ML_DSA_87_SIG_SIZE) {
+    } else if (key->mldsa_key.level == WC_ML_DSA_87 && 
+            mldsa_BufferLen != DILITHIUM_ML_DSA_87_SIG_SIZE) {
         return ASN_PARSE_E;
     }
 

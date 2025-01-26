@@ -7,9 +7,10 @@ void usage(void) {
     printf("\n");
     printf("\n    USAGE: pktool <CMD> [ options ]\n\n");
     printf("Where <CMD> is one of the following:\n");
-    printf(" genpkey .............: generate a private key\n");
-    printf(" genreq ..............: generate a certificate request\n");
-    printf(" signcert ............: generate a certificate\n\n");
+    printf(" genkey ..............: Generates a keypair (PKCS#8 format)\n");
+    printf(" genreq ..............: Generate a certificate request (PKCS#10 format)\n");
+    printf(" signcert ............: Generate an X.509 Certificate\n");
+    printf(" templates ...........: Lists available templates and id values\n\n");
     
     printf("Where [ options ] are:\n");
     printf(" -in <file> .......: input file\n");
@@ -25,6 +26,9 @@ void usage(void) {
     printf(" -altkey <file> ...: filename for the secondary signing private key\n");
     printf(" -cacert <file> ...: CA certificate filename\n");
     printf(" -h ...............: help\n\n");
+}
+
+void templates(void) {
 
     printf("Where IETF template_id(s) are:\n");
     printf(" 1 ................: WC_CERT_TEMPLATE_IETF_ROOT_CA\n");
@@ -544,6 +548,9 @@ int main(int argc, char** argv) {
         cmd = 1;
     } else if (!XSTRNCMP(argv[i], "signcert", 8)) {
         cmd = 2;
+    } else if (!XSTRNCMP(argv[i], "templates", 8)) {
+        templates();
+        return 1;
     } else {
         usage();
         return 1;

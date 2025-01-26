@@ -26,6 +26,8 @@
 
 void usage(void);
 
+void templates(void);
+
 int export_key_p8(AsymKey * key, const char * out_file, int format);
 
 int load_file(byte ** data, int *len, const char * filename);
