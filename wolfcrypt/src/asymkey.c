@@ -408,20 +408,6 @@ int wc_AsymKey_MakeKey(AsymKey      ** key,
         case MLDSA87_BPOOL384k:
         case MLDSA87_NISTP384k:
         case MLDSA87_ED448k:
-        // ------- Draft 2 ---------- //
-        case D2_MLDSA44_RSAPSS2048k:
-        case D2_MLDSA44_RSA2048k:
-        case D2_MLDSA44_ED25519k:
-        case D2_MLDSA44_NISTP256k:
-        case D2_MLDSA44_BPOOL256k:
-        case D2_MLDSA65_RSAPSS3072k:
-        case D2_MLDSA65_RSA3072k:
-        case D2_MLDSA65_ED25519k:
-        case D2_MLDSA65_NISTP256k:
-        case D2_MLDSA65_BPOOL256k:
-        case D2_MLDSA87_BPOOL384k:
-        case D2_MLDSA87_NISTP384k:
-        case D2_MLDSA87_ED448k:
             mldsa_composite_key * mldsaCompKey = (mldsa_composite_key *)&aKey.val.mldsaCompKey;
             int composite_level = wc_mldsa_composite_key_sum_level(Oid);
             if (composite_level < 0) {
@@ -589,43 +575,6 @@ int wc_AsymKey_GetOid(const AsymKey * key) {
         case MLDSA87_ED448_TYPE:
             return MLDSA87_ED448k;
             break;
-        // ------- Draft 2 ------
-        case D2_MLDSA44_RSAPSS2048_SHA256_TYPE:
-            return D2_MLDSA44_RSAPSS2048k;
-            break;
-        case D2_MLDSA44_RSA2048_SHA256_TYPE:
-            return D2_MLDSA44_RSA2048k;
-            break;
-        case D2_MLDSA44_NISTP256_SHA256_TYPE:
-            return D2_MLDSA44_NISTP256k;
-            break;
-        case D2_MLDSA44_ED25519_SHA256_TYPE:
-            return D2_MLDSA44_ED25519k;
-            break;
-        case D2_MLDSA65_ED25519_SHA512_TYPE:
-            return D2_MLDSA65_ED25519k;
-            break;
-        case D2_MLDSA65_BPOOL256_SHA512_TYPE:
-            return D2_MLDSA65_BPOOL256k;
-            break;
-        case D2_MLDSA65_NISTP256_SHA512_TYPE:
-        return D2_MLDSA65_NISTP256k;
-        break;
-        case D2_MLDSA65_RSAPSS3072_SHA512_TYPE:
-        return D2_MLDSA65_RSAPSS3072k;
-        break;
-        case D2_MLDSA65_RSA3072_SHA512_TYPE:
-        return D2_MLDSA65_RSA3072k;
-        break;
-        case D2_MLDSA87_BPOOL384_SHA512_TYPE:
-        return D2_MLDSA87_BPOOL384k;
-        break;
-        case D2_MLDSA87_NISTP384_SHA512_TYPE:
-        return D2_MLDSA87_NISTP384k;
-        break;
-        case D2_MLDSA87_ED448_SHA512_TYPE:
-        return D2_MLDSA87_ED448k;
-        break;
 #endif
 #ifdef HAVE_SPHINCS
         case SPHINCS_HARAKA_128S_ROBUST_TYPE:
@@ -720,19 +669,6 @@ int wc_AsymKey_GetCertType(const AsymKey* key) {
         case MLDSA87_BPOOL384_TYPE:
         case MLDSA87_NISTP384_TYPE:
         case MLDSA87_ED448_TYPE:
-        // ------- Draft 2 ------
-        case D2_MLDSA44_RSAPSS2048_SHA256_TYPE:
-        case D2_MLDSA44_RSA2048_SHA256_TYPE:
-        case D2_MLDSA44_NISTP256_SHA256_TYPE:
-        case D2_MLDSA44_ED25519_SHA256_TYPE:
-        case D2_MLDSA65_ED25519_SHA512_TYPE:
-        case D2_MLDSA65_BPOOL256_SHA512_TYPE:
-        case D2_MLDSA65_NISTP256_SHA512_TYPE:
-        case D2_MLDSA65_RSAPSS3072_SHA512_TYPE:
-        case D2_MLDSA65_RSA3072_SHA512_TYPE:
-        case D2_MLDSA87_BPOOL384_SHA512_TYPE:
-        case D2_MLDSA87_NISTP384_SHA512_TYPE:
-        case D2_MLDSA87_ED448_SHA512_TYPE:
 #endif
 #ifdef HAVE_SPHINCS
         case SPHINCS_HARAKA_128S_ROBUST_TYPE:
@@ -853,43 +789,6 @@ int wc_AsymKey_GetKeyType(const AsymKey* key) {
             break;
         case MLDSA87_ED448_TYPE:
             ret = MLDSA87_ED448_KEY;
-            break;
-        // ------- Draft 2 ------
-        case D2_MLDSA44_RSAPSS2048_SHA256_TYPE:
-            ret = D2_MLDSA44_RSAPSS2048_KEY;
-            break;
-        case D2_MLDSA44_RSA2048_SHA256_TYPE:
-            ret = D2_MLDSA44_RSA2048_KEY;
-            break;
-        case D2_MLDSA44_NISTP256_SHA256_TYPE:
-            ret = D2_MLDSA44_NISTP256_KEY;
-            break;
-        case D2_MLDSA44_ED25519_SHA256_TYPE:
-            ret = D2_MLDSA44_ED25519_KEY;
-            break;
-        case D2_MLDSA65_ED25519_SHA512_TYPE:
-            ret = D2_MLDSA65_ED25519_KEY;
-            break;
-        case D2_MLDSA65_BPOOL256_SHA512_TYPE:
-            ret = D2_MLDSA65_BPOOL256_KEY;
-            break;
-        case D2_MLDSA65_NISTP256_SHA512_TYPE:
-            ret = D2_MLDSA65_NISTP256_KEY;
-            break;
-        case D2_MLDSA65_RSAPSS3072_SHA512_TYPE:
-            ret = D2_MLDSA65_RSAPSS3072_KEY;
-            break;
-        case D2_MLDSA65_RSA3072_SHA512_TYPE:
-            ret = D2_MLDSA65_RSA3072_KEY;
-            break;
-        case D2_MLDSA87_BPOOL384_SHA512_TYPE:
-            ret = D2_MLDSA87_BPOOL384_KEY;
-            break;
-        case D2_MLDSA87_NISTP384_SHA512_TYPE:
-            ret = D2_MLDSA87_NISTP384_KEY;
-            break;
-        case D2_MLDSA87_ED448_SHA512_TYPE:
-            ret = D2_MLDSA87_ED448_KEY;
             break;
 #endif
 #ifdef HAVE_SPHINCS
@@ -1403,21 +1302,6 @@ int wc_AsymKey_import_ex(AsymKey* key, const byte* data, word32 dataSz, int form
     case MLDSA87_BPOOL384k:
     case MLDSA87_NISTP384k:
     case MLDSA87_ED448k:
-    // ----- Draft 2 ----- //
-    case D2_MLDSA44_RSAPSS2048k:
-    case D2_MLDSA44_RSA2048k:
-    case D2_MLDSA44_NISTP256k:
-    case D2_MLDSA44_ED25519k:
-
-    case D2_MLDSA65_RSAPSS3072k:
-    case D2_MLDSA65_RSA3072k:
-    case D2_MLDSA65_NISTP256k:
-    case D2_MLDSA65_ED25519k:
-    case D2_MLDSA65_BPOOL256k:
-
-    case D2_MLDSA87_BPOOL384k:
-    case D2_MLDSA87_NISTP384k:
-    case D2_MLDSA87_ED448k:
         mldsa_composite_key * mldsaCompKey = (mldsa_composite_key *)&key->val.mldsaCompKey;
 
         int level = wc_mldsa_composite_key_sum_level(algorSum);
@@ -1650,21 +1534,6 @@ int wc_AsymKey_export_ex(const AsymKey * key,
         case MLDSA87_BPOOL384k:
         case MLDSA87_NISTP384k:
         case MLDSA87_ED448k:
-        // ----- Draft 2 ----- //
-        case D2_MLDSA44_RSAPSS2048k:
-        case D2_MLDSA44_RSA2048k:
-        case D2_MLDSA44_NISTP256k:
-        case D2_MLDSA44_ED25519k:
-
-        case D2_MLDSA65_RSAPSS3072k:
-        case D2_MLDSA65_RSA3072k:
-        case D2_MLDSA65_NISTP256k:
-        case D2_MLDSA65_ED25519k:
-        case D2_MLDSA65_BPOOL256k:
-
-        case D2_MLDSA87_BPOOL384k:
-        case D2_MLDSA87_NISTP384k:
-        case D2_MLDSA87_ED448k:
             const mldsa_composite_key * mldsaCompKey = &key->val.mldsaCompKey;
                 // Shortcut to the MLDSA Composite key
 
@@ -1967,21 +1836,6 @@ int wc_AsymKey_PrivateKeyDerDecode_ex(AsymKey* key, const byte* data, word32 dat
     case MLDSA87_BPOOL384k:
     case MLDSA87_NISTP384k:
     case MLDSA87_ED448k:
-    // ----- Draft 2 ----- //
-    case D2_MLDSA44_RSAPSS2048k:
-    case D2_MLDSA44_RSA2048k:
-    case D2_MLDSA44_NISTP256k:
-    case D2_MLDSA44_ED25519k:
-
-    case D2_MLDSA65_RSAPSS3072k:
-    case D2_MLDSA65_RSA3072k:
-    case D2_MLDSA65_NISTP256k:
-    case D2_MLDSA65_ED25519k:
-    case D2_MLDSA65_BPOOL256k:
-
-    case D2_MLDSA87_BPOOL384k:
-    case D2_MLDSA87_NISTP384k:
-    case D2_MLDSA87_ED448k:
         mldsa_composite_key * mldsaCompKey = (mldsa_composite_key *)&key->val.mldsaCompKey;
         int level = wc_mldsa_composite_key_sum_level(algorSum);
         if (level <= 0)
@@ -2339,21 +2193,6 @@ int wc_AsymKey_PrivateKeyToDer_ex(const AsymKey * key,
         case MLDSA87_BPOOL384k:
         case MLDSA87_NISTP384k:
         case MLDSA87_ED448k:
-        // ----- Draft 2 ----- //
-        case D2_MLDSA44_RSAPSS2048k:
-        case D2_MLDSA44_RSA2048k:
-        case D2_MLDSA44_NISTP256k:
-        case D2_MLDSA44_ED25519k:
-
-        case D2_MLDSA65_RSAPSS3072k:
-        case D2_MLDSA65_RSA3072k:
-        case D2_MLDSA65_NISTP256k:
-        case D2_MLDSA65_ED25519k:
-        case D2_MLDSA65_BPOOL256k:
-
-        case D2_MLDSA87_BPOOL384k:
-        case D2_MLDSA87_NISTP384k:
-        case D2_MLDSA87_ED448k:
             const mldsa_composite_key * mldsaCompKey = &key->val.mldsaCompKey;
                 // Shortcut to the MLDSA Composite key
 
@@ -2794,21 +2633,6 @@ int wc_AsymKey_Sign_ex(byte          * out,
         case MLDSA87_BPOOL384k:
         case MLDSA87_NISTP384k:
         case MLDSA87_ED448k:
-        // ----- Draft 2 ----- //
-        case D2_MLDSA44_RSAPSS2048k:
-        case D2_MLDSA44_RSA2048k:
-        case D2_MLDSA44_NISTP256k:
-        case D2_MLDSA44_ED25519k:
-
-        case D2_MLDSA65_RSAPSS3072k:
-        case D2_MLDSA65_RSA3072k:
-        case D2_MLDSA65_NISTP256k:
-        case D2_MLDSA65_ED25519k:
-        case D2_MLDSA65_BPOOL256k:
-
-        case D2_MLDSA87_BPOOL384k:
-        case D2_MLDSA87_NISTP384k:
-        case D2_MLDSA87_ED448k:
             sigLen = ret = wc_mldsa_composite_sig_size(&key->val.mldsaCompKey);
             if (ret < 0)
                 return ret;
@@ -2956,21 +2780,6 @@ int wc_AsymKey_Verify_ex(const byte* sig, word32 sigLen,
         case MLDSA87_BPOOL384k:
         case MLDSA87_NISTP384k:
         case MLDSA87_ED448k:
-        // ----- Draft 2 ----- //
-        case D2_MLDSA44_RSAPSS2048k:
-        case D2_MLDSA44_RSA2048k:
-        case D2_MLDSA44_NISTP256k:
-        case D2_MLDSA44_ED25519k:
-
-        case D2_MLDSA65_RSAPSS3072k:
-        case D2_MLDSA65_RSA3072k:
-        case D2_MLDSA65_NISTP256k:
-        case D2_MLDSA65_ED25519k:
-        case D2_MLDSA65_BPOOL256k:
-
-        case D2_MLDSA87_BPOOL384k:
-        case D2_MLDSA87_NISTP384k:
-        case D2_MLDSA87_ED448k:
             ret = wc_mldsa_composite_verify_msg(sig, sigLen, tbsData, tbsDataSz, &verify, (mldsa_composite_key *)&key->val.mldsaCompKey);
             if (ret == 0 && verify != 1) {
                 return SIG_VERIFY_E;
@@ -3175,40 +2984,6 @@ int wc_AsymKey_GetSigType(const AsymKey* key, enum wc_HashType hashType) {
             break;
         case MLDSA87_ED448_TYPE:
             ret = CTC_MLDSA87_ED448;
-            break;
-        // -------- Draft 2 -------------//
-        case D2_MLDSA44_RSAPSS2048_SHA256_TYPE:
-            ret = D2_CTC_MLDSA44_RSAPSS2048_SHA256;
-            break;
-        case D2_MLDSA44_RSA2048_SHA256_TYPE:
-            ret = D2_CTC_MLDSA44_RSA2048_SHA256;
-            break;
-        case D2_MLDSA44_NISTP256_SHA256_TYPE:
-            ret = D2_CTC_MLDSA44_NISTP256_SHA256;
-            break;
-        case D2_MLDSA44_ED25519_SHA256_TYPE:
-            ret = D2_CTC_MLDSA44_ED25519;
-            break;
-        case D2_MLDSA65_RSAPSS3072_SHA512_TYPE:
-            ret = D2_CTC_MLDSA65_RSAPSS3072_SHA512;
-            break;
-        case D2_MLDSA65_RSA3072_SHA512_TYPE:
-            ret = D2_CTC_MLDSA65_RSA3072_SHA512;
-            break;
-        case D2_MLDSA65_NISTP256_SHA512_TYPE:
-            ret = D2_CTC_MLDSA65_NISTP256_SHA512;
-            break;
-        case D2_MLDSA65_ED25519_SHA512_TYPE:
-            ret = D2_CTC_MLDSA65_ED25519_SHA512;
-            break;
-        case D2_MLDSA87_BPOOL384_SHA512_TYPE:
-            ret = D2_CTC_MLDSA87_BPOOL384_SHA512;
-            break;
-        case D2_MLDSA87_NISTP384_SHA512_TYPE:
-            ret = D2_CTC_MLDSA87_NISTP384_SHA512;
-            break;
-        case D2_MLDSA87_ED448_SHA512_TYPE:
-            ret = D2_CTC_MLDSA87_ED448_SHA512;
             break;
 // #endif
 
@@ -3702,19 +3477,12 @@ int wc_AsymKey_SignReq_ex(byte** der, word32 *derSz, Cert* req, enum wc_HashType
     if (tbsReq == NULL)
         return MEMORY_E;
 
-    // int keyType = wc_AsymKey_GetKeyType(key);
-    ret = wc_SetSubjectKeyIdFromPublicKey_ex(req, key->type, (void *)&key->val);
-    if (ret != 0) {
-        XFREE(tbsReq, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        return ret;
-    }
-
     ret = wc_MakeCertReq_ex(req, tbsReq, WC_CTC_MAX_ALT_SIZE, certType, (void *)&key->val);
     if (ret <= 0) {
         XFREE(tbsReq, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         return ret;
     }
-
+    
     tbsReqSz = ret = wc_SignCert_ex(req->bodySz, req->sigType, 
                         tbsReq, WC_CTC_MAX_ALT_SIZE, certType,
                         (void *)&key->val, rng);
@@ -3761,15 +3529,13 @@ int wc_AsymKey_SignReq_ex(byte** der, word32 *derSz, Cert* req, enum wc_HashType
             return BUFFER_E;
         }
         XMEMCPY(der, tbsReq, tbsReqSz);
-        XFREE(tbsReq, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-
+        *derSz = tbsReqSz;
     } else if (der) {
         *der = tbsReq;
-    } else {
-        XFREE(tbsReq, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     }
 
     *derSz = tbsReqSz;
+    XFREE(tbsReq, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     return ret;
 }
@@ -3881,6 +3647,7 @@ int wc_AsymKey_SignCert_ex(byte * out, word32 outSz, int outform,
         ret = wc_SetAuthKeyIdFromPublicKey_ex(tbsCert, 
                                               authKeyType,
                                               (void *)&caKey->val);
+        // ret = wc_SetAuthKeyIdFromCert(tbsCert, derCa, derCaSz);
         if (ret != 0) {
             printf("Error setting the Authority Key ID: %d\n", ret);
             goto exit;
