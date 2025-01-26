@@ -1,6 +1,6 @@
 /* internal.h
  *
- * Copyright (C) 2006-2024 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -4815,9 +4815,9 @@ typedef struct Buffers {
     buffer          clearOutputBuffer;
     buffer          sig;                   /* signature data */
     buffer          digest;                /* digest data */
-    int             prevSent;              /* previous plain text bytes sent
+    word32          prevSent;              /* previous plain text bytes sent
                                               when got WANT_WRITE            */
-    int             plainSz;               /* plain text bytes in buffer to send
+    word32          plainSz;               /* plain text bytes in buffer to send
                                               when got WANT_WRITE            */
     byte            weOwnCert;             /* SSL own cert flag */
     byte            weOwnCertChain;        /* SSL own cert chain flag */
@@ -5799,16 +5799,16 @@ struct WOLFSSL {
     WOLFSSL_CTX*    initial_ctx; /* preserve session key materials */
 #endif
     Suites*         suites; /* Only need during handshake. Can be NULL when
-                             * re-using the context's object. When WOLFSSL
+                             * reusing the context's object. When WOLFSSL
                              * object needs separate instance of suites use
                              * AllocateSuites(). */
-#ifdef OPENSSL_EXTRA
-    const Suites*   clSuites;
-#endif
+    Suites*         clSuites;
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL) || \
     defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
     WOLF_STACK_OF(WOLFSSL_CIPHER)* suitesStack; /* stack of available cipher
                                                  * suites */
+    WOLF_STACK_OF(WOLFSSL_CIPHER)* clSuitesStack; /* stack of client cipher
+                                                   * suites */
 #endif
     Arrays*         arrays;
 #ifdef WOLFSSL_TLS13
@@ -6248,6 +6248,7 @@ struct WOLFSSL {
 #if defined(OPENSSL_EXTRA)
     WOLFSSL_STACK* supportedCiphers; /* Used in wolfSSL_get_ciphers_compat */
     WOLFSSL_STACK* peerCertChain;    /* Used in wolfSSL_get_peer_cert_chain */
+    WOLFSSL_STACK* verifiedChain;    /* peer cert chain to CA */
 #ifdef KEEP_OUR_CERT
     WOLFSSL_STACK* ourCertChain;    /* Used in wolfSSL_add1_chain_cert */
 #endif
@@ -6520,7 +6521,7 @@ WOLFSSL_LOCAL int DoClientTicket_ex(const WOLFSSL* ssl, PreSharedKey* psk,
 
 WOLFSSL_LOCAL int DoClientTicket(WOLFSSL* ssl, const byte* input, word32 len);
 #endif /* HAVE_SESSION_TICKET */
-WOLFSSL_LOCAL int SendData(WOLFSSL* ssl, const void* data, int sz);
+WOLFSSL_LOCAL int SendData(WOLFSSL* ssl, const void* data, size_t sz);
 #ifdef WOLFSSL_THREADED_CRYPT
 WOLFSSL_LOCAL int SendAsyncData(WOLFSSL* ssl);
 #endif
@@ -6541,7 +6542,7 @@ WOLFSSL_LOCAL int SendHelloRequest(WOLFSSL* ssl);
 WOLFSSL_LOCAL int SendCertificateStatus(WOLFSSL* ssl);
 WOLFSSL_LOCAL int SendServerKeyExchange(WOLFSSL* ssl);
 WOLFSSL_LOCAL int SendBuffered(WOLFSSL* ssl);
-WOLFSSL_LOCAL int ReceiveData(WOLFSSL* ssl, byte* output, int sz, int peek);
+WOLFSSL_LOCAL int ReceiveData(WOLFSSL* ssl, byte* output, size_t sz, int peek);
 WOLFSSL_LOCAL int SendFinished(WOLFSSL* ssl);
 WOLFSSL_LOCAL int RetrySendAlert(WOLFSSL* ssl);
 WOLFSSL_LOCAL int SendAlert(WOLFSSL* ssl, int severity, int type);

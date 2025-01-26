@@ -1,6 +1,6 @@
 /* types.h
  *
- * Copyright (C) 2006-2024 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -212,10 +212,10 @@ decouple library dependencies with standard string, memory and so on.
 
     /* try to set SIZEOF_LONG or SIZEOF_LONG_LONG if user didn't */
     #if defined(_WIN32) || defined(HAVE_LIMITS_H)
+        #include <limits.h>
         /* make sure both SIZEOF_LONG_LONG and SIZEOF_LONG are set,
          * otherwise causes issues with CTC_SETTINGS */
         #if !defined(SIZEOF_LONG_LONG) || !defined(SIZEOF_LONG)
-            #include <limits.h>
             #if !defined(SIZEOF_LONG) && defined(ULONG_MAX) && \
                     (ULONG_MAX == 0xffffffffUL)
                 #define SIZEOF_LONG 4

@@ -1,6 +1,6 @@
 /* asn.h
  *
- * Copyright (C) 2006-2024 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -853,6 +853,26 @@ extern const WOLFSSL_ObjectInfo wolfssl_object_info[];
 #endif
 
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+/* short names */
+#define WC_SN_md4        "MD4"
+#define WC_SN_md5        "MD5"
+#define WC_SN_sha1       "SHA1"
+#define WC_SN_sha224     "SHA224"
+#define WC_SN_sha256     "SHA256"
+#define WC_SN_sha384     "SHA384"
+#define WC_SN_sha512     "SHA512"
+#define WC_SN_sha512_224 "SHA512-224"
+#define WC_SN_sha512_256 "SHA512-256"
+#define WC_SN_sha3_224   "SHA3-224"
+#define WC_SN_sha3_256   "SHA3-256"
+#define WC_SN_sha3_384   "SHA3-384"
+#define WC_SN_sha3_512   "SHA3-512"
+#define WC_SN_shake128   "SHAKE128"
+#define WC_SN_shake256   "SHAKE256"
+#define WC_SN_blake2s256 "BLAKE2s256"
+#define WC_SN_blake2s512 "BLAKE2s512"
+#define WC_SN_blake2b512 "BLAKE2b512"
+#define WC_SN_sm3        "SM3"
 
 /* NIDs */
 #define WC_NID_netscape_cert_type WC_NID_undef
@@ -1253,6 +1273,7 @@ enum Oid_Types {
 
 enum Hash_Sum  {
     MD2h      = 646,
+    MD4h      = 648,
     MD5h      = 649,
     SHAh      =  88,
     SHA224h   = 417,

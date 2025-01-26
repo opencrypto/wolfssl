@@ -1,6 +1,6 @@
 /* ecc.c
  *
- * Copyright (C) 2006-2024 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -11366,7 +11366,7 @@ int wc_ecc_import_private_key_ex(const byte* priv, word32 privSz,
 #endif
 
 #ifdef WOLFSSL_MAXQ10XX_CRYPTO
-    if (ret == 0) {
+    if ((ret == 0) && (key->devId != INVALID_DEVID)) {
         ret = wc_MAXQ10XX_EccSetKey(key, key->dp->size);
     }
 #elif defined(WOLFSSL_SILABS_SE_ACCEL)

@@ -1,6 +1,6 @@
 /* pk.c
  *
- * Copyright (C) 2006-2024 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -518,8 +518,19 @@ static int der_to_enc_pem_alloc(unsigned char* der, int derSz,
         byte *tmpBuf;
 
         /* Add space for padding. */
+    #ifdef WOLFSSL_NO_REALLOC
+        tmpBuf = (byte*)XMALLOC((size_t)(derSz + blockSz), heap,
+            DYNAMIC_TYPE_TMP_BUFFER);
+        if (tmpBuf != NULL && der != NULL)
+        {
+                XMEMCPY(tmpBuf, der, (size_t)(derSz));
+                XFREE(der, heap, DYNAMIC_TYPE_TMP_BUFFER);
+                der = NULL;
+        }
+    #else
         tmpBuf = (byte*)XREALLOC(der, (size_t)(derSz + blockSz), heap,
             DYNAMIC_TYPE_TMP_BUFFER);
+    #endif
         if (tmpBuf == NULL) {
             WOLFSSL_ERROR_MSG("Extending DER buffer failed");
             ret = 0; /* der buffer is free'd at the end of the function */
@@ -12234,7 +12245,7 @@ int wolfSSL_i2o_ECPublicKey(const WOLFSSL_EC_KEY *key, unsigned char **out)
     if (ret == 1) {
     #ifdef HAVE_COMP_KEY
         /* Default to compressed form if not set */
-        form = (key->form != WC_POINT_CONVERSION_UNCOMPRESSED) ?
+        form = (key->form == WC_POINT_CONVERSION_UNCOMPRESSED) ?
                WC_POINT_CONVERSION_UNCOMPRESSED :
                WC_POINT_CONVERSION_COMPRESSED;
     #endif
@@ -12361,7 +12372,7 @@ WOLFSSL_EC_KEY* wolfSSL_d2i_ECPrivateKey(WOLFSSL_EC_KEY** key,
  *
  * @param [in]      key  EC key to encode.
  * @param [in, out] out  On in, reference to buffer to place DER encoding into.
- *                       On out, reference to buffer adter the encoding.
+ *                       On out, reference to buffer after the encoding.
  *                       May be NULL.
  * @return  Length of DER encoding on success.
  * @return  0 on error.
