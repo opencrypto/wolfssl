@@ -124,22 +124,21 @@ static int wc_mldsa_compositeTBS_msg(byte* tbsMsg, word32 *tbsLen, const byte* m
     int compType = 0;
         // Composite Type
 
-    if (!tbsMsg || !tbsLen || !msg || !key || contextLen > 255) {
+    if (!tbsMsg || !tbsLen || !msg || !key) {
         return BAD_FUNC_ARG;
     }
-
-    // Sets the new tbsLen
-    *tbsMsgLen = 14 + contextLen + msgLen;
 
     // Returns the size of the TBS, if no buffer
     // was passed to the function
     if (!tbsMsg) {
+        // Sets the new tbsLen
+        *tbsLen = 14 + contextLen + msgLen;
         return 0;
     }
 
     // Checks we have enough space to generate the tbsMsg
     if ((contextLen > 0 && !context) || (msgLen <= 0) ||
-            (*tbsLen < MLDSA_COMPOSITE_TBS_DATA_MIN_SZ)) {
+            (*tbsLen < 14 + contextLen + msgLen)) {
         return BAD_FUNC_ARG;
     }
 
@@ -441,11 +440,11 @@ int wc_mldsa_composite_verify_msg_ex(const byte* sig, word32 sigLen, const byte*
     // ASNGetData compSigsASN[3];
     //     // ASN.1 data for the composite signature
 
-    byte* mldsa_Buffer = NULL;
+    const byte* mldsa_Buffer;
     word32 mldsa_BufferLen = 0;
         // Buffer to hold the ML-DSA public key
 
-    byte* other_Buffer = NULL;
+    const byte* other_Buffer;
     word32 other_BufferLen = 0;
         // Buffer to hold the public key of the other DSA component
 
