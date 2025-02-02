@@ -2562,7 +2562,7 @@ extern void uITRON4_free(void *p) ;
     #if !defined(CONFIG_NET_SOCKETS_POSIX_NAMES) && !defined(CONFIG_POSIX_API)
     #define CONFIG_NET_SOCKETS_POSIX_NAMES
     #endif
-#endif
+#endif /* WOLFSSL_ZEPHYR */
 
 #ifdef WOLFSSL_IMX6
     #ifndef SIZEOF_LONG_LONG
@@ -4117,7 +4117,8 @@ extern void uITRON4_free(void *p) ;
 #if (defined(HAVE_LIBOQS) ||                                            \
      defined(HAVE_LIBXMSS) ||                                           \
      defined(HAVE_LIBLMS) ||                                            \
-     defined(WOLFSSL_DUAL_ALG_CERTS)) &&                                \
+     defined(WOLFSSL_DUAL_ALG_CERTS) ||                                 \
+     defined(HAVE_ASCON)) &&                                            \
     !defined(WOLFSSL_EXPERIMENTAL_SETTINGS)
     #error Experimental settings without WOLFSSL_EXPERIMENTAL_SETTINGS
 #endif

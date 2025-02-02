@@ -204,7 +204,8 @@ enum CertType {
     // End Composite Types
     ECC_PARAM_TYPE,
     CHAIN_CERT_TYPE,
-    PKCS7_TYPE
+    PKCS7_TYPE,
+    TRUSTED_CERT_TYPE
 };
 
 

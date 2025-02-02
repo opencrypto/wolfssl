@@ -291,7 +291,8 @@
 #define WOLFSSL_MISC_INCLUDED
 #include <wolfcrypt/src/misc.c>
 
-
+/* Gather test declarations to include them in the testCases array */
+#include <tests/api/ascon.h>
 
 #if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && !defined(NO_TLS) && \
     !defined(NO_RSA)        && !defined(SINGLE_THREADED) && \
@@ -54363,54 +54364,54 @@ static int test_wolfSSL_a2i_ASN1_INTEGER(void)
     ExpectIntEQ(a2i_ASN1_INTEGER(bio, NULL, NULL, -1), 0);
     ExpectIntEQ(a2i_ASN1_INTEGER(NULL, ai, NULL, -1), 0);
     ExpectIntEQ(a2i_ASN1_INTEGER(NULL, NULL, tmp, -1), 0);
-    ExpectIntEQ(a2i_ASN1_INTEGER(NULL, NULL, NULL, 1024), 0);
-    ExpectIntEQ(a2i_ASN1_INTEGER(NULL, ai, tmp, 1024), 0);
-    ExpectIntEQ(a2i_ASN1_INTEGER(bio, NULL, tmp, 1024), 0);
-    ExpectIntEQ(a2i_ASN1_INTEGER(bio, ai, NULL, 1024), 0);
+    ExpectIntEQ(a2i_ASN1_INTEGER(NULL, NULL, NULL, sizeof(tmp)), 0);
+    ExpectIntEQ(a2i_ASN1_INTEGER(NULL, ai, tmp, sizeof(tmp)), 0);
+    ExpectIntEQ(a2i_ASN1_INTEGER(bio, NULL, tmp, sizeof(tmp)), 0);
+    ExpectIntEQ(a2i_ASN1_INTEGER(bio, ai, NULL, sizeof(tmp)), 0);
     ExpectIntEQ(a2i_ASN1_INTEGER(bio, ai, tmp, -1), 0);
     ExpectIntEQ(i2a_ASN1_INTEGER(NULL, NULL), 0);
     ExpectIntEQ(i2a_ASN1_INTEGER(bio, NULL), 0);
     ExpectIntEQ(i2a_ASN1_INTEGER(NULL, ai), 0);
 
     /* No data to read from BIO. */
-    ExpectIntEQ(a2i_ASN1_INTEGER(out, ai, tmp, 1024), 0);
+    ExpectIntEQ(a2i_ASN1_INTEGER(out, ai, tmp, sizeof(tmp)), 0);
 
     /* read first line */
-    ExpectIntEQ(a2i_ASN1_INTEGER(bio, ai, tmp, 1024), 1);
+    ExpectIntEQ(a2i_ASN1_INTEGER(bio, ai, tmp, sizeof(tmp)), 1);
     ExpectIntEQ(i2a_ASN1_INTEGER(out, ai), 6);
-    XMEMSET(tmp, 0, 1024);
-    tmpSz = BIO_read(out, tmp, 1024);
+    XMEMSET(tmp, 0, sizeof(tmp));
+    tmpSz = BIO_read(out, tmp, sizeof(tmp));
     ExpectIntEQ(tmpSz, 6);
     ExpectIntEQ(XMEMCMP(tmp, expected1, tmpSz), 0);
 
     /* fail on second line (not % 2) */
-    ExpectIntEQ(a2i_ASN1_INTEGER(bio, ai, tmp, 1024), 0);
+    ExpectIntEQ(a2i_ASN1_INTEGER(bio, ai, tmp, sizeof(tmp)), 0);
 
     /* read 3rd long line */
-    ExpectIntEQ(a2i_ASN1_INTEGER(bio, ai, tmp, 1024), 1);
+    ExpectIntEQ(a2i_ASN1_INTEGER(bio, ai, tmp, sizeof(tmp)), 1);
     ExpectIntEQ(i2a_ASN1_INTEGER(out, ai), 30);
-    XMEMSET(tmp, 0, 1024);
-    tmpSz = BIO_read(out, tmp, 1024);
+    XMEMSET(tmp, 0, sizeof(tmp));
+    tmpSz = BIO_read(out, tmp, sizeof(tmp));
     ExpectIntEQ(tmpSz, 30);
     ExpectIntEQ(XMEMCMP(tmp, expected2, tmpSz), 0);
 
     /* fail on empty line */
-    ExpectIntEQ(a2i_ASN1_INTEGER(bio, ai, tmp, 1024), 0);
+    ExpectIntEQ(a2i_ASN1_INTEGER(bio, ai, tmp, sizeof(tmp)), 0);
 
     BIO_free(bio);
     bio = NULL;
 
     /* Make long integer, requiring dynamic memory, even longer. */
     ExpectNotNull(bio = BIO_new_mem_buf(longStr, -1));
-    ExpectIntEQ(a2i_ASN1_INTEGER(bio, ai, tmp, 1024), 1);
+    ExpectIntEQ(a2i_ASN1_INTEGER(bio, ai, tmp, sizeof(tmp)), 1);
     ExpectIntEQ(i2a_ASN1_INTEGER(out, ai), 48);
-    XMEMSET(tmp, 0, 1024);
-    tmpSz = BIO_read(out, tmp, 1024);
+    XMEMSET(tmp, 0, sizeof(tmp));
+    tmpSz = BIO_read(out, tmp, sizeof(tmp));
     ExpectIntEQ(tmpSz, 48);
-    ExpectIntEQ(a2i_ASN1_INTEGER(bio, ai, tmp, 1024), 1);
+    ExpectIntEQ(a2i_ASN1_INTEGER(bio, ai, tmp, sizeof(tmp)), 1);
     ExpectIntEQ(i2a_ASN1_INTEGER(out, ai), 56);
-    XMEMSET(tmp, 0, 1024);
-    tmpSz = BIO_read(out, tmp, 1024);
+    XMEMSET(tmp, 0, sizeof(tmp));
+    tmpSz = BIO_read(out, tmp, sizeof(tmp));
     ExpectIntEQ(tmpSz, 56);
     ExpectIntEQ(wolfSSL_ASN1_INTEGER_set(ai, 1), 1);
     BIO_free(bio);
@@ -57320,6 +57321,7 @@ static int test_wc_PemToDer(void)
     int ret;
     DerBuffer* pDer = NULL;
     const char* ca_cert = "./certs/server-cert.pem";
+    const char* trusted_cert = "./certs/test/ossl-trusted-cert.pem";
     byte* cert_buf = NULL;
     size_t cert_sz = 0;
     int eccKey = 0;
@@ -57329,6 +57331,18 @@ static int test_wc_PemToDer(void)
 
     ExpectIntEQ(ret = load_file(ca_cert, &cert_buf, &cert_sz), 0);
     ExpectIntEQ(ret = wc_PemToDer(cert_buf, (long int)cert_sz, CERT_TYPE, &pDer, NULL,
+        &info, &eccKey), 0);
+    wc_FreeDer(&pDer);
+    pDer = NULL;
+
+    if (cert_buf != NULL) {
+        free(cert_buf);
+        cert_buf = NULL;
+    }
+
+    /* Test that -----BEGIN TRUSTED CERTIFICATE----- banner parses OK */
+    ExpectIntEQ(ret = load_file(trusted_cert, &cert_buf, &cert_sz), 0);
+    ExpectIntEQ(ret = wc_PemToDer(cert_buf, (long int)cert_sz, TRUSTED_CERT_TYPE, &pDer, NULL,
         &info, &eccKey), 0);
     wc_FreeDer(&pDer);
     pDer = NULL;
@@ -63823,6 +63837,21 @@ static int test_wolfSSL_BN_init(void)
     /* check result  3*2 mod 5 */
     ExpectIntEQ(BN_get_word(&dv), 1);
 
+    {
+        BN_MONT_CTX* montCtx = NULL;
+        ExpectNotNull(montCtx = BN_MONT_CTX_new());
+
+        ExpectIntEQ(BN_MONT_CTX_set(montCtx, &cv, NULL), SSL_SUCCESS);
+        ExpectIntEQ(BN_set_word(&bv, 2), SSL_SUCCESS);
+        ExpectIntEQ(BN_set_word(&cv, 5), SSL_SUCCESS);
+        ExpectIntEQ(BN_mod_exp_mont_word(&dv, 3, &bv, &cv, NULL, NULL),
+                    WOLFSSL_SUCCESS);
+        /* check result  3^2 mod 5 */
+        ExpectIntEQ(BN_get_word(&dv), 4);
+
+        BN_MONT_CTX_free(montCtx);
+    }
+
     BN_free(ap);
 #endif
 #endif /* defined(OPENSSL_EXTRA) && !defined(NO_ASN) */
@@ -64009,6 +64038,16 @@ static int test_wolfSSL_BN_word(void)
     ExpectIntEQ(BN_set_word(a, 5), 1);
     ExpectIntEQ(BN_mod_word(a, 3), 2);
     ExpectIntEQ(BN_mod_word(a, 0), -1);
+#endif
+
+    ExpectIntEQ(BN_set_word(a, 5), 1);
+    ExpectIntEQ(BN_mul_word(a, 5), 1);
+    /* check result 5 * 5 */
+    ExpectIntEQ(BN_get_word(a), 25);
+#if defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL)
+    ExpectIntEQ(BN_div_word(a, 5), 1);
+    /* check result 25 / 5 */
+    ExpectIntEQ(BN_get_word(a), 5);
 #endif
 
     BN_free(c);
@@ -72171,6 +72210,25 @@ static int test_wolfSSL_BIO_datagram(void)
     return EXPECT_RESULT();
 }
 
+static int test_wolfSSL_BIO_s_null(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_BIO) && defined(OPENSSL_EXTRA)
+    BIO *b = NULL;
+    char testData[10] = {'t','e','s','t',0};
+
+    ExpectNotNull(b = BIO_new(BIO_s_null()));
+    ExpectIntEQ(BIO_write(b, testData, sizeof(testData)), sizeof(testData));
+    ExpectIntEQ(BIO_read(b, testData, sizeof(testData)), 0);
+    ExpectIntEQ(BIO_puts(b, testData), 4);
+    ExpectIntEQ(BIO_gets(b, testData, sizeof(testData)), 0);
+    ExpectIntEQ(BIO_pending(b), 0);
+    ExpectIntEQ(BIO_eof(b), 1);
+
+    BIO_free(b);
+#endif
+    return EXPECT_RESULT();
+}
 
 #if defined(OPENSSL_ALL) && defined(HAVE_IO_TESTS_DEPENDENCIES) && \
     defined(HAVE_HTTP_CLIENT)
@@ -91689,9 +91747,10 @@ static void test_wolfSSL_dtls13_fragments_spammer(WOLFSSL* ssl)
         XMEMSET(&delay, 0, sizeof(delay));
         delay.tv_nsec = 10000000; /* wait 0.01 seconds */
         c16toa(msg_number, b + msg_offset);
-        sendSz = BuildTls13Message(ssl, sendBuf, sendSz, b,
+        ret = sendSz = BuildTls13Message(ssl, sendBuf, sendSz, b,
             (int)idx, handshake, 0, 0, 0);
-        ret = (int)send(fd, sendBuf, (size_t)sendSz, 0);
+        if (sendSz > 0)
+            ret = (int)send(fd, sendBuf, (size_t)sendSz, 0);
         nanosleep(&delay, NULL);
     }
 }
@@ -91917,8 +91976,9 @@ static byte test_AEAD_done = 0;
 
 static int test_AEAD_cbiorecv(WOLFSSL *ssl, char *buf, int sz, void *ctx)
 {
-    int ret = (int)recv(wolfSSL_get_fd(ssl), buf, sz, 0);
-    if (ret > 0) {
+    int fd = wolfSSL_get_fd(ssl);
+    int ret = -1;
+    if (fd >= 0 && (ret = (int)recv(fd, buf, sz, 0)) > 0) {
         if (test_AEAD_fail_decryption) {
             /* Modify the packet to trigger a decryption failure */
             buf[ret/2] ^= 0xFF;
@@ -92234,12 +92294,16 @@ static void test_wolfSSL_dtls_send_ch_with_invalid_cookie(WOLFSSL* ssl)
     };
 
     fd = wolfSSL_get_wfd(ssl);
-    ret = (int)send(fd, ch_msh_invalid_cookie, sizeof(ch_msh_invalid_cookie), 0);
-    AssertIntGT(ret, 0);
-    /* should reply with an illegal_parameter reply */
-    ret = (int)recv(fd, alert_reply, sizeof(alert_reply), 0);
-    AssertIntEQ(ret, sizeof(expected_alert_reply));
-    AssertIntEQ(XMEMCMP(alert_reply, expected_alert_reply, sizeof(expected_alert_reply)), 0);
+    if (fd >= 0) {
+        ret = (int)send(fd, ch_msh_invalid_cookie,
+                sizeof(ch_msh_invalid_cookie), 0);
+        AssertIntGT(ret, 0);
+        /* should reply with an illegal_parameter reply */
+        ret = (int)recv(fd, alert_reply, sizeof(alert_reply), 0);
+        AssertIntEQ(ret, sizeof(expected_alert_reply));
+        AssertIntEQ(XMEMCMP(alert_reply, expected_alert_reply,
+                sizeof(expected_alert_reply)), 0);
+    }
 }
 #endif
 
@@ -100132,6 +100196,8 @@ static int test_dtls_frag_ch_count_records(byte* b, int len)
         records++;
         dtlsRH = (DtlsRecordLayerHeader*)b;
         recordLen = (dtlsRH->length[0] << 8) | dtlsRH->length[1];
+        if (recordLen > (size_t)len)
+            break;
         b += sizeof(DtlsRecordLayerHeader) + recordLen;
         len -= sizeof(DtlsRecordLayerHeader) + recordLen;
     }
@@ -100238,8 +100304,18 @@ static int test_dtls_frag_ch(void)
             WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_UseKeyShare(ssl_c, WOLFSSL_ECC_SECP521R1),
             WOLFSSL_SUCCESS);
+#ifdef HAVE_FFDHE_2048
     ExpectIntEQ(wolfSSL_UseKeyShare(ssl_c, WOLFSSL_FFDHE_2048),
             WOLFSSL_SUCCESS);
+#endif
+#ifdef HAVE_FFDHE_3072
+    ExpectIntEQ(wolfSSL_UseKeyShare(ssl_c, WOLFSSL_FFDHE_3072),
+            WOLFSSL_SUCCESS);
+#endif
+#ifdef HAVE_FFDHE_4096
+    ExpectIntEQ(wolfSSL_UseKeyShare(ssl_c, WOLFSSL_FFDHE_4096),
+            WOLFSSL_SUCCESS);
+#endif
 
     ExpectIntEQ(wolfSSL_dtls13_allow_ch_frag(ssl_s, 1), WOLFSSL_SUCCESS);
 
@@ -102687,6 +102763,10 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wc_dilithium_sig_kats),
     TEST_DECL(test_wc_dilithium_verify_kats),
 
+    /* Ascon */
+    TEST_DECL(test_ascon_hash256),
+    TEST_DECL(test_ascon_aead128),
+
     /* MlDsaComposite */
     TEST_DECL(test_wc_mldsa_composite),
     TEST_DECL(test_wc_mldsa_composite_make_key),
@@ -103649,6 +103729,7 @@ TEST_CASE testCases[] = {
     /* Can't memory test as server Asserts in thread. */
     TEST_DECL(test_wolfSSL_BIO_accept),
     TEST_DECL(test_wolfSSL_BIO_tls),
+    TEST_DECL(test_wolfSSL_BIO_s_null),
     TEST_DECL(test_wolfSSL_BIO_datagram),
 #endif
 
