@@ -661,7 +661,7 @@ int wc_mldsa_composite_verify_msg_ex(const byte* sig, word32 sigLen, const byte*
 
                 // Sets the Padding and Verify
                 key->alt_key.rsa.type = WC_RSA_PSS_PAD;
-                if ((ret = wc_RsaPSS_Verify_ex((byte *)other_Buffer, other_BufferLen,
+                if ((ret = wc_RsaPSS_Verify_ex(sig + idx, sigLen - idx,
                                                sigBuffer, sigSz, 
                                                WC_HASH_TYPE_SHA384, mgf,
                                                saltLen, &key->alt_key.rsa)) < 0) {
@@ -670,7 +670,7 @@ int wc_mldsa_composite_verify_msg_ex(const byte* sig, word32 sigLen, const byte*
             } else {
                 // Sets the Padding and Verify
                 key->alt_key.rsa.type = WC_RSA_PKCSV15_PAD;
-                if ((ret = wc_RsaSSL_Verify_ex2(other_Buffer, other_BufferLen,
+                if ((ret = wc_RsaSSL_Verify_ex2(sig + idx, sigLen - idx,
                                                 sigBuffer, sigSz, &key->alt_key.rsa,
                                                 WC_RSA_PKCSV15_PAD, WC_HASH_TYPE_SHA512)) < 0) {
                     return SIG_VERIFY_E;
@@ -697,7 +697,7 @@ int wc_mldsa_composite_verify_msg_ex(const byte* sig, word32 sigLen, const byte*
                 return BUFFER_E;
             }
             // Verify ECDSA Component
-            if ((ret = wc_ecc_verify_hash(other_Buffer, other_BufferLen,
+            if ((ret = wc_ecc_verify_hash(sig + idx, sigLen - idx,
                                           hash, WC_SHA384_DIGEST_SIZE,
                                           res, &key->alt_key.ecc)) < 0) {
                 return SIG_VERIFY_E;
@@ -705,6 +705,8 @@ int wc_mldsa_composite_verify_msg_ex(const byte* sig, word32 sigLen, const byte*
         } break;
 
         case WC_MLDSA65_BPOOL256_SHA384: {
+            byte hash[WC_SHA256_DIGEST_SIZE] = { 0 };
+
             // Checks the ML-DSA key level
             if (key->mldsa_key.level != WC_ML_DSA_65) {
                 return BAD_STATE_E;
@@ -714,7 +716,7 @@ int wc_mldsa_composite_verify_msg_ex(const byte* sig, word32 sigLen, const byte*
                 return BAD_STATE_E;
             }
             // Cehcks the ECDSA signature size
-            if ((int)other_BufferLen > wc_ecc_sig_size(&key->alt_key.ecc)) {
+            if ((sigLen - idx) > wc_ecc_sig_size(&key->alt_key.ecc)) {
                 return ASN_PARSE_E;
             }
             // Verify ECDSA Component
