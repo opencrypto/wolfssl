@@ -27207,9 +27207,9 @@ int wc_KeySum_get(const char * name) {
             !XSTRNCMP(name, "dsa", 3)) {
             ret = DSAk;
         } else if (!XSTRNCMP(name, "RSAPSS", 6) ||
-                   !XSTRNCMP(name, "rsapss", 6 ||
+                   !XSTRNCMP(name, "rsapss", 6) ||
                    !XSTRNCMP(name, "pss", 3) ||
-                   !XSTRNCMP(name, "pss", 3))) {
+                   !XSTRNCMP(name, "pss", 3)) {
             ret = RSAPSSk;
         } else if (!XSTRNCMP(name, "RSA", 3) ||
                    !XSTRNCMP(name, "rsa", 3)) {
@@ -42858,7 +42858,7 @@ int wc_CertName_set(CertName * certName, const char * strName)
     const char *ptr = strName;
     const char *start;
     char name[256], value[256];
-    int name_len, value_len;
+    word32 name_len, value_len;
 
     while (*ptr) {
         // Skip leading white space
@@ -42870,7 +42870,7 @@ int wc_CertName_set(CertName * certName, const char * strName)
         if (*ptr != '=') return BAD_FUNC_ARG; // Invalid format
 
         // Copy the name
-        name_len = ptr - start;
+        name_len = (word32)(ptr - start);
         if ((long unsigned int)name_len >= sizeof(name)) return BUFFER_E; // Name too long
         strncpy(name, start, name_len);
         name[name_len] = '\0';
@@ -42889,7 +42889,7 @@ int wc_CertName_set(CertName * certName, const char * strName)
         }
 
         // Copy the value
-        value_len = ptr - start;
+        value_len = (word32)(ptr - start);
         if ((long unsigned int)value_len >= sizeof(value)) return BUFFER_E; // Value too long
         strncpy(value, start, value_len);
         value[value_len] = '\0';

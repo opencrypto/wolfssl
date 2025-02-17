@@ -118,7 +118,7 @@ int export_key_p8(AsymKey * key, const char * out_file, int format) {
         }
     } else {
         int fd = fileno(stdout);
-        ret = write(fd, buff, buffSz);
+        ret = (int)write(fd, buff, buffSz);
     }
 
     return 0;
@@ -219,7 +219,7 @@ int load_file(byte ** data, int *len, const char * filename) {
             return -1;
         }
     }
-    *len = fileSz;
+    *len = (int)fileSz;
 
     if (data && *data) {
         // Reads the file and closes it
@@ -453,7 +453,7 @@ int sign_cert(const char * req_file, const char * outCertFilename, int outCertFo
         }
     } else {
         int fd = fileno(stdout);
-        ret = write(fd, cert, certSz);
+        ret = (int)write(fd, cert, certSz);
     }
 
     ret = 0; /* success */
