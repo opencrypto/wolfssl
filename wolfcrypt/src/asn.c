@@ -2458,8 +2458,9 @@ static int GetASNHeader_ex(const byte* input, byte tag, word32* inOutIdx,
             ret = ASN_PARSE_E;
         }
         else if ((input[(int)idx + length - 1] & 0x80) == 0x80) {
-            /* Last octet of a sub-identifier has bit 8 clear. Last octet must be
-            * last of a subidentifier. Ensure last octet hasn't got top bit set. */
+            /* Last octet of a sub-identifier has bit 8 clear. Last octet must
+             * be last of a subidentifier. Ensure last octet hasn't got top bit
+             * set. */
             WOLFSSL_MSG("OID last octet has top bit set");
             ret = ASN_PARSE_E;
         }
@@ -3636,8 +3637,8 @@ word32 SetIndefEnd(byte* output)
 
 /* Breaks an octet string up into chunks for use with streaming
  * returns 0 on success and updates idx */
-int StreamOctetString(const byte* inBuf, word32 inBufSz, byte* out, word32* outSz,
-    word32* idx)
+int StreamOctetString(const byte* inBuf, word32 inBufSz, byte* out,
+                      word32* outSz, word32* idx)
 {
     word32 i  = 0;
     word32 outIdx = *idx;
@@ -11848,8 +11849,8 @@ int wc_DsaKeyToParamsDer(DsaKey* key, byte* output, word32 inLen)
 }
 
 /* This version of the function allows output to be NULL. In that case, the
-   DsaKeyIntsToDer will return WC_NO_ERR_TRACE(LENGTH_ONLY_E) and the required output buffer
-   size will be pointed to by inLen. */
+   DsaKeyIntsToDer will return WC_NO_ERR_TRACE(LENGTH_ONLY_E) and the required
+   output buffer size will be pointed to by inLen. */
 int wc_DsaKeyToParamsDer_ex(DsaKey* key, byte* output, word32* inLen)
 {
     if (!key || !inLen)
@@ -16659,7 +16660,8 @@ static WC_INLINE int IsSigAlgoECC(word32 algoOID)
  * @return  Encoded data size on success.
  * @return  0 when dynamic memory allocation fails.
  */
-static word32 SetAlgoIDImpl(int algoOID, byte* output, int type, int curveSz, byte absentParams)
+static word32 SetAlgoIDImpl(int algoOID, byte* output, int type, int curveSz,
+                            byte absentParams)
 {
 #ifndef WOLFSSL_ASN_TEMPLATE
     word32 tagSz, idSz, seqSz, algoSz = 0;
@@ -16789,7 +16791,8 @@ word32 SetAlgoID(int algoOID, byte* output, int type, int curveSz)
     return SetAlgoIDImpl(algoOID, output, type, curveSz, FALSE);
 }
 
-word32 SetAlgoIDEx(int algoOID, byte* output, int type, int curveSz, byte absentParams)
+word32 SetAlgoIDEx(int algoOID, byte* output, int type, int curveSz,
+                   byte absentParams)
 {
     return SetAlgoIDImpl(algoOID, output, type, curveSz, absentParams);
 }
@@ -18361,41 +18364,6 @@ exit_cs:
 
     return ret;
 }
-
-#ifdef WOLFSSL_DUAL_ALG_CERTS
-int wc_ConfirmAltSignature(
-    const byte* buf, word32 bufSz,
-    const byte* key, word32 keySz, word32 keyOID,
-    const byte* sig, word32 sigSz, word32 sigOID,
-    void *heap)
-{
-    int ret = 0;
-#ifdef WOLFSSL_SMALL_STACK
-    SignatureCtx* sigCtx = (SignatureCtx*)XMALLOC(sizeof(*sigCtx), heap,
-        DYNAMIC_TYPE_SIGNATURE);
-    if (sigCtx == NULL) {
-        ret = MEMORY_E;
-    }
-#else
-    SignatureCtx  sigCtx[1];
-    (void)heap;
-#endif
-
-    if (ret == 0) {
-        InitSignatureCtx(sigCtx, heap, INVALID_DEVID);
-
-        ret = ConfirmSignature(sigCtx, buf, bufSz, key, keySz,
-             keyOID, sig, sigSz, sigOID, NULL, 0, NULL);
-
-        FreeSignatureCtx(sigCtx);
-    }
-
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(sigCtx, heap, DYNAMIC_TYPE_SIGNATURE);
-#endif
-    return ret;
-}
-#endif /* WOLFSSL_DUAL_ALG_CERTS */
 
 #ifndef IGNORE_NAME_CONSTRAINTS
 
@@ -24092,7 +24060,8 @@ Signer* findSignerByName(Signer *list, byte *hash)
     return NULL;
 }
 
-int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm, Signer *extraCAList)
+int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm,
+                      Signer *extraCAList)
 {
     int    ret = 0;
 #ifndef WOLFSSL_ASN_TEMPLATE
@@ -31825,8 +31794,18 @@ static int MakeAnyCert(Cert* cert, byte* derBuffer, word32 derSz,
 #endif
 }
 
-
-/* Make an x509 Certificate v3 RSA or ECC from cert input, write to buffer */
+/* Make an x509 Certificate v3 from cert input using any
+ * key type, and write to buffer.
+ *
+ * @param [in, out] cert      Certificate object.
+ * @param [out]     derBuffer Buffer to write der in.
+ * @param [in]      derSz     Der buffer size.
+ * @param [in]      keyType   The type of key.
+ * @param [in]      key       Key data.
+ * @param [in]      rng       Random number generator.
+ * @return          Size of encoded data in bytes on success.
+ * @return          < 0 on error
+ * */
 int wc_MakeCert_ex(Cert* cert, byte* derBuffer, word32 derSz, int keyType,
                    void* key, WC_RNG* rng)
 {
@@ -33107,6 +33086,21 @@ static int SignCert(int requestSz, int sType, byte* buf, word32 buffSz,
 }
 
 #ifdef WOLFSSL_DUAL_ALG_CERTS
+/* Generate a signature from input buffer using
+ * any key type.
+ *
+ * @param [out] sig     The signature buffer to write in.
+ * @param [out] sigsz   The signature buffer size.
+ * @param [in]  sType   The signature type.
+ * @param [in]  buf     The input buf to sign.
+ * @param [in]  bufSz   The buffer size
+ * @param [in]  keyType The key type.
+ * @param [in]  key     Key data.
+ * @param [in]  rng     Random number generator.
+ *
+ * @return  Size of signature on success.
+ * @return  < 0 on error.
+ * */
 int wc_MakeSigWithBitStr(byte *sig, int sigSz, int sType, byte* buf,
                          word32 bufSz, int keyType, void* key, WC_RNG* rng)
 {
@@ -33118,6 +33112,8 @@ int wc_MakeSigWithBitStr(byte *sig, int sigSz, int sType, byte* buf,
     dilithium_key*     dilithiumKey = NULL;
     sphincs_key*       sphincsKey = NULL;
     mldsa_composite_key * mldsaCompKey = NULL;
+
+    WOLFSSL_ENTER("wc_MakeSigWithBitStr");
 
     int ret = 0;
     int headerSz;
@@ -33254,6 +33250,20 @@ int wc_MakeSigWithBitStr(byte *sig, int sigSz, int sType, byte* buf,
 }
 #endif /* WOLFSSL_DUAL_ALG_CERTS */
 
+/* Sign an x509 Certificate v3 from cert input using any
+ * key type, and write to buffer.
+ *
+ * @param [in]     requestSz Size of requested data to sign.
+ * @param [in]     sType     The signature type.
+ * @param [in,out] buf       Der buffer to sign.
+ * @param [in]     buffSz    Der buffer size.
+ * @param [in]     keyType   The type of key.
+ * @param [in]     key       Key data.
+ * @param [in]     rng       Random number generator.
+ *
+ * @return  Size of signature on success.
+ * @return  < 0 on error
+ * */
 int wc_SignCert_ex(int requestSz, int sType, byte* buf, word32 buffSz,
                    int keyType, void* key, WC_RNG* rng)
 {
@@ -35403,7 +35413,8 @@ int wc_EccPrivateKeyDecode(const byte* input, word32* inOutIdx, ecc_key* key,
                     ret = BUFFER_E;
                 else {
             #ifdef WOLFSSL_SMALL_STACK
-                    pub = (byte*)XMALLOC(pubSz, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+                    pub = (byte*)XMALLOC(pubSz, key->heap,
+                                         DYNAMIC_TYPE_TMP_BUFFER);
                     if (pub == NULL)
                         ret = MEMORY_E;
                     else
@@ -37030,7 +37041,8 @@ int wc_Ed25519PrivateKeyToDer(ed25519_key* key, byte* output, word32 inLen)
 #if defined(HAVE_CURVE25519) && defined(HAVE_CURVE25519_KEY_EXPORT)
 /* Write only private Curve25519 key to DER format,
  * length on success else < 0 */
-int wc_Curve25519PrivateKeyToDer(curve25519_key* key, byte* output, word32 inLen)
+int wc_Curve25519PrivateKeyToDer(curve25519_key* key, byte* output,
+                                 word32 inLen)
 {
     int    ret;
     byte   privKey[CURVE25519_KEYSIZE];
@@ -37072,7 +37084,8 @@ int wc_Curve25519PublicKeyToDer(curve25519_key* key, byte* output, word32 inLen,
 /* Export Curve25519 key to DER format - handles private only, public only,
  * or private+public key pairs based on what's set in the key structure.
  * Returns length written on success, negative on error */
-int wc_Curve25519KeyToDer(curve25519_key* key, byte* output, word32 inLen, int withAlg)
+int wc_Curve25519KeyToDer(curve25519_key* key, byte* output, word32 inLen,
+                          int withAlg)
 {
     int ret;
     byte privKey[CURVE25519_KEYSIZE];
@@ -37503,12 +37516,13 @@ static int DecodeSingleResponse(byte* source, word32* ioIndex, word32 size,
             single->status->thisDateParsed.length);
 #endif
     if (GetBasicDate(source, &idx, single->status->thisDate,
-                                                &single->status->thisDateFormat, size) < 0)
+                     &single->status->thisDateFormat, size) < 0)
         return ASN_PARSE_E;
 
 #ifndef NO_ASN_TIME_CHECK
 #ifndef WOLFSSL_NO_OCSP_DATE_CHECK
-    if (!XVALIDATE_DATE(single->status->thisDate, single->status->thisDateFormat, ASN_BEFORE))
+    if (!XVALIDATE_DATE(single->status->thisDate,
+        single->status->thisDateFormat, ASN_BEFORE))
         return ASN_BEFORE_DATE_E;
 #endif
 #endif
@@ -37539,7 +37553,7 @@ static int DecodeSingleResponse(byte* source, word32* ioIndex, word32 size,
                 single->status->nextDateParsed.length);
 #endif
         if (GetBasicDate(source, &idx, single->status->nextDate,
-                                                &single->status->nextDateFormat, size) < 0)
+                         &single->status->nextDateFormat, size) < 0)
             return ASN_PARSE_E;
 
 #ifndef NO_ASN_TIME_CHECK
@@ -39700,7 +39714,7 @@ static int ParseCRL_CertList(RevokedCert* rcert, DecodedCRL* dcrl,
     {
 #if !defined(NO_ASN_TIME) && !defined(WOLFSSL_NO_CRL_DATE_CHECK)
         if (verify != NO_VERIFY &&
-                !XVALIDATE_DATE(dcrl->nextDate, dcrl->nextDateFormat, ASN_AFTER)) {
+            !XVALIDATE_DATE(dcrl->nextDate, dcrl->nextDateFormat, ASN_AFTER)) {
             WOLFSSL_MSG("CRL after date is no longer valid");
             WOLFSSL_ERROR_VERBOSE(CRL_CERT_DATE_ERR);
             return CRL_CERT_DATE_ERR;
@@ -40805,8 +40819,8 @@ int wc_MIME_header_strip(char* in, char** out, size_t start, size_t end)
 }
 
 /*****************************************************************************
-* wc_MIME_find_header_name - Searches through all given headers until a header with
-* a name matching the provided name is found.
+* wc_MIME_find_header_name - Searches through all given headers until a header
+* with a name matching the provided name is found.
 *
 * RETURNS:
 * returns a pointer to the found header, if no match was found, returns NULL.
@@ -40884,8 +40898,8 @@ char* wc_MIME_single_canonicalize(const char* line, word32* len)
 }
 
 /*****************************************************************************
-* wc_MIME_free_hdrs - Frees all MIME headers, parameters and strings starting from
-* the provided header pointer.
+* wc_MIME_free_hdrs - Frees all MIME headers, parameters and strings starting
+* from the provided header pointer.
 *
 * RETURNS:
 * returns zero on success, non-zero on error.
@@ -41741,9 +41755,9 @@ int wc_RsaPublicKeyDecodeRaw(const byte* n, word32 nSz, const byte* e,
 #endif /* !NO_RSA && (!NO_BIG_INT || WOLFSSL_SP_MATH) */
 
 #if defined(WOLFSSL_ACERT) && defined(WOLFSSL_ASN_TEMPLATE)
-/* Initialize decoded certificate object with buffer of DER encoding.
+/* Initialize decoded attribute certificate object with buffer of DER encoding.
  *
- * @param [in, out] cert    Decoded certificate object.
+ * @param [in, out] acert   Decoded attribute certificate object.
  * @param [in]      source  Buffer containing DER encoded certificate.
  * @param [in]      inSz    Size of DER data in buffer in bytes.
  * @param [in]      heap    Dynamic memory hint.
@@ -41770,7 +41784,7 @@ void InitDecodedAcert(DecodedAcert* acert, const byte* source, word32 inSz,
 
 /* Free the decoded attribute cert object's dynamic data.
  *
- * @param [in, out] acert  Attribute Decoded certificate object.
+ * @param [in, out] acert   Decoded attribute certificate object.
  */
 void FreeDecodedAcert(DecodedAcert * acert)
 {
@@ -41807,7 +41821,7 @@ void FreeDecodedAcert(DecodedAcert * acert)
  * @param [in, out] inOutIdx  On in, the index of the start of the OtherName.
  *                            On out, index after OtherName.
  * @param [in]      len       Length of data in buffer.
- * @param [in]      cert      Decoded attribute certificate object.
+ * @param [in]      acert     Decoded attribute certificate object.
  * @param [in, out] entries   Linked list of DNS name entries.
  *
  * @return  0 on success.
@@ -41948,7 +41962,7 @@ static int DecodeAcertGeneralName(const byte* input, word32* inOutIdx,
  * @param [in]      input    Buffer holding encoded data.
  * @param [in]      sz       Size of encoded data in bytes.
  * @param [in]      tag      ASN.1 tag value expected in header.
- * @param [in, out] cert     Decoded certificate object.
+ * @param [in, out] acert    Decoded attribute certificate object.
  * @param [in, out] entries  Linked list of DNS name entries.
  *
  * @return  0 on success.
@@ -42075,10 +42089,9 @@ enum {
 
 /* Decode the Holder field of an x509 attribute certificate.
  *
- *
  * @param [in]      input     Buffer containing encoded Holder field.
  * @param [in]      len       Length of Holder field.
- * @param [in]      cert      Decoded certificate object.
+ * @param [in, out] acert     Decoded attribute certificate object.
  *
  * @return  0 on success.
  * @return  ASN_PARSE_E when BER encoded data does not match ASN.1 items or
@@ -42242,7 +42255,7 @@ enum {
  *
  * @param [in]      input     Buffer containing encoded AttCertIssuer field.
  * @param [in]      len       Length of Holder field.
- * @param [in]      cert      Decoded certificate object.
+ * @param [in,out]  acert     Decoded attribute certificate object.
  *
  * @return  0 on success.
  * @return  ASN_PARSE_E when BER encoded data does not match ASN.1 items or
@@ -42418,8 +42431,10 @@ enum {
  *   - extensions
  *   - attributes
  *
- * Returns 0 on success.
- * Returns negative error code on error/failure.
+ * @param [in, out] acert   Decoded attribute certificate object.
+ * @param [in]      verify  Whether to verify dates.
+ * @return  0 on success.
+ * @return  negative error code on error/fail.
  * */
 int ParseX509Acert(DecodedAcert* acert, int verify)
 {
@@ -42629,7 +42644,6 @@ int ParseX509Acert(DecodedAcert* acert, int verify)
 }
 
 /* Given the parsed attribute cert info, verify the signature.
- *
  * The sigCtx is alloced and freed here.
  *
  * @param [in]      acinfo        the parsed acinfo sequence
@@ -42720,7 +42734,7 @@ int VerifyX509Acert(const byte* der, word32 derSz,
     const byte *   sigParams = NULL;
     word32         sigParamsSz = 0;
 
-    WOLFSSL_MSG("ParseX509Acert");
+    WOLFSSL_MSG("VerifyX509Acert");
 
     if (der == NULL || pubKey == NULL || derSz == 0 || pubKeySz == 0) {
         WOLFSSL_MSG("error: VerifyX509Acert: bad args");
@@ -42809,6 +42823,10 @@ int VerifyX509Acert(const byte* der, word32 derSz,
     return ret;
 }
 
+/**
+ * Wrapper API to expose Acert ASN functions. See Acert ASN functions
+ * for comments.
+ * */
 void wc_InitDecodedAcert(DecodedAcert* acert, const byte* source, word32 inSz,
                          void* heap)
 {

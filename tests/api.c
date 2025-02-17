@@ -56,6 +56,7 @@
 
 #include <wolfssl/test.h>
 #include <tests/utils.h>
+#include <testsuite/utils.h>
 
 /* for testing compatibility layer callbacks */
 #include "examples/server/server.h"
@@ -291,8 +292,20 @@
 #define WOLFSSL_MISC_INCLUDED
 #include <wolfcrypt/src/misc.c>
 
+#include <tests/api/api.h>
+
 /* Gather test declarations to include them in the testCases array */
-#include <tests/api/ascon.h>
+#include <tests/api/test_md5.h>
+#include <tests/api/test_sha.h>
+#include <tests/api/test_sha256.h>
+#include <tests/api/test_sha512.h>
+#include <tests/api/test_sha3.h>
+#include <tests/api/test_blake2.h>
+#include <tests/api/test_sm3.h>
+#include <tests/api/test_ripemd.h>
+#include <tests/api/test_hash.h>
+#include <tests/api/test_ascon.h>
+#include <tests/api/test_dtls.h>
 
 #if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && !defined(NO_TLS) && \
     !defined(NO_RSA)        && !defined(SINGLE_THREADED) && \
@@ -424,20 +437,6 @@
     #define FOURK_BUF 4096
 #endif
 
-#ifndef HEAP_HINT
-    #define HEAP_HINT NULL
-#endif
-
-
-
-
-typedef struct testVector {
-    const char* input;
-    const char* output;
-    size_t inLen;
-    size_t outLen;
-
-} testVector;
 
 #if defined(HAVE_PKCS7)
     typedef struct {
@@ -555,9 +554,6 @@ int tmpDirNameSet = 0;
     ((check) ? TEST_SUCCESS : TEST_FAIL)
 #endif /* DEBUG_WOLFSSL_VERBOSE */
 
-#define TEST_STRING    "Everyone gets Friday off."
-#define TEST_STRING_SZ 25
-
 #ifndef NO_RSA
 #if (!defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL)) && \
     (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 4)) && \
@@ -587,253 +583,9 @@ enum {
 
 #ifdef WOLFSSL_QNX_CAAM
 #include <wolfssl/wolfcrypt/port/caam/wolfcaam.h>
-static int testDevId = WOLFSSL_CAAM_DEVID;
+int testDevId = WOLFSSL_CAAM_DEVID;
 #else
-static int testDevId = INVALID_DEVID;
-#endif
-
-#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && !defined(NO_RSA) && \
-    !defined(NO_WOLFSSL_SERVER) && !defined(NO_WOLFSSL_CLIENT) && \
-    (!defined(WOLFSSL_NO_TLS12) || defined(WOLFSSL_TLS13))
-
-/* This set of memio functions allows for more fine tuned control of the TLS
- * connection operations. For new tests, try to use ssl_memio first. */
-
-/* To dump the memory in gdb use
- *   dump memory client.bin test_ctx.c_buff test_ctx.c_buff+test_ctx.c_len
- *   dump memory server.bin test_ctx.s_buff test_ctx.s_buff+test_ctx.s_len
- * This can be imported into Wireshark by transforming the file with
- *   od -Ax -tx1 -v client.bin > client.bin.hex
- *   od -Ax -tx1 -v server.bin > server.bin.hex
- * And then loading test_output.dump.hex into Wireshark using the
- * "Import from Hex Dump..." option ion and selecting the TCP
- * encapsulation option.
- */
-
-#define HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES
-
-static WC_INLINE int test_memio_write_cb(WOLFSSL *ssl, char *data, int sz,
-    void *ctx)
-{
-    struct test_memio_ctx *test_ctx;
-    byte *buf;
-    int *len;
-
-    test_ctx = (struct test_memio_ctx*)ctx;
-
-    if (wolfSSL_GetSide(ssl) == WOLFSSL_SERVER_END) {
-        buf = test_ctx->c_buff;
-        len = &test_ctx->c_len;
-    }
-    else {
-        buf = test_ctx->s_buff;
-        len = &test_ctx->s_len;
-    }
-
-    if ((unsigned)(*len + sz) > TEST_MEMIO_BUF_SZ)
-        return WOLFSSL_CBIO_ERR_WANT_WRITE;
-
-#ifdef WOLFSSL_DUMP_MEMIO_STREAM
-    {
-        char dump_file_name[64];
-        WOLFSSL_BIO *dump_file;
-        sprintf(dump_file_name, "%s/%s.dump", tmpDirName, currentTestName);
-        dump_file = wolfSSL_BIO_new_file(dump_file_name, "a");
-        if (dump_file != NULL) {
-            (void)wolfSSL_BIO_write(dump_file, data, sz);
-            wolfSSL_BIO_free(dump_file);
-        }
-    }
-#endif
-    XMEMCPY(buf + *len, data, (size_t)sz);
-    *len += sz;
-
-    return sz;
-}
-
-static WC_INLINE int test_memio_read_cb(WOLFSSL *ssl, char *data, int sz,
-    void *ctx)
-{
-    struct test_memio_ctx *test_ctx;
-    int read_sz;
-    byte *buf;
-    int *len;
-
-    test_ctx = (struct test_memio_ctx*)ctx;
-
-    if (wolfSSL_GetSide(ssl) == WOLFSSL_SERVER_END) {
-        buf = test_ctx->s_buff;
-        len = &test_ctx->s_len;
-    }
-    else {
-        buf = test_ctx->c_buff;
-        len = &test_ctx->c_len;
-    }
-
-    if (*len == 0)
-        return WOLFSSL_CBIO_ERR_WANT_READ;
-
-    read_sz = sz < *len ? sz : *len;
-
-    XMEMCPY(data, buf, (size_t)read_sz);
-    XMEMMOVE(buf, buf + read_sz,(size_t) (*len - read_sz));
-
-    *len -= read_sz;
-
-    return read_sz;
-}
-
-int test_memio_do_handshake(WOLFSSL *ssl_c, WOLFSSL *ssl_s,
-    int max_rounds, int *rounds)
-{
-    byte handshake_complete = 0, hs_c = 0, hs_s = 0;
-    int ret, err;
-
-    if (rounds != NULL)
-        *rounds = 0;
-    while (!handshake_complete && max_rounds > 0) {
-        if (!hs_c) {
-            wolfSSL_SetLoggingPrefix("client");
-            ret = wolfSSL_connect(ssl_c);
-            wolfSSL_SetLoggingPrefix(NULL);
-            if (ret == WOLFSSL_SUCCESS) {
-                hs_c = 1;
-            }
-            else {
-                err = wolfSSL_get_error(ssl_c, ret);
-                if (err != WOLFSSL_ERROR_WANT_READ &&
-                    err != WOLFSSL_ERROR_WANT_WRITE)
-                    return -1;
-            }
-        }
-        if (!hs_s) {
-            wolfSSL_SetLoggingPrefix("server");
-            ret = wolfSSL_accept(ssl_s);
-            wolfSSL_SetLoggingPrefix(NULL);
-            if (ret == WOLFSSL_SUCCESS) {
-                hs_s = 1;
-            }
-            else {
-                err = wolfSSL_get_error(ssl_s, ret);
-                if (err != WOLFSSL_ERROR_WANT_READ &&
-                    err != WOLFSSL_ERROR_WANT_WRITE)
-                    return -1;
-            }
-        }
-        handshake_complete = hs_c && hs_s;
-        max_rounds--;
-        if (rounds != NULL)
-            *rounds = *rounds + 1;
-    }
-
-    if (!handshake_complete)
-        return -1;
-
-    return 0;
-}
-
-int test_memio_setup_ex(struct test_memio_ctx *ctx,
-    WOLFSSL_CTX **ctx_c, WOLFSSL_CTX **ctx_s, WOLFSSL **ssl_c, WOLFSSL **ssl_s,
-    method_provider method_c, method_provider method_s,
-    byte *caCert, int caCertSz, byte *serverCert, int serverCertSz,
-    byte *serverKey, int serverKeySz)
-{
-    int ret;
-    (void)caCert;
-    (void)caCertSz;
-    (void)serverCert;
-    (void)serverCertSz;
-    (void)serverKey;
-    (void)serverKeySz;
-
-    if (ctx_c != NULL && *ctx_c == NULL) {
-        *ctx_c = wolfSSL_CTX_new(method_c());
-        if (*ctx_c == NULL)
-            return -1;
-#ifndef NO_CERTS
-        if (caCert == NULL) {
-            ret = wolfSSL_CTX_load_verify_locations(*ctx_c, caCertFile, 0);
-        }
-        else {
-            ret = wolfSSL_CTX_load_verify_buffer(*ctx_c, caCert, (long)caCertSz,
-                                                 WOLFSSL_FILETYPE_ASN1);
-        }
-        if (ret != WOLFSSL_SUCCESS)
-            return -1;
-#endif /* NO_CERTS */
-        wolfSSL_SetIORecv(*ctx_c, test_memio_read_cb);
-        wolfSSL_SetIOSend(*ctx_c, test_memio_write_cb);
-        if (ctx->c_ciphers != NULL) {
-            ret = wolfSSL_CTX_set_cipher_list(*ctx_c, ctx->c_ciphers);
-            if (ret != WOLFSSL_SUCCESS)
-                return -1;
-        }
-    }
-
-    if (ctx_s != NULL && *ctx_s == NULL) {
-        *ctx_s = wolfSSL_CTX_new(method_s());
-        if (*ctx_s == NULL)
-            return -1;
-#ifndef NO_CERTS
-        if (serverKey == NULL) {
-            ret = wolfSSL_CTX_use_PrivateKey_file(*ctx_s, svrKeyFile,
-                WOLFSSL_FILETYPE_PEM);
-        }
-        else {
-            ret = wolfSSL_CTX_use_PrivateKey_buffer(*ctx_s, serverKey,
-                (long)serverKeySz, WOLFSSL_FILETYPE_ASN1);
-        }
-        if (ret != WOLFSSL_SUCCESS)
-            return- -1;
-
-        if (serverCert == NULL) {
-            ret = wolfSSL_CTX_use_certificate_file(*ctx_s, svrCertFile,
-                                                   WOLFSSL_FILETYPE_PEM);
-        }
-        else {
-            ret = wolfSSL_CTX_use_certificate_chain_buffer_format(*ctx_s,
-                serverCert, (long)serverCertSz, WOLFSSL_FILETYPE_ASN1);
-        }
-        if (ret != WOLFSSL_SUCCESS)
-            return -1;
-#endif /* NO_CERTS */
-        wolfSSL_SetIORecv(*ctx_s, test_memio_read_cb);
-        wolfSSL_SetIOSend(*ctx_s, test_memio_write_cb);
-        if (ctx->s_ciphers != NULL) {
-            ret = wolfSSL_CTX_set_cipher_list(*ctx_s, ctx->s_ciphers);
-            if (ret != WOLFSSL_SUCCESS)
-                return -1;
-        }
-    }
-
-    if (ctx_c != NULL && ssl_c != NULL) {
-        *ssl_c = wolfSSL_new(*ctx_c);
-        if (*ssl_c == NULL)
-            return -1;
-        wolfSSL_SetIOWriteCtx(*ssl_c, ctx);
-        wolfSSL_SetIOReadCtx(*ssl_c, ctx);
-    }
-    if (ctx_s != NULL && ssl_s != NULL) {
-        *ssl_s = wolfSSL_new(*ctx_s);
-        if (*ssl_s == NULL)
-            return -1;
-        wolfSSL_SetIOWriteCtx(*ssl_s, ctx);
-        wolfSSL_SetIOReadCtx(*ssl_s, ctx);
-#if !defined(NO_DH)
-        SetDH(*ssl_s);
-#endif
-    }
-
-    return 0;
-}
-
-int test_memio_setup(struct test_memio_ctx *ctx,
-    WOLFSSL_CTX **ctx_c, WOLFSSL_CTX **ctx_s, WOLFSSL **ssl_c, WOLFSSL **ssl_s,
-    method_provider method_c, method_provider method_s)
-{
-    return test_memio_setup_ex(ctx, ctx_c, ctx_s, ssl_c, ssl_s, method_c,
-                               method_s, NULL, 0, NULL, 0, NULL, 0);
-}
+int testDevId = INVALID_DEVID;
 #endif
 
 /*----------------------------------------------------------------------------*
@@ -1613,6 +1365,154 @@ static int test_dual_alg_support(void)
     return TEST_SKIPPED;
 }
 #endif /* WOLFSSL_DUAL_ALG_CERTS && !NO_FILESYSTEM */
+
+/**
+ * Test dual-alg ECDSA + ML-DSA:
+ *  - keygen + certgen + cert manager load
+ * */
+static int test_dual_alg_ecdsa_mldsa(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_DUAL_ALG_CERTS) && defined(HAVE_DILITHIUM) && \
+    defined(HAVE_ECC) && !defined(WC_NO_RNG) && \
+    defined(WOLFSSL_WC_DILITHIUM) && \
+    !defined(WOLFSSL_DILITHIUM_NO_MAKE_KEY) && \
+    !defined(WOLFSSL_DILITHIUM_NO_SIGN) && \
+    !defined(WOLFSSL_DILITHIUM_NO_VERIFY) && !defined(WOLFSSL_SMALL_STACK)
+    WOLFSSL_CERT_MANAGER * cm = NULL;
+    MlDsaKey    alt_ca_key;
+    ecc_key     ca_key;
+    WC_RNG      rng;
+    int         ret = 0;
+    DecodedCert d_cert;
+    Cert        new_cert;
+    /* various tmp buffs.  */
+    byte        alt_pub_der[LARGE_TEMP_SZ];
+    word32      alt_pub_sz = LARGE_TEMP_SZ;
+    byte        alt_sig_alg[LARGE_TEMP_SZ];
+    word32      alt_sig_alg_sz = LARGE_TEMP_SZ;
+    byte        tbs_der[LARGE_TEMP_SZ];
+    word32      tbs_der_sz = LARGE_TEMP_SZ;
+    byte        alt_sig[LARGE_TEMP_SZ];
+    word32      alt_sig_sz = LARGE_TEMP_SZ;
+    /* Intermediate der. */
+    byte        der[LARGE_TEMP_SZ];
+    word32      der_sz = LARGE_TEMP_SZ;
+    /* The final der will be large because of ML-DSA signature. */
+    byte        final_der[2 * LARGE_TEMP_SZ];
+    word32      final_der_sz = 2 * LARGE_TEMP_SZ;
+
+    XMEMSET(alt_pub_der, 0, alt_pub_sz);
+    XMEMSET(alt_sig_alg, 0, alt_sig_alg_sz);
+    XMEMSET(tbs_der, 0, tbs_der_sz);
+    XMEMSET(alt_sig, 0, alt_sig_sz);
+    XMEMSET(der, 0, der_sz);
+    XMEMSET(final_der, 0, final_der_sz);
+
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+
+    /**
+     * ML-DSA key gen.
+     * */
+    ret = wc_MlDsaKey_Init(&alt_ca_key, NULL, INVALID_DEVID);
+    ExpectIntEQ(ret, 0);
+    ret = wc_MlDsaKey_SetParams(&alt_ca_key, WC_ML_DSA_44);
+    ExpectIntEQ(ret, 0);
+    ret = wc_MlDsaKey_MakeKey(&alt_ca_key, &rng);
+    ExpectIntEQ(ret, 0);
+    alt_pub_sz = wc_MlDsaKey_PublicKeyToDer(&alt_ca_key, alt_pub_der,
+                                            alt_pub_sz, 1);
+    ExpectIntGT(alt_pub_sz, 0);
+
+    alt_sig_alg_sz = SetAlgoID(CTC_SHA256wECDSA, alt_sig_alg, oidSigType, 0);
+    ExpectIntGT(alt_sig_alg_sz, 0);
+
+    /**
+     * ECC key gen.
+     * */
+    ret = wc_ecc_init(&ca_key);
+    ExpectIntEQ(ret, 0);
+    ret = wc_ecc_make_key(&rng, KEY32, &ca_key);
+    ExpectIntEQ(ret, 0);
+
+    /**
+     * Cert gen.
+     * */
+    wc_InitCert(&new_cert);
+    strncpy(new_cert.subject.country, "US", CTC_NAME_SIZE);
+    strncpy(new_cert.subject.state, "MT", CTC_NAME_SIZE);
+    strncpy(new_cert.subject.locality, "Bozeman", CTC_NAME_SIZE);
+    strncpy(new_cert.subject.org, "wolfSSL", CTC_NAME_SIZE);
+    strncpy(new_cert.subject.unit, "Engineering", CTC_NAME_SIZE);
+    strncpy(new_cert.subject.commonName, "www.wolfssl.com", CTC_NAME_SIZE);
+    strncpy(new_cert.subject.email, "root@wolfssl.com", CTC_NAME_SIZE);
+    new_cert.sigType = CTC_SHA256wECDSA;
+    new_cert.isCA    = 1;
+
+    ret = wc_SetCustomExtension(&new_cert, 0, "1.2.3.4.5",
+                         (const byte *)"This is NOT a critical extension", 32);
+    ExpectIntEQ(ret, 0);
+
+    ExpectIntEQ(wc_SetCustomExtension(&new_cert, 0, "2.5.29.72", alt_pub_der,
+                alt_pub_sz), 0);
+    ExpectIntEQ(wc_SetCustomExtension(&new_cert, 0, "2.5.29.73", alt_sig_alg,
+                alt_sig_alg_sz), 0);
+
+    ret = wc_MakeCert_ex(&new_cert, der, der_sz, ECC_TYPE, &ca_key, &rng);
+    ExpectIntGT(ret, 0);
+
+    der_sz = wc_SignCert_ex(new_cert.bodySz, new_cert.sigType, der, der_sz,
+                            ECC_TYPE, &ca_key, &rng);
+    ExpectIntGT(der_sz, 0);
+
+    wc_InitDecodedCert(&d_cert, der, der_sz, 0);
+    ret = wc_ParseCert(&d_cert, CERT_TYPE, NO_VERIFY, NULL);
+    ExpectIntEQ(ret, 0);
+
+    tbs_der_sz = wc_GeneratePreTBS(&d_cert, tbs_der, tbs_der_sz);
+    ExpectIntGT(tbs_der_sz, 0);
+
+    alt_sig_sz = wc_MakeSigWithBitStr(alt_sig, alt_sig_sz,
+                                      CTC_ML_DSA_LEVEL2, tbs_der, tbs_der_sz,
+                                      ML_DSA_LEVEL2_TYPE, &alt_ca_key, &rng);
+    ExpectIntGT(alt_sig_sz, 0);
+
+    ret = wc_SetCustomExtension(&new_cert, 0, "2.5.29.74", alt_sig, alt_sig_sz);
+    ExpectIntEQ(ret, 0);
+
+    /* Finally generate the new certificate. */
+    ret = wc_MakeCert_ex(&new_cert, final_der, final_der_sz, ECC_TYPE, &ca_key,
+                         &rng);
+    ExpectIntGT(ret, 0);
+
+    final_der_sz = wc_SignCert_ex(new_cert.bodySz, new_cert.sigType, final_der,
+                                  final_der_sz, ECC_TYPE, &ca_key, &rng);
+    ExpectIntGT(final_der_sz, 0);
+
+    cm = wolfSSL_CertManagerNew();
+    ExpectNotNull(cm);
+
+    /* Load the certificate into CertManager. */
+    if (cm != NULL && final_der_sz > 0) {
+        ret = wolfSSL_CertManagerLoadCABuffer(cm, final_der, final_der_sz,
+                                              WOLFSSL_FILETYPE_ASN1);
+        ExpectIntEQ(ret, WOLFSSL_SUCCESS);
+    }
+
+    if (cm != NULL) {
+        wolfSSL_CertManagerFree(cm);
+        cm = NULL;
+    }
+
+    wc_FreeDecodedCert(&d_cert);
+    wc_ecc_free(&ca_key);
+    wc_MlDsaKey_Free(&alt_ca_key);
+    wc_FreeRng(&rng);
+
+#endif /* WOLFSSL_DUAL_ALG_CERTS && DILITHIUM and more */
+    return EXPECT_RESULT();
+}
+
 
 /*----------------------------------------------------------------------------*
  | Context
@@ -9877,6 +9777,11 @@ static void test_wolfSSL_CTX_add_session_ctx_ready(WOLFSSL_CTX* ctx)
 static void test_wolfSSL_CTX_add_session_on_result(WOLFSSL* ssl)
 {
     WOLFSSL_SESSION** sess;
+#ifdef WOLFSSL_MUTEX_INITIALIZER
+    static wolfSSL_Mutex m = WOLFSSL_MUTEX_INITIALIZER(m);
+
+    (void)wc_LockMutex(&m);
+#endif
     if (wolfSSL_is_server(ssl))
         sess = &test_wolfSSL_CTX_add_session_server_sess;
     else
@@ -9910,6 +9815,10 @@ static void test_wolfSSL_CTX_add_session_on_result(WOLFSSL* ssl)
          * resuming on that session */
         AssertIntEQ(wolfSSL_session_reused(ssl), 1);
     }
+#ifdef WOLFSSL_MUTEX_INITIALIZER
+    wc_UnLockMutex(&m);
+#endif
+
     /* Save CTX to be able to decrypt tickets */
     if (wolfSSL_is_server(ssl) &&
             test_wolfSSL_CTX_add_session_server_ctx == NULL) {
@@ -14751,2700 +14660,6 @@ static int test_wolfSSL_mcast(void)
 /*----------------------------------------------------------------------------*
  |  Wolfcrypt
  *----------------------------------------------------------------------------*/
-
-/*
- * Unit test for the wc_InitBlake2b()
- */
-static int test_wc_InitBlake2b(void)
-{
-    EXPECT_DECLS;
-#ifdef HAVE_BLAKE2
-    Blake2b blake;
-
-    /* Test good arg. */
-    ExpectIntEQ(wc_InitBlake2b(&blake, 64), 0);
-    /* Test bad arg. */
-    ExpectIntEQ(wc_InitBlake2b(NULL, 64), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_InitBlake2b(NULL, 128), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_InitBlake2b(&blake, 128), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_InitBlake2b(NULL, 0), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_InitBlake2b(&blake, 0), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-#endif
-    return EXPECT_RESULT();
-}     /* END test_wc_InitBlake2b*/
-
-/*
- * Unit test for the wc_InitBlake2b_WithKey()
- */
-static int test_wc_InitBlake2b_WithKey(void)
-{
-    EXPECT_DECLS;
-#ifdef HAVE_BLAKE2
-    Blake2b     blake;
-    word32      digestSz = BLAKE2B_KEYBYTES;
-    byte        key[BLAKE2B_KEYBYTES];
-    word32      keylen = BLAKE2B_KEYBYTES;
-
-    XMEMSET(key, 0, sizeof(key));
-
-    /* Test good arg. */
-    ExpectIntEQ(wc_InitBlake2b_WithKey(&blake, digestSz, key, keylen), 0);
-    /* Test bad args. */
-    ExpectIntEQ(wc_InitBlake2b_WithKey(NULL, digestSz, key, keylen),
-        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_InitBlake2b_WithKey(&blake, digestSz, key, 256),
-        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_InitBlake2b_WithKey(&blake, digestSz, NULL, keylen), 0);
-#endif
-    return EXPECT_RESULT();
-}     /* END wc_InitBlake2b_WithKey*/
-
-/*
- * Unit test for the wc_InitBlake2s_WithKey()
- */
-static int test_wc_InitBlake2s_WithKey(void)
-{
-    EXPECT_DECLS;
-#ifdef HAVE_BLAKE2S
-    Blake2s     blake;
-    word32      digestSz = BLAKE2S_KEYBYTES;
-    byte        *key = (byte*)"01234567890123456789012345678901";
-    word32      keylen = BLAKE2S_KEYBYTES;
-
-    /* Test good arg. */
-    ExpectIntEQ(wc_InitBlake2s_WithKey(&blake, digestSz, key, keylen), 0);
-    /* Test bad args. */
-    ExpectIntEQ(wc_InitBlake2s_WithKey(NULL, digestSz, key, keylen),
-        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_InitBlake2s_WithKey(&blake, digestSz, key, 256),
-        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_InitBlake2s_WithKey(&blake, digestSz, NULL, keylen), 0);
-#endif
-    return EXPECT_RESULT();
-}     /* END wc_InitBlake2s_WithKey*/
-
-/*
- * Unit test for the wc_InitMd5()
- */
-static int test_wc_InitMd5(void)
-{
-    EXPECT_DECLS;
-#ifndef NO_MD5
-    wc_Md5 md5;
-
-    /* Test good arg. */
-    ExpectIntEQ(wc_InitMd5(&md5), 0);
-    /* Test bad arg. */
-    ExpectIntEQ(wc_InitMd5(NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-
-    wc_Md5Free(&md5);
-#endif
-    return EXPECT_RESULT();
-}     /* END test_wc_InitMd5 */
-
-
-/*
- * Testing wc_UpdateMd5()
- */
-static int test_wc_Md5Update(void)
-{
-    EXPECT_DECLS;
-#ifndef NO_MD5
-    wc_Md5 md5;
-    byte hash[WC_MD5_DIGEST_SIZE];
-    testVector a, b, c;
-
-    ExpectIntEQ(wc_InitMd5(&md5), 0);
-
-    /* Input */
-    a.input = "a";
-    a.inLen = XSTRLEN(a.input);
-    ExpectIntEQ(wc_Md5Update(&md5, (byte*)a.input, (word32)a.inLen), 0);
-    ExpectIntEQ(wc_Md5Final(&md5, hash), 0);
-
-    /* Update input. */
-    a.input = "abc";
-    a.output = "\x90\x01\x50\x98\x3c\xd2\x4f\xb0\xd6\x96\x3f\x7d\x28\xe1\x7f"
-               "\x72";
-    a.inLen = XSTRLEN(a.input);
-    a.outLen = XSTRLEN(a.output);
-    ExpectIntEQ(wc_Md5Update(&md5, (byte*) a.input, (word32) a.inLen), 0);
-    ExpectIntEQ(wc_Md5Final(&md5, hash), 0);
-    ExpectIntEQ(XMEMCMP(hash, a.output, WC_MD5_DIGEST_SIZE), 0);
-
-    /* Pass in bad values. */
-    b.input = NULL;
-    b.inLen = 0;
-    ExpectIntEQ(wc_Md5Update(&md5, (byte*)b.input, (word32)b.inLen), 0);
-    c.input = NULL;
-    c.inLen = WC_MD5_DIGEST_SIZE;
-    ExpectIntEQ(wc_Md5Update(&md5, (byte*)c.input, (word32)c.inLen),
-        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_Md5Update(NULL, (byte*)a.input, (word32)a.inLen),
-        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-
-    wc_Md5Free(&md5);
-#endif
-    return EXPECT_RESULT();
-} /* END test_wc_Md5Update()  */
-
-
-/*
- *  Unit test on wc_Md5Final() in wolfcrypt/src/md5.c
- */
-static int test_wc_Md5Final(void)
-{
-    EXPECT_DECLS;
-#ifndef NO_MD5
-    /* Instantiate */
-    wc_Md5 md5;
-    byte* hash_test[3];
-    byte hash1[WC_MD5_DIGEST_SIZE];
-    byte hash2[2*WC_MD5_DIGEST_SIZE];
-    byte hash3[5*WC_MD5_DIGEST_SIZE];
-    int times, i;
-
-    /* Initialize */
-    ExpectIntEQ(wc_InitMd5(&md5), 0);
-
-    hash_test[0] = hash1;
-    hash_test[1] = hash2;
-    hash_test[2] = hash3;
-    times = sizeof(hash_test)/sizeof(byte*);
-    for (i = 0; i < times; i++) {
-        ExpectIntEQ(wc_Md5Final(&md5, hash_test[i]), 0);
-    }
-
-    /* Test bad args. */
-    ExpectIntEQ(wc_Md5Final(NULL, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_Md5Final(NULL, hash1), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_Md5Final(&md5, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-
-    wc_Md5Free(&md5);
-#endif
-    return EXPECT_RESULT();
-}
-
-/*
- * Unit test for the wc_InitSha()
- */
-static int test_wc_InitSha(void)
-{
-    EXPECT_DECLS;
-#ifndef NO_SHA
-    wc_Sha sha;
-
-    /* Test good arg. */
-    ExpectIntEQ(wc_InitSha(&sha), 0);
-    /* Test bad arg. */
-    ExpectIntEQ(wc_InitSha(NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-
-    wc_ShaFree(&sha);
-#endif
-    return EXPECT_RESULT();
-} /* END test_wc_InitSha */
-
-/*
- *  Tesing wc_ShaUpdate()
- */
-static int test_wc_ShaUpdate(void)
-{
-    EXPECT_DECLS;
-#ifndef NO_SHA
-    wc_Sha sha;
-    byte hash[WC_SHA_DIGEST_SIZE];
-    testVector a, b, c;
-
-    ExpectIntEQ(wc_InitSha(&sha), 0);
-
-    /* Input. */
-    a.input = "a";
-    a.inLen = XSTRLEN(a.input);
-
-    ExpectIntEQ(wc_ShaUpdate(&sha, NULL, 0), 0);
-    ExpectIntEQ(wc_ShaUpdate(&sha, (byte*)a.input, 0), 0);
-    ExpectIntEQ(wc_ShaUpdate(&sha, (byte*)a.input, (word32)a.inLen), 0);
-    ExpectIntEQ(wc_ShaFinal(&sha, hash), 0);
-
-    /* Update input. */
-    a.input = "abc";
-    a.output = "\xA9\x99\x3E\x36\x47\x06\x81\x6A\xBA\x3E\x25\x71\x78\x50\xC2"
-               "\x6C\x9C\xD0\xD8\x9D";
-    a.inLen = XSTRLEN(a.input);
-    a.outLen = XSTRLEN(a.output);
-
-    ExpectIntEQ(wc_ShaUpdate(&sha, (byte*)a.input, (word32)a.inLen), 0);
-    ExpectIntEQ(wc_ShaFinal(&sha, hash), 0);
-    ExpectIntEQ(XMEMCMP(hash, a.output, WC_SHA_DIGEST_SIZE), 0);
-
-    /* Try passing in bad values. */
-    b.input = NULL;
-    b.inLen = 0;
-    ExpectIntEQ(wc_ShaUpdate(&sha, (byte*)b.input, (word32)b.inLen), 0);
-    c.input = NULL;
-    c.inLen = WC_SHA_DIGEST_SIZE;
-    ExpectIntEQ(wc_ShaUpdate(&sha, (byte*)c.input, (word32)c.inLen),
-        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_ShaUpdate(NULL, (byte*)a.input, (word32)a.inLen),
-        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-
-    wc_ShaFree(&sha);
-#endif
-    return EXPECT_RESULT();
-} /* END test_wc_ShaUpdate() */
-
-
-/*
- * Unit test on wc_ShaFinal
- */
-static int test_wc_ShaFinal(void)
-{
-    EXPECT_DECLS;
-#ifndef NO_SHA
-    wc_Sha sha;
-    byte* hash_test[3];
-    byte hash1[WC_SHA_DIGEST_SIZE];
-    byte hash2[2*WC_SHA_DIGEST_SIZE];
-    byte hash3[5*WC_SHA_DIGEST_SIZE];
-    int times, i;
-
-    /* Initialize*/
-    ExpectIntEQ(wc_InitSha(&sha), 0);
-
-    hash_test[0] = hash1;
-    hash_test[1] = hash2;
-    hash_test[2] = hash3;
-    times = sizeof(hash_test)/sizeof(byte*);
-    for (i = 0; i < times; i++) {
-        ExpectIntEQ(wc_ShaFinal(&sha, hash_test[i]), 0);
-    }
-
-    /* Test bad args. */
-    ExpectIntEQ(wc_ShaFinal(NULL, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_ShaFinal(NULL, hash1), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_ShaFinal(&sha, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-
-    wc_ShaFree(&sha);
-#endif
-    return EXPECT_RESULT();
-} /* END test_wc_ShaFinal */
-
-
-/*
- * Unit test for wc_InitSha256()
- */
-static int test_wc_InitSha256(void)
-{
-    EXPECT_DECLS;
-#ifndef NO_SHA256
-    wc_Sha256 sha256;
-
-    /* Test good arg. */
-    ExpectIntEQ(wc_InitSha256(&sha256), 0);
-    /* Test bad arg. */
-    ExpectIntEQ(wc_InitSha256(NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-
-    wc_Sha256Free(&sha256);
-#endif
-    return EXPECT_RESULT();
-} /* END test_wc_InitSha256 */
-
-
-/*
- * Unit test for wc_Sha256Update()
- */
-static int test_wc_Sha256Update(void)
-{
-    EXPECT_DECLS;
-#ifndef NO_SHA256
-    wc_Sha256 sha256;
-    byte hash[WC_SHA256_DIGEST_SIZE];
-    byte hash_unaligned[WC_SHA256_DIGEST_SIZE+1];
-    testVector a, b, c;
-
-    ExpectIntEQ(wc_InitSha256(&sha256), 0);
-
-    /*  Input. */
-    a.input = "a";
-    a.inLen = XSTRLEN(a.input);
-    ExpectIntEQ(wc_Sha256Update(&sha256, NULL, 0), 0);
-    ExpectIntEQ(wc_Sha256Update(&sha256, (byte*)a.input, 0), 0);
-    ExpectIntEQ(wc_Sha256Update(&sha256, (byte*)a.input, (word32)a.inLen), 0);
-    ExpectIntEQ(wc_Sha256Final(&sha256, hash), 0);
-
-    /* Update input. */
-    a.input = "abc";
-    a.output = "\xBA\x78\x16\xBF\x8F\x01\xCF\xEA\x41\x41\x40\xDE\x5D\xAE\x22"
-               "\x23\xB0\x03\x61\xA3\x96\x17\x7A\x9C\xB4\x10\xFF\x61\xF2\x00"
-               "\x15\xAD";
-    a.inLen = XSTRLEN(a.input);
-    a.outLen = XSTRLEN(a.output);
-    ExpectIntEQ(wc_Sha256Update(&sha256, (byte*)a.input, (word32)a.inLen), 0);
-    ExpectIntEQ(wc_Sha256Final(&sha256, hash), 0);
-    ExpectIntEQ(XMEMCMP(hash, a.output, WC_SHA256_DIGEST_SIZE), 0);
-
-    /* Unaligned check. */
-    ExpectIntEQ(wc_Sha256Update(&sha256, (byte*)a.input+1, (word32)a.inLen-1),
-        0);
-    ExpectIntEQ(wc_Sha256Final(&sha256, hash_unaligned + 1), 0);
-
-    /* Try passing in bad values */
-    b.input = NULL;
-    b.inLen = 0;
-    ExpectIntEQ(wc_Sha256Update(&sha256, (byte*)b.input, (word32)b.inLen), 0);
-    c.input = NULL;
-    c.inLen = WC_SHA256_DIGEST_SIZE;
-    ExpectIntEQ(wc_Sha256Update(&sha256, (byte*)c.input, (word32)c.inLen),
-        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_Sha256Update(NULL, (byte*)a.input, (word32)a.inLen),
-        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-
-    wc_Sha256Free(&sha256);
-#endif
-    return EXPECT_RESULT();
-} /* END test_wc_Sha256Update */
-
-
-/*
- * Unit test function for wc_Sha256Final()
- */
-static int test_wc_Sha256Final(void)
-{
-    EXPECT_DECLS;
-#ifndef NO_SHA256
-    wc_Sha256 sha256;
-    byte* hash_test[3];
-    byte hash1[WC_SHA256_DIGEST_SIZE];
-    byte hash2[2*WC_SHA256_DIGEST_SIZE];
-    byte hash3[5*WC_SHA256_DIGEST_SIZE];
-    int times, i;
-
-    /* Initialize */
-    ExpectIntEQ(wc_InitSha256(&sha256), 0);
-
-    hash_test[0] = hash1;
-    hash_test[1] = hash2;
-    hash_test[2] = hash3;
-    times = sizeof(hash_test) / sizeof(byte*);
-    for (i = 0; i < times; i++) {
-        ExpectIntEQ(wc_Sha256Final(&sha256, hash_test[i]), 0);
-    }
-
-    /* Test bad args. */
-    ExpectIntEQ(wc_Sha256Final(NULL, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_Sha256Final(NULL, hash1), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_Sha256Final(&sha256, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-
-    wc_Sha256Free(&sha256);
-#endif
-    return EXPECT_RESULT();
-} /* END test_wc_Sha256Final */
-/*
- * Unit test function for wc_Sha256FinalRaw()
- */
-static int test_wc_Sha256FinalRaw(void)
-{
-    EXPECT_DECLS;
-#if !defined(NO_SHA256) && !defined(HAVE_SELFTEST) && !defined(WOLFSSL_DEVCRYPTO) && (!defined(HAVE_FIPS) || \
-    (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 3))) && \
-    !defined(WOLFSSL_NO_HASH_RAW)
-    wc_Sha256 sha256;
-    byte* hash_test[3];
-    byte hash1[WC_SHA256_DIGEST_SIZE];
-    byte hash2[2*WC_SHA256_DIGEST_SIZE];
-    byte hash3[5*WC_SHA256_DIGEST_SIZE];
-    int times, i;
-
-    /* Initialize */
-    ExpectIntEQ(wc_InitSha256(&sha256), 0);
-
-    hash_test[0] = hash1;
-    hash_test[1] = hash2;
-    hash_test[2] = hash3;
-    times = sizeof(hash_test) / sizeof(byte*);
-    for (i = 0; i < times; i++) {
-        ExpectIntEQ(wc_Sha256FinalRaw(&sha256, hash_test[i]), 0);
-    }
-
-    /* Test bad args. */
-    ExpectIntEQ(wc_Sha256FinalRaw(NULL, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_Sha256FinalRaw(NULL, hash1), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_Sha256FinalRaw(&sha256, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-
-    wc_Sha256Free(&sha256);
-#endif
-    return EXPECT_RESULT();
-
-} /* END test_wc_Sha256FinalRaw */
-/*
- * Unit test function for wc_Sha256GetFlags()
- */
-static int test_wc_Sha256GetFlags(void)
-{
-    EXPECT_DECLS;
-#if !defined(NO_SHA256) && defined(WOLFSSL_HASH_FLAGS)
-    wc_Sha256 sha256;
-    word32 flags = 0;
-
-    /* Initialize */
-    ExpectIntEQ(wc_InitSha256(&sha256), 0);
-
-    ExpectIntEQ(wc_Sha256GetFlags(&sha256, &flags), 0);
-    ExpectTrue((flags & WC_HASH_FLAG_ISCOPY) == 0);
-
-    wc_Sha256Free(&sha256);
-#endif
-    return EXPECT_RESULT();
-
-} /* END test_wc_Sha256GetFlags */
-/*
- * Unit test function for wc_Sha256Free()
- */
-static int test_wc_Sha256Free(void)
-{
-    EXPECT_DECLS;
-#ifndef NO_SHA256
-    wc_Sha256Free(NULL);
-    /* Set result to SUCCESS. */
-    ExpectTrue(1);
-#endif
-    return EXPECT_RESULT();
-} /* END test_wc_Sha256Free */
-/*
- * Unit test function for wc_Sha256GetHash()
- */
-static int test_wc_Sha256GetHash(void)
-{
-    EXPECT_DECLS;
-#ifndef NO_SHA256
-    wc_Sha256 sha256;
-    byte hash1[WC_SHA256_DIGEST_SIZE];
-
-    /* Initialize */
-    ExpectIntEQ(wc_InitSha256(&sha256), 0);
-
-    ExpectIntEQ(wc_Sha256GetHash(&sha256, hash1), 0);
-
-    /* test bad arguments*/
-    ExpectIntEQ(wc_Sha256GetHash(NULL, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_Sha256GetHash(NULL, hash1), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_Sha256GetHash(&sha256, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-
-    wc_Sha256Free(&sha256);
-#endif
-    return EXPECT_RESULT();
-} /* END test_wc_Sha256GetHash */
-/*
- * Unit test function for wc_Sha256Copy()
- */
-static int test_wc_Sha256Copy(void)
-{
-    EXPECT_DECLS;
-#ifndef NO_SHA256
-    wc_Sha256 sha256;
-    wc_Sha256 temp;
-
-    XMEMSET(&sha256, 0, sizeof(sha256));
-    XMEMSET(&temp, 0, sizeof(temp));
-
-    /* Initialize */
-    ExpectIntEQ(wc_InitSha256(&sha256), 0);
-    ExpectIntEQ(wc_InitSha256(&temp), 0);
-
-    ExpectIntEQ(wc_Sha256Copy(&sha256, &temp), 0);
-
-    /* test bad arguments*/
-    ExpectIntEQ(wc_Sha256Copy(NULL, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_Sha256Copy(NULL, &temp), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_Sha256Copy(&sha256, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-
-    wc_Sha256Free(&sha256);
-    wc_Sha256Free(&temp);
-#endif
-    return EXPECT_RESULT();
-} /* END test_wc_Sha256Copy */
-/*
- * Testing wc_InitSha512()
- */
-static int test_wc_InitSha512(void)
-{
-    EXPECT_DECLS;
-#ifdef WOLFSSL_SHA512
-    wc_Sha512 sha512;
-
-    /* Test good arg. */
-    ExpectIntEQ(wc_InitSha512(&sha512), 0);
-    /* Test bad arg. */
-    ExpectIntEQ(wc_InitSha512(NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-
-    wc_Sha512Free(&sha512);
-#endif
-    return EXPECT_RESULT();
-} /* END test_wc_InitSha512 */
-
-
-/*
- *  wc_Sha512Update() test.
- */
-static int test_wc_Sha512Update(void)
-{
-    EXPECT_DECLS;
-#ifdef WOLFSSL_SHA512
-    wc_Sha512 sha512;
-    byte hash[WC_SHA512_DIGEST_SIZE];
-    byte hash_unaligned[WC_SHA512_DIGEST_SIZE + 1];
-    testVector a, b, c;
-
-    ExpectIntEQ(wc_InitSha512(&sha512), 0);
-
-    /* Input. */
-    a.input = "a";
-    a.inLen = XSTRLEN(a.input);
-    ExpectIntEQ(wc_Sha512Update(&sha512, NULL, 0), 0);
-    ExpectIntEQ(wc_Sha512Update(&sha512,(byte*)a.input, 0), 0);
-    ExpectIntEQ(wc_Sha512Update(&sha512, (byte*)a.input, (word32)a.inLen), 0);
-    ExpectIntEQ(wc_Sha512Final(&sha512, hash), 0);
-
-    /* Update input. */
-    a.input = "abc";
-    a.output = "\xdd\xaf\x35\xa1\x93\x61\x7a\xba\xcc\x41\x73\x49\xae\x20\x41"
-               "\x31\x12\xe6\xfa\x4e\x89\xa9\x7e\xa2\x0a\x9e\xee\xe6\x4b"
-               "\x55\xd3\x9a\x21\x92\x99\x2a\x27\x4f\xc1\xa8\x36\xba\x3c"
-               "\x23\xa3\xfe\xeb\xbd\x45\x4d\x44\x23\x64\x3c\xe8\x0e\x2a"
-               "\x9a\xc9\x4f\xa5\x4c\xa4\x9f";
-    a.inLen = XSTRLEN(a.input);
-    a.outLen = XSTRLEN(a.output);
-    ExpectIntEQ(wc_Sha512Update(&sha512, (byte*) a.input, (word32) a.inLen), 0);
-    ExpectIntEQ(wc_Sha512Final(&sha512, hash), 0);
-
-    ExpectIntEQ(XMEMCMP(hash, a.output, WC_SHA512_DIGEST_SIZE), 0);
-
-    /* Unaligned check. */
-    ExpectIntEQ(wc_Sha512Update(&sha512, (byte*)a.input+1, (word32)a.inLen-1),
-        0);
-    ExpectIntEQ(wc_Sha512Final(&sha512, hash_unaligned+1), 0);
-
-    /* Try passing in bad values */
-    b.input = NULL;
-    b.inLen = 0;
-    ExpectIntEQ(wc_Sha512Update(&sha512, (byte*)b.input, (word32)b.inLen), 0);
-    c.input = NULL;
-    c.inLen = WC_SHA512_DIGEST_SIZE;
-    ExpectIntEQ(wc_Sha512Update(&sha512, (byte*)c.input, (word32)c.inLen),
-        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_Sha512Update(NULL, (byte*)a.input, (word32)a.inLen),
-        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-
-    wc_Sha512Free(&sha512);
-#endif
-    return EXPECT_RESULT();
-
-} /* END test_wc_Sha512Update  */
-
-#ifdef WOLFSSL_SHA512
-#if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST) && \
-        (!defined(WOLFSSL_NOSHA512_224) || !defined(WOLFSSL_NOSHA512_256))
-/* Performs test for
- * - wc_Sha512Final/wc_Sha512FinalRaw
- * - wc_Sha512_224Final/wc_Sha512_224Final
- * - wc_Sha512_256Final/wc_Sha512_256Final
- * parameter:
- * - type : must be one of WC_HASH_TYPE_SHA512, WC_HASH_TYPE_SHA512_224 or
- *          WC_HASH_TYPE_SHA512_256
- * - isRaw: if is non-zero, xxxFinalRaw function will be tested
- *return 0 on success
- */
-static int test_Sha512_Family_Final(int type, int isRaw)
-{
-    EXPECT_DECLS;
-    wc_Sha512 sha512;
-    byte* hash_test[3];
-    byte hash1[WC_SHA512_DIGEST_SIZE];
-    byte hash2[2*WC_SHA512_DIGEST_SIZE];
-    byte hash3[5*WC_SHA512_DIGEST_SIZE];
-    int times, i;
-
-    int(*initFp)(wc_Sha512*);
-    int(*finalFp)(wc_Sha512*, byte*);
-    void(*freeFp)(wc_Sha512*);
-
-    if (type == WC_HASH_TYPE_SHA512) {
-        initFp  = wc_InitSha512;
-#if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST) && \
-    !defined(WOLFSSL_NO_HASH_RAW)
-        finalFp = (isRaw)? wc_Sha512FinalRaw : wc_Sha512Final;
-#else
-        finalFp = (isRaw)? NULL : wc_Sha512Final;
-#endif
-        freeFp  = wc_Sha512Free;
-    }
-#if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
-#if !defined(WOLFSSL_NOSHA512_224)
-    else if (type == WC_HASH_TYPE_SHA512_224) {
-        initFp  = wc_InitSha512_224;
-    #if !defined(WOLFSSL_NO_HASH_RAW)
-        finalFp = (isRaw)? wc_Sha512_224FinalRaw : wc_Sha512_224Final;
-    #else
-        finalFp = (isRaw)? NULL : wc_Sha512_224Final;
-    #endif
-        freeFp  = wc_Sha512_224Free;
-    }
-#endif
-#if !defined(WOLFSSL_NOSHA512_256)
-    else if (type == WC_HASH_TYPE_SHA512_256) {
-        initFp  = wc_InitSha512_256;
-    #if !defined(WOLFSSL_NO_HASH_RAW)
-        finalFp = (isRaw)? wc_Sha512_256FinalRaw : wc_Sha512_256Final;
-    #else
-        finalFp = (isRaw)? NULL : wc_Sha512_256Final;
-    #endif
-        freeFp  = wc_Sha512_256Free;
-    }
-#endif
-#endif /* !HAVE_FIPS && !HAVE_SELFTEST */
-    else
-        return TEST_FAIL;
-
-    /* Initialize  */
-    ExpectIntEQ(initFp(&sha512), 0);
-
-    hash_test[0] = hash1;
-    hash_test[1] = hash2;
-    hash_test[2] = hash3;
-    times = sizeof(hash_test) / sizeof(byte *);
-
-#if defined(HAVE_FIPS) || defined(HAVE_SELFTEST) || \
-        defined(WOLFSSL_NO_HASH_RAW)
-    if (finalFp != NULL)
-#endif
-    {
-        /* Good test args. */
-        for (i = 0; i < times; i++) {
-            ExpectIntEQ(finalFp(&sha512, hash_test[i]), 0);
-        }
-        /* Test bad args. */
-        ExpectIntEQ(finalFp(NULL, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-        ExpectIntEQ(finalFp(NULL, hash1), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-        ExpectIntEQ(finalFp(&sha512, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    }
-
-    freeFp(&sha512);
-
-    return EXPECT_RESULT();
-}
-#endif /* !HAVE_FIPS && !HAVE_SELFTEST &&
-                        (!WOLFSSL_NOSHA512_224 || !WOLFSSL_NOSHA512_256) */
-#endif /* WOLFSSL_SHA512 */
-/*
- * Unit test function for wc_Sha512Final()
- */
-static int test_wc_Sha512Final(void)
-{
-    EXPECT_DECLS;
-#ifdef WOLFSSL_SHA512
-    wc_Sha512 sha512;
-    byte* hash_test[3];
-    byte hash1[WC_SHA512_DIGEST_SIZE];
-    byte hash2[2*WC_SHA512_DIGEST_SIZE];
-    byte hash3[5*WC_SHA512_DIGEST_SIZE];
-    int times, i;
-
-    /* Initialize  */
-    ExpectIntEQ(wc_InitSha512(&sha512), 0);
-
-    hash_test[0] = hash1;
-    hash_test[1] = hash2;
-    hash_test[2] = hash3;
-    times = sizeof(hash_test) / sizeof(byte *);
-    for (i = 0; i < times; i++) {
-         ExpectIntEQ(wc_Sha512Final(&sha512, hash_test[i]), 0);
-    }
-
-    /* Test bad args. */
-    ExpectIntEQ(wc_Sha512Final(NULL, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_Sha512Final(NULL, hash1), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_Sha512Final(&sha512, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-
-    wc_Sha512Free(&sha512);
-#endif
-    return EXPECT_RESULT();
-} /* END test_wc_Sha512Final */
-/*
- * Unit test function for wc_Sha512GetFlags()
- */
-static int test_wc_Sha512GetFlags(void)
-{
-    EXPECT_DECLS;
-#if defined(WOLFSSL_SHA512) && defined(WOLFSSL_HASH_FLAGS)
-    wc_Sha512 sha512;
-    word32 flags = 0;
-
-    /* Initialize */
-    ExpectIntEQ(wc_InitSha512(&sha512), 0);
-
-    ExpectIntEQ(wc_Sha512GetFlags(&sha512, &flags), 0);
-    ExpectIntEQ((flags & WC_HASH_FLAG_ISCOPY), 0);
-
-    wc_Sha512Free(&sha512);
-#endif
-    return EXPECT_RESULT();
-} /* END test_wc_Sha512GetFlags */
-/*
- * Unit test function for wc_Sha512FinalRaw()
- */
-static int test_wc_Sha512FinalRaw(void)
-{
-    EXPECT_DECLS;
-#if (defined(WOLFSSL_SHA512) && !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || \
-    (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 3)))) && \
-    !defined(WOLFSSL_NO_HASH_RAW)
-    wc_Sha512 sha512;
-    byte* hash_test[3];
-    byte hash1[WC_SHA512_DIGEST_SIZE];
-    byte hash2[2*WC_SHA512_DIGEST_SIZE];
-    byte hash3[5*WC_SHA512_DIGEST_SIZE];
-    int times, i;
-
-    /* Initialize */
-    ExpectIntEQ(wc_InitSha512(&sha512), 0);
-
-    hash_test[0] = hash1;
-    hash_test[1] = hash2;
-    hash_test[2] = hash3;
-    times = sizeof(hash_test) / sizeof(byte*);
-    /* Good test args. */
-    for (i = 0; i < times; i++) {
-         ExpectIntEQ(wc_Sha512FinalRaw(&sha512, hash_test[i]), 0);
-    }
-
-    /* Test bad args. */
-    ExpectIntEQ(wc_Sha512FinalRaw(NULL, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_Sha512FinalRaw(NULL, hash1), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_Sha512FinalRaw(&sha512, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-
-    wc_Sha512Free(&sha512);
-#endif
-    return EXPECT_RESULT();
-} /* END test_wc_Sha512FinalRaw */
-
-/*
- * Unit test function for wc_Sha512Free()
- */
-static int test_wc_Sha512Free(void)
-{
-    EXPECT_DECLS;
-#ifdef WOLFSSL_SHA512
-    wc_Sha512Free(NULL);
-    /* Set result to SUCCESS. */
-    ExpectTrue(1);
-#endif
-    return EXPECT_RESULT();
-} /* END test_wc_Sha512Free */
-#ifdef WOLFSSL_SHA512
-
-#if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST) && \
-        (!defined(WOLFSSL_NOSHA512_224) || !defined(WOLFSSL_NOSHA512_256))
-static int test_Sha512_Family_GetHash(int type )
-{
-    EXPECT_DECLS;
-    int(*initFp)(wc_Sha512*);
-    int(*ghashFp)(wc_Sha512*, byte*);
-    wc_Sha512 sha512;
-    byte hash1[WC_SHA512_DIGEST_SIZE];
-
-    if (type == WC_HASH_TYPE_SHA512) {
-        initFp  = wc_InitSha512;
-        ghashFp = wc_Sha512GetHash;
-    }
-#if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
-#if !defined(WOLFSSL_NOSHA512_224)
-    else if (type == WC_HASH_TYPE_SHA512_224) {
-        initFp  = wc_InitSha512_224;
-        ghashFp = wc_Sha512_224GetHash;
-    }
-#endif
-#if !defined(WOLFSSL_NOSHA512_256)
-    else if (type == WC_HASH_TYPE_SHA512_256) {
-        initFp  = wc_InitSha512_256;
-        ghashFp = wc_Sha512_256GetHash;
-    }
-#endif
-#endif /* !HAVE_FIPS && !HAVE_SELFTEST */
-    else {
-        initFp  = NULL;
-        ghashFp = NULL;
-    }
-
-    if (initFp == NULL || ghashFp == NULL)
-        return TEST_FAIL;
-
-    ExpectIntEQ(initFp(&sha512), 0);
-    ExpectIntEQ(ghashFp(&sha512, hash1), 0);
-
-    /* test bad arguments*/
-    ExpectIntEQ(ghashFp(NULL, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(ghashFp(NULL, hash1), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(ghashFp(&sha512, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-
-    wc_Sha512Free(&sha512);
-    return EXPECT_RESULT();
-}
-#endif /* !HAVE_FIPS && !HAVE_SELFTEST &&
-                        (!WOLFSSL_NOSHA512_224 || !WOLFSSL_NOSHA512_256) */
-#endif /* WOLFSSL_SHA512 */
-/*
- * Unit test function for wc_Sha512GetHash()
- */
-static int test_wc_Sha512GetHash(void)
-{
-    EXPECT_DECLS;
-#ifdef WOLFSSL_SHA512
-    wc_Sha512 sha512;
-    byte hash1[WC_SHA512_DIGEST_SIZE];
-
-    /* Initialize */
-    ExpectIntEQ(wc_InitSha512(&sha512), 0);
-
-    ExpectIntEQ(wc_Sha512GetHash(&sha512, hash1), 0);
-
-    /* test bad arguments*/
-    ExpectIntEQ(wc_Sha512GetHash(NULL, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_Sha512GetHash(NULL, hash1), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_Sha512GetHash(&sha512, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-
-    wc_Sha512Free(&sha512);
-#endif
-    return EXPECT_RESULT();
-} /* END test_wc_Sha512GetHash */
-
-/*
- * Unit test function for wc_Sha512Copy()
- */
-static int test_wc_Sha512Copy(void)
-{
-    EXPECT_DECLS;
-#ifdef WOLFSSL_SHA512
-    wc_Sha512 sha512;
-    wc_Sha512 temp;
-
-    XMEMSET(&sha512, 0, sizeof(wc_Sha512));
-    XMEMSET(&temp, 0, sizeof(wc_Sha512));
-
-    /* Initialize */
-    ExpectIntEQ(wc_InitSha512(&sha512), 0);
-    ExpectIntEQ(wc_InitSha512(&temp), 0);
-
-    ExpectIntEQ(wc_Sha512Copy(&sha512, &temp), 0);
-
-    /* test bad arguments*/
-    ExpectIntEQ(wc_Sha512Copy(NULL, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_Sha512Copy(NULL, &temp), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_Sha512Copy(&sha512, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-
-    wc_Sha512Free(&sha512);
-    wc_Sha512Free(&temp);
-#endif
-    return EXPECT_RESULT();
-} /* END test_wc_Sha512Copy */
-
-static int test_wc_InitSha512_224(void)
-{
-    EXPECT_DECLS;
-#if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
-#if defined(WOLFSSL_SHA512) && !defined(WOLFSSL_NOSHA512_224)
-    wc_Sha512 sha512;
-
-    /* Test good arg. */
-    ExpectIntEQ(wc_InitSha512_224(&sha512), 0);
-    /* Test bad arg. */
-    ExpectIntEQ(wc_InitSha512_224(NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-
-    wc_Sha512_224Free(&sha512);
-#endif /* WOLFSSL_SHA512 && !WOLFSSL_NOSHA512_224 */
-#endif /* !HAVE_FIPS && !HAVE_SELFTEST */
-    return EXPECT_RESULT();
-}
-
-static int test_wc_Sha512_224Update(void)
-{
-    EXPECT_DECLS;
-#if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
-#if defined(WOLFSSL_SHA512) && !defined(WOLFSSL_NOSHA512_224)
-    wc_Sha512 sha512;
-    byte hash[WC_SHA512_DIGEST_SIZE];
-    testVector a, c;
-
-    ExpectIntEQ(wc_InitSha512_224(&sha512), 0);
-
-    /* Input. */
-    a.input = "a";
-    a.inLen = XSTRLEN(a.input);
-    ExpectIntEQ(wc_Sha512_224Update(&sha512, NULL, 0), 0);
-    ExpectIntEQ(wc_Sha512_224Update(&sha512,(byte*)a.input, 0), 0);
-    ExpectIntEQ(wc_Sha512_224Update(&sha512, (byte*)a.input, (word32)a.inLen),
-        0);
-    ExpectIntEQ(wc_Sha512_224Final(&sha512, hash), 0);
-
-    /* Update input. */
-    a.input = "abc";
-    a.output = "\x46\x34\x27\x0f\x70\x7b\x6a\x54\xda\xae\x75\x30\x46\x08"
-               "\x42\xe2\x0e\x37\xed\x26\x5c\xee\xe9\xa4\x3e\x89\x24\xaa";
-    a.inLen = XSTRLEN(a.input);
-    a.outLen = XSTRLEN(a.output);
-    ExpectIntEQ(wc_Sha512_224Update(&sha512, (byte*) a.input, (word32) a.inLen),
-        0);
-    ExpectIntEQ(wc_Sha512_224Final(&sha512, hash), 0);
-    ExpectIntEQ(XMEMCMP(hash, a.output, WC_SHA512_224_DIGEST_SIZE), 0);
-
-    c.input = NULL;
-    c.inLen = WC_SHA512_224_DIGEST_SIZE;
-    ExpectIntEQ(wc_Sha512_224Update(&sha512, (byte*)c.input, (word32)c.inLen),
-        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_Sha512_224Update(NULL, (byte*)a.input, (word32)a.inLen),
-        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-
-    wc_Sha512_224Free(&sha512);
-#endif /* WOLFSSL_SHA512 && !WOLFSSL_NOSHA512_224 */
-#endif /* !HAVE_FIPS && !HAVE_SELFTEST */
-    return EXPECT_RESULT();
-}
-
-static int test_wc_Sha512_224Final(void)
-{
-    EXPECT_DECLS;
-#if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
-#if defined(WOLFSSL_SHA512) && !defined(WOLFSSL_NOSHA512_224)
-    ExpectIntEQ(test_Sha512_Family_Final(WC_HASH_TYPE_SHA512_224, 0),
-        TEST_SUCCESS);
-#endif /* WOLFSSL_SHA512 && !WOLFSSL_NOSHA512_224 */
-#endif /* !HAVE_FIPS && !HAVE_SELFTEST */
-    return EXPECT_RESULT();
-}
-
-static int test_wc_Sha512_224GetFlags(void)
-{
-    EXPECT_DECLS;
-#if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
-#if defined(WOLFSSL_SHA512) && !defined(WOLFSSL_NOSHA512_224) && defined(WOLFSSL_HASH_FLAGS)
-    wc_Sha512 sha512;
-    wc_Sha512 copy;
-    word32 flags = 0;
-
-    XMEMSET(&sha512, 0, sizeof(wc_Sha512));
-    XMEMSET(&copy, 0, sizeof(wc_Sha512));
-
-    /* Initialize */
-    ExpectIntEQ(wc_InitSha512_224(&sha512), 0);
-    ExpectIntEQ(wc_InitSha512_224(&copy), 0);
-
-    ExpectIntEQ(wc_Sha512_224GetFlags(&sha512, &flags), 0);
-    ExpectTrue((flags & WC_HASH_FLAG_ISCOPY) == 0);
-
-    ExpectIntEQ(wc_Sha512_224Copy(&sha512, &copy), 0);
-    ExpectIntEQ(wc_Sha512_224GetFlags(&copy, &flags), 0);
-    ExpectTrue((flags & WC_HASH_FLAG_ISCOPY) == WC_HASH_FLAG_ISCOPY);
-
-    wc_Sha512_224Free(&copy);
-    wc_Sha512_224Free(&sha512);
-#endif
-#endif /* !HAVE_FIPS && !HAVE_SELFTEST */
-    return EXPECT_RESULT();
-}
-
-static int test_wc_Sha512_224FinalRaw(void)
-{
-    EXPECT_DECLS;
-#if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST) && \
-    defined(WOLFSSL_SHA512) &&  !defined(WOLFSSL_NOSHA512_224) && \
-    !defined(WOLFSSL_NO_HASH_RAW)
-    ExpectIntEQ(test_Sha512_Family_Final(WC_HASH_TYPE_SHA512_224, 1),
-        TEST_SUCCESS);
-#endif
-    return EXPECT_RESULT();
-}
-
-static int test_wc_Sha512_224Free(void)
-{
-    EXPECT_DECLS;
-#if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
-#if defined(WOLFSSL_SHA512) && !defined(WOLFSSL_NOSHA512_224)
-    wc_Sha512_224Free(NULL);
-    /* Set result to SUCCESS. */
-    ExpectTrue(1);
-#endif
-#endif /* !HAVE_FIPS && !HAVE_SELFTEST */
-    return EXPECT_RESULT();
-}
-
-static int test_wc_Sha512_224GetHash(void)
-{
-    EXPECT_DECLS;
-#if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
-#if defined(WOLFSSL_SHA512) && !defined(WOLFSSL_NOSHA512_224)
-    ExpectIntEQ(test_Sha512_Family_GetHash(WC_HASH_TYPE_SHA512_224),
-        TEST_SUCCESS);
-#endif
-#endif /* !HAVE_FIPS && !HAVE_SELFTEST */
-    return EXPECT_RESULT();
-}
-static int test_wc_Sha512_224Copy(void)
-{
-    EXPECT_DECLS;
-#if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
-#if defined(WOLFSSL_SHA512) && !defined(WOLFSSL_NOSHA512_224)
-    wc_Sha512 sha512;
-    wc_Sha512 temp;
-
-    XMEMSET(&sha512, 0, sizeof(wc_Sha512));
-    XMEMSET(&temp, 0, sizeof(wc_Sha512));
-
-    /* Initialize */
-    ExpectIntEQ(wc_InitSha512_224(&sha512), 0);
-    ExpectIntEQ(wc_InitSha512_224(&temp), 0);
-
-    ExpectIntEQ(wc_Sha512_224Copy(&sha512, &temp), 0);
-    /* test bad arguments*/
-    ExpectIntEQ(wc_Sha512_224Copy(NULL, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_Sha512_224Copy(NULL, &temp), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_Sha512_224Copy(&sha512, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-
-    wc_Sha512_224Free(&sha512);
-    wc_Sha512_224Free(&temp);
-#endif
-#endif /* !HAVE_FIPS && !HAVE_SELFTEST */
-    return EXPECT_RESULT();
-}
-
-static int test_wc_InitSha512_256(void)
-{
-    EXPECT_DECLS;
-#if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
-#if defined(WOLFSSL_SHA512) && !defined(WOLFSSL_NOSHA512_256)
-    wc_Sha512 sha512;
-
-    /* Test good arg. */
-    ExpectIntEQ(wc_InitSha512_256(&sha512), 0);
-    /* Test bad arg. */
-    ExpectIntEQ(wc_InitSha512_256(NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-
-    wc_Sha512_256Free(&sha512);
-#endif /* WOLFSSL_SHA512 && !WOLFSSL_NOSHA512_256 */
-#endif /* !HAVE_FIPS && !HAVE_SELFTEST */
-    return EXPECT_RESULT();
-}
-
-static int test_wc_Sha512_256Update(void)
-{
-    EXPECT_DECLS;
-#if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
-#if defined(WOLFSSL_SHA512) && !defined(WOLFSSL_NOSHA512_256)
-    wc_Sha512 sha512;
-    byte hash[WC_SHA512_DIGEST_SIZE];
-    testVector a, c;
-
-    ExpectIntEQ(wc_InitSha512_256(&sha512), 0);
-
-    /* Input. */
-    a.input = "a";
-    a.inLen = XSTRLEN(a.input);
-    ExpectIntEQ(wc_Sha512_256Update(&sha512, NULL, 0), 0);
-    ExpectIntEQ(wc_Sha512_256Update(&sha512,(byte*)a.input, 0), 0);
-    ExpectIntEQ(wc_Sha512_256Update(&sha512, (byte*)a.input, (word32)a.inLen),
-        0);
-    ExpectIntEQ(wc_Sha512_256Final(&sha512, hash), 0);
-
-    /* Update input. */
-    a.input = "abc";
-    a.output = "\x53\x04\x8e\x26\x81\x94\x1e\xf9\x9b\x2e\x29\xb7\x6b\x4c"
-               "\x7d\xab\xe4\xc2\xd0\xc6\x34\xfc\x6d\x46\xe0\xe2\xf1\x31"
-               "\x07\xe7\xaf\x23";
-    a.inLen = XSTRLEN(a.input);
-    a.outLen = XSTRLEN(a.output);
-    ExpectIntEQ(wc_Sha512_256Update(&sha512, (byte*) a.input, (word32) a.inLen),
-        0);
-    ExpectIntEQ(wc_Sha512_256Final(&sha512, hash), 0);
-    ExpectIntEQ(XMEMCMP(hash, a.output, WC_SHA512_256_DIGEST_SIZE), 0);
-
-    c.input = NULL;
-    c.inLen = WC_SHA512_256_DIGEST_SIZE;
-    ExpectIntEQ(wc_Sha512_256Update(&sha512, (byte*)c.input, (word32)c.inLen),
-        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_Sha512_256Update(NULL, (byte*)a.input, (word32)a.inLen),
-        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-
-    wc_Sha512_256Free(&sha512);
-#endif /* WOLFSSL_SHA512 && !WOLFSSL_NOSHA512_256 */
-#endif /* !HAVE_FIPS && !HAVE_SELFTEST */
-    return EXPECT_RESULT();
-}
-
-static int test_wc_Sha512_256Final(void)
-{
-    EXPECT_DECLS;
-#if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
-#if defined(WOLFSSL_SHA512) && !defined(WOLFSSL_NOSHA512_256)
-    ExpectIntEQ(test_Sha512_Family_Final(WC_HASH_TYPE_SHA512_256, 0),
-        TEST_SUCCESS);
-#endif /* WOLFSSL_SHA512 && !WOLFSSL_NOSHA512_256 */
-#endif /* !HAVE_FIPS && !HAVE_SELFTEST */
-    return EXPECT_RESULT();
-}
-
-static int test_wc_Sha512_256GetFlags(void)
-{
-    EXPECT_DECLS;
-#if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
-#if defined(WOLFSSL_SHA512) && !defined(WOLFSSL_NOSHA512_256) && defined(WOLFSSL_HASH_FLAGS)
-    wc_Sha512 sha512, copy;
-    word32 flags = 0;
-
-    XMEMSET(&sha512, 0, sizeof(wc_Sha512));
-    XMEMSET(&copy, 0, sizeof(wc_Sha512));
-
-    /* Initialize */
-    ExpectIntEQ(wc_InitSha512_256(&sha512), 0);
-    ExpectIntEQ(wc_InitSha512_256(&copy), 0);
-
-    ExpectIntEQ(wc_Sha512_256GetFlags(&sha512, &flags), 0);
-    ExpectTrue((flags & WC_HASH_FLAG_ISCOPY) == 0);
-
-    ExpectIntEQ(wc_Sha512_256Copy(&sha512, &copy), 0);
-    ExpectIntEQ(wc_Sha512_256GetFlags(&copy, &flags), 0);
-    ExpectTrue((flags & WC_HASH_FLAG_ISCOPY) == WC_HASH_FLAG_ISCOPY);
-
-    wc_Sha512_256Free(&sha512);
-#endif
-#endif /* !HAVE_FIPS && !HAVE_SELFTEST */
-    return EXPECT_RESULT();
-}
-
-static int test_wc_Sha512_256FinalRaw(void)
-{
-    EXPECT_DECLS;
-#if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST) && \
-    defined(WOLFSSL_SHA512) &&  !defined(WOLFSSL_NOSHA512_256) && \
-    !defined(WOLFSSL_NO_HASH_RAW)
-    ExpectIntEQ(test_Sha512_Family_Final(WC_HASH_TYPE_SHA512_256, 1),
-        TEST_SUCCESS);
-#endif
-    return EXPECT_RESULT();
-}
-
-static int test_wc_Sha512_256Free(void)
-{
-    EXPECT_DECLS;
-#if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
-#if defined(WOLFSSL_SHA512) && !defined(WOLFSSL_NOSHA512_256)
-    wc_Sha512_256Free(NULL);
-    /* Set result to SUCCESS. */
-    ExpectTrue(1);
-#endif
-#endif /* !HAVE_FIPS && !HAVE_SELFTEST */
-    return EXPECT_RESULT();
-}
-
-static int test_wc_Sha512_256GetHash(void)
-{
-    EXPECT_DECLS;
-#if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
-#if defined(WOLFSSL_SHA512) && !defined(WOLFSSL_NOSHA512_256)
-    ExpectIntEQ(test_Sha512_Family_GetHash(WC_HASH_TYPE_SHA512_256),
-        TEST_SUCCESS);
-#endif
-#endif /* !HAVE_FIPS && !HAVE_SELFTEST */
-    return EXPECT_RESULT();
-
-}
-static int test_wc_Sha512_256Copy(void)
-{
-    EXPECT_DECLS;
-#if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
-#if defined(WOLFSSL_SHA512) && !defined(WOLFSSL_NOSHA512_256)
-    wc_Sha512 sha512;
-    wc_Sha512 temp;
-
-    XMEMSET(&sha512, 0, sizeof(wc_Sha512));
-    XMEMSET(&temp, 0, sizeof(wc_Sha512));
-
-    /* Initialize */
-    ExpectIntEQ(wc_InitSha512_256(&sha512), 0);
-    ExpectIntEQ(wc_InitSha512_256(&temp), 0);
-
-    ExpectIntEQ(wc_Sha512_256Copy(&sha512, &temp), 0);
-    /* test bad arguments*/
-    ExpectIntEQ(wc_Sha512_256Copy(NULL, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_Sha512_256Copy(NULL, &temp), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_Sha512_256Copy(&sha512, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-
-    wc_Sha512_256Free(&sha512);
-    wc_Sha512_256Free(&temp);
-#endif
-#endif /* !HAVE_FIPS && !HAVE_SELFTEST */
-    return EXPECT_RESULT();
-}
-
-
-
-/*
- * Testing wc_InitSha384()
- */
-static int test_wc_InitSha384(void)
-{
-    EXPECT_DECLS;
-#ifdef WOLFSSL_SHA384
-    wc_Sha384 sha384;
-
-    /* Test good arg. */
-    ExpectIntEQ(wc_InitSha384(&sha384), 0);
-    /* Test bad arg. */
-    ExpectIntEQ(wc_InitSha384(NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-
-    wc_Sha384Free(&sha384);
-#endif
-    return EXPECT_RESULT();
-} /* END test_wc_InitSha384 */
-
-
-/*
- * test wc_Sha384Update()
- */
-static int test_wc_Sha384Update(void)
-{
-    EXPECT_DECLS;
-#ifdef WOLFSSL_SHA384
-    wc_Sha384 sha384;
-    byte hash[WC_SHA384_DIGEST_SIZE];
-    testVector a, b, c;
-
-    ExpectIntEQ(wc_InitSha384(&sha384), 0);
-
-    /* Input */
-    a.input = "a";
-    a.inLen = XSTRLEN(a.input);
-    ExpectIntEQ(wc_Sha384Update(&sha384, NULL, 0), 0);
-    ExpectIntEQ(wc_Sha384Update(&sha384, (byte*)a.input, 0), 0);
-    ExpectIntEQ(wc_Sha384Update(&sha384, (byte*)a.input, (word32)a.inLen), 0);
-    ExpectIntEQ(wc_Sha384Final(&sha384, hash), 0);
-
-    /* Update input. */
-    a.input = "abc";
-    a.output = "\xcb\x00\x75\x3f\x45\xa3\x5e\x8b\xb5\xa0\x3d\x69\x9a\xc6\x50"
-               "\x07\x27\x2c\x32\xab\x0e\xde\xd1\x63\x1a\x8b\x60\x5a\x43\xff"
-               "\x5b\xed\x80\x86\x07\x2b\xa1\xe7\xcc\x23\x58\xba\xec\xa1\x34"
-               "\xc8\x25\xa7";
-    a.inLen = XSTRLEN(a.input);
-    a.outLen = XSTRLEN(a.output);
-    ExpectIntEQ(wc_Sha384Update(&sha384, (byte*)a.input, (word32)a.inLen), 0);
-    ExpectIntEQ(wc_Sha384Final(&sha384, hash), 0);
-    ExpectIntEQ(XMEMCMP(hash, a.output, WC_SHA384_DIGEST_SIZE), 0);
-
-    /* Pass in bad values. */
-    b.input = NULL;
-    b.inLen = 0;
-    ExpectIntEQ(wc_Sha384Update(&sha384, (byte*)b.input, (word32)b.inLen), 0);
-    c.input = NULL;
-    c.inLen = WC_SHA384_DIGEST_SIZE;
-    ExpectIntEQ( wc_Sha384Update(&sha384, (byte*)c.input, (word32)c.inLen),
-        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_Sha384Update(NULL, (byte*)a.input, (word32)a.inLen),
-        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-
-    wc_Sha384Free(&sha384);
-#endif
-    return EXPECT_RESULT();
-} /* END test_wc_Sha384Update */
-
-/*
- * Unit test function for wc_Sha384Final();
- */
-static int test_wc_Sha384Final(void)
-{
-    EXPECT_DECLS;
-#ifdef WOLFSSL_SHA384
-    wc_Sha384 sha384;
-    byte* hash_test[3];
-    byte hash1[WC_SHA384_DIGEST_SIZE];
-    byte hash2[2*WC_SHA384_DIGEST_SIZE];
-    byte hash3[5*WC_SHA384_DIGEST_SIZE];
-    int times, i;
-
-    /* Initialize */
-    ExpectIntEQ(wc_InitSha384(&sha384), 0);
-
-    hash_test[0] = hash1;
-    hash_test[1] = hash2;
-    hash_test[2] = hash3;
-    times = sizeof(hash_test) / sizeof(byte*);
-    /* Good test args. */
-    for (i = 0; i < times; i++) {
-         ExpectIntEQ(wc_Sha384Final(&sha384, hash_test[i]), 0);
-    }
-
-    /* Test bad args. */
-    ExpectIntEQ(wc_Sha384Final(NULL, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_Sha384Final(NULL, hash1), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_Sha384Final(&sha384, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-
-    wc_Sha384Free(&sha384);
-#endif
-    return EXPECT_RESULT();
-} /* END test_wc_Sha384Final */
-/*
- * Unit test function for wc_Sha384GetFlags()
- */
-static int test_wc_Sha384GetFlags(void)
-{
-    EXPECT_DECLS;
-#if defined(WOLFSSL_SHA384) && defined(WOLFSSL_HASH_FLAGS)
-    wc_Sha384 sha384;
-    word32 flags = 0;
-
-    /* Initialize */
-    ExpectIntEQ(wc_InitSha384(&sha384), 0);
-    ExpectIntEQ(wc_Sha384GetFlags(&sha384, &flags), 0);
-    ExpectTrue((flags & WC_HASH_FLAG_ISCOPY) == 0);
-
-    wc_Sha384Free(&sha384);
-#endif
-    return EXPECT_RESULT();
-
-} /* END test_wc_Sha384GetFlags */
-/*
- * Unit test function for wc_Sha384FinalRaw()
- */
-static int test_wc_Sha384FinalRaw(void)
-{
-    EXPECT_DECLS;
-#if (defined(WOLFSSL_SHA384) && !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || \
-    (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 3)))) && \
-    !defined(WOLFSSL_NO_HASH_RAW)
-    wc_Sha384 sha384;
-    byte* hash_test[3];
-    byte hash1[WC_SHA384_DIGEST_SIZE];
-    byte hash2[2*WC_SHA384_DIGEST_SIZE];
-    byte hash3[5*WC_SHA384_DIGEST_SIZE];
-    int times, i;
-
-    /* Initialize */
-    ExpectIntEQ(wc_InitSha384(&sha384), 0);
-
-    hash_test[0] = hash1;
-    hash_test[1] = hash2;
-    hash_test[2] = hash3;
-    times = sizeof(hash_test) / sizeof(byte*);
-    /* Good test args. */
-    for (i = 0; i < times; i++) {
-         ExpectIntEQ(wc_Sha384FinalRaw(&sha384, hash_test[i]), 0);
-    }
-
-    /* Test bad args. */
-    ExpectIntEQ(wc_Sha384FinalRaw(NULL, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_Sha384FinalRaw(NULL, hash1), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_Sha384FinalRaw(&sha384, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-
-    wc_Sha384Free(&sha384);
-#endif
-    return EXPECT_RESULT();
-} /* END test_wc_Sha384FinalRaw */
-/*
- * Unit test function for wc_Sha384Free()
- */
-static int test_wc_Sha384Free(void)
-{
-    EXPECT_DECLS;
-#ifdef WOLFSSL_SHA384
-    wc_Sha384Free(NULL);
-    /* Set result to SUCCESS. */
-    ExpectTrue(1);
-#endif
-    return EXPECT_RESULT();
-
-} /* END test_wc_Sha384Free */
-/*
- * Unit test function for wc_Sha384GetHash()
- */
-static int test_wc_Sha384GetHash(void)
-{
-    EXPECT_DECLS;
-#ifdef WOLFSSL_SHA384
-    wc_Sha384 sha384;
-    byte hash1[WC_SHA384_DIGEST_SIZE];
-
-    /* Initialize */
-    ExpectIntEQ(wc_InitSha384(&sha384), 0);
-
-    ExpectIntEQ(wc_Sha384GetHash(&sha384, hash1), 0);
-    /* test bad arguments*/
-    ExpectIntEQ(wc_Sha384GetHash(NULL, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_Sha384GetHash(NULL, hash1), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_Sha384GetHash(&sha384, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-
-    wc_Sha384Free(&sha384);
-#endif
-    return EXPECT_RESULT();
-} /* END test_wc_Sha384GetHash */
-/*
- * Unit test function for wc_Sha384Copy()
- */
-static int test_wc_Sha384Copy(void)
-{
-    EXPECT_DECLS;
-#ifdef WOLFSSL_SHA384
-    wc_Sha384 sha384;
-    wc_Sha384 temp;
-
-    XMEMSET(&sha384, 0, sizeof(wc_Sha384));
-    XMEMSET(&temp, 0, sizeof(wc_Sha384));
-
-    /* Initialize */
-    ExpectIntEQ(wc_InitSha384(&sha384), 0);
-    ExpectIntEQ(wc_InitSha384(&temp), 0);
-
-    ExpectIntEQ(wc_Sha384Copy(&sha384, &temp), 0);
-    /* test bad arguments*/
-    ExpectIntEQ(wc_Sha384Copy(NULL, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_Sha384Copy(NULL, &temp), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_Sha384Copy(&sha384, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-
-    wc_Sha384Free(&sha384);
-    wc_Sha384Free(&temp);
-#endif
-    return EXPECT_RESULT();
-} /* END test_wc_Sha384Copy */
-
-/*
- * Testing wc_InitSha224();
- */
-static int test_wc_InitSha224(void)
-{
-    EXPECT_DECLS;
-#ifdef WOLFSSL_SHA224
-    wc_Sha224 sha224;
-
-    /* Test good arg. */
-    ExpectIntEQ(wc_InitSha224(&sha224), 0);
-    /* Test bad arg. */
-    ExpectIntEQ(wc_InitSha224(NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-
-    wc_Sha224Free(&sha224);
-#endif
-    return EXPECT_RESULT();
-} /* END test_wc_InitSha224 */
-
-/*
- * Unit test on wc_Sha224Update
- */
-static int test_wc_Sha224Update(void)
-{
-    EXPECT_DECLS;
-#ifdef WOLFSSL_SHA224
-    wc_Sha224 sha224;
-    byte hash[WC_SHA224_DIGEST_SIZE];
-    testVector a, b, c;
-
-    ExpectIntEQ(wc_InitSha224(&sha224), 0);
-
-    /* Input. */
-    a.input = "a";
-    a.inLen = XSTRLEN(a.input);
-    ExpectIntEQ(wc_Sha224Update(&sha224, NULL, 0), 0);
-    ExpectIntEQ(wc_Sha224Update(&sha224, (byte*)a.input, 0), 0);
-    ExpectIntEQ(wc_Sha224Update(&sha224, (byte*)a.input, (word32)a.inLen), 0);
-    ExpectIntEQ(wc_Sha224Final(&sha224, hash), 0);
-
-    /* Update input. */
-    a.input = "abc";
-    a.output = "\x23\x09\x7d\x22\x34\x05\xd8\x22\x86\x42\xa4\x77\xbd\xa2"
-               "\x55\xb3\x2a\xad\xbc\xe4\xbd\xa0\xb3\xf7\xe3\x6c\x9d\xa7";
-    a.inLen = XSTRLEN(a.input);
-    a.outLen = XSTRLEN(a.output);
-    ExpectIntEQ(wc_Sha224Update(&sha224, (byte*)a.input, (word32)a.inLen), 0);
-    ExpectIntEQ(wc_Sha224Final(&sha224, hash), 0);
-    ExpectIntEQ(XMEMCMP(hash, a.output, WC_SHA224_DIGEST_SIZE), 0);
-
-    /* Pass in bad values. */
-    b.input = NULL;
-    b.inLen = 0;
-    ExpectIntEQ(wc_Sha224Update(&sha224, (byte*)b.input, (word32)b.inLen), 0);
-    c.input = NULL;
-    c.inLen = WC_SHA224_DIGEST_SIZE;
-    ExpectIntEQ(wc_Sha224Update(&sha224, (byte*)c.input, (word32)c.inLen),
-       WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_Sha224Update(NULL, (byte*)a.input, (word32)a.inLen),
-       WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-
-    wc_Sha224Free(&sha224);
-#endif
-    return EXPECT_RESULT();
-} /* END test_wc_Sha224Update */
-
-/*
- * Unit test for wc_Sha224Final();
- */
-static int test_wc_Sha224Final(void)
-{
-    EXPECT_DECLS;
-#ifdef WOLFSSL_SHA224
-    wc_Sha224 sha224;
-    byte* hash_test[3];
-    byte hash1[WC_SHA224_DIGEST_SIZE];
-    byte hash2[2*WC_SHA224_DIGEST_SIZE];
-    byte hash3[5*WC_SHA224_DIGEST_SIZE];
-    int times, i;
-
-    /* Initialize */
-    ExpectIntEQ(wc_InitSha224(&sha224), 0);
-
-    hash_test[0] = hash1;
-    hash_test[1] = hash2;
-    hash_test[2] = hash3;
-    times = sizeof(hash_test) / sizeof(byte*);
-    /* Good test args. */
-    /* Testing oversized buffers. */
-    for (i = 0; i < times; i++) {
-        ExpectIntEQ(wc_Sha224Final(&sha224, hash_test[i]), 0);
-    }
-
-    /* Test bad args. */
-    ExpectIntEQ(wc_Sha224Final(NULL, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_Sha224Final(NULL, hash1), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_Sha224Final(&sha224, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-
-    wc_Sha224Free(&sha224);
-#endif
-    return EXPECT_RESULT();
-} /* END test_wc_Sha224Final */
-
-/*
- * Unit test function for wc_Sha224SetFlags()
- */
-static int test_wc_Sha224SetFlags(void)
-{
-    EXPECT_DECLS;
-#if defined(WOLFSSL_SHA224) && defined(WOLFSSL_HASH_FLAGS)
-    wc_Sha224 sha224;
-    word32 flags = WC_HASH_FLAG_WILLCOPY;
-
-    /* Initialize */
-    ExpectIntEQ(wc_InitSha224(&sha224), 0);
-
-    ExpectIntEQ(wc_Sha224SetFlags(&sha224, flags), 0);
-    flags = 0;
-    ExpectIntEQ(wc_Sha224GetFlags(&sha224, &flags), 0);
-    ExpectTrue(flags == WC_HASH_FLAG_WILLCOPY);
-
-    wc_Sha224Free(&sha224);
-#endif
-    return EXPECT_RESULT();
-} /* END test_wc_Sha224SetFlags */
-
-/*
- * Unit test function for wc_Sha224GetFlags()
- */
-static int test_wc_Sha224GetFlags(void)
-{
-    EXPECT_DECLS;
-#if defined(WOLFSSL_SHA224) && defined(WOLFSSL_HASH_FLAGS)
-    wc_Sha224 sha224;
-    word32 flags = 0;
-
-    /* Initialize */
-    ExpectIntEQ(wc_InitSha224(&sha224), 0);
-
-    ExpectIntEQ(wc_Sha224GetFlags(&sha224, &flags), 0);
-    ExpectTrue((flags & WC_HASH_FLAG_ISCOPY) == 0);
-
-    wc_Sha224Free(&sha224);
-#endif
-    return EXPECT_RESULT();
-} /* END test_wc_Sha224GetFlags */
-/*
- * Unit test function for wc_Sha224Free()
- */
-static int test_wc_Sha224Free(void)
-{
-    EXPECT_DECLS;
-#ifdef WOLFSSL_SHA224
-    wc_Sha224Free(NULL);
-    /* Set result to SUCCESS. */
-    ExpectTrue(1);
-#endif
-    return EXPECT_RESULT();
-
-} /* END test_wc_Sha224Free */
-
-/*
- * Unit test function for wc_Sha224GetHash()
- */
-static int test_wc_Sha224GetHash(void)
-{
-    EXPECT_DECLS;
-#ifdef WOLFSSL_SHA224
-    wc_Sha224 sha224;
-    byte hash1[WC_SHA224_DIGEST_SIZE];
-
-    /* Initialize */
-    ExpectIntEQ(wc_InitSha224(&sha224), 0);
-
-    ExpectIntEQ(wc_Sha224GetHash(&sha224, hash1), 0);
-    /* test bad arguments*/
-    ExpectIntEQ(wc_Sha224GetHash(NULL, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_Sha224GetHash(NULL, hash1), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_Sha224GetHash(&sha224, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-
-    wc_Sha224Free(&sha224);
-#endif
-    return EXPECT_RESULT();
-} /* END test_wc_Sha224GetHash */
-
-/*
- * Unit test function for wc_Sha224Copy()
- */
-static int test_wc_Sha224Copy(void)
-{
-    EXPECT_DECLS;
-#ifdef WOLFSSL_SHA224
-    wc_Sha224 sha224;
-    wc_Sha224 temp;
-
-    XMEMSET(&sha224, 0, sizeof(wc_Sha224));
-    XMEMSET(&temp, 0, sizeof(wc_Sha224));
-
-    /* Initialize */
-    ExpectIntEQ(wc_InitSha224(&sha224), 0);
-    ExpectIntEQ(wc_InitSha224(&temp), 0);
-
-    ExpectIntEQ(wc_Sha224Copy(&sha224, &temp), 0);
-    /* test bad arguments*/
-    ExpectIntEQ(wc_Sha224Copy(NULL, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_Sha224Copy(NULL, &temp), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_Sha224Copy(&sha224, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-
-    wc_Sha224Free(&sha224);
-    wc_Sha224Free(&temp);
-#endif
-    return EXPECT_RESULT();
-} /* END test_wc_Sha224Copy */
-
-
-/*
- * Testing wc_InitRipeMd()
- */
-static int test_wc_InitRipeMd(void)
-{
-    EXPECT_DECLS;
-#ifdef WOLFSSL_RIPEMD
-    RipeMd ripemd;
-
-    /* Test good arg. */
-    ExpectIntEQ(wc_InitRipeMd(&ripemd), 0);
-    /* Test bad arg. */
-    ExpectIntEQ(wc_InitRipeMd(NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-#endif
-    return EXPECT_RESULT();
-
-} /* END test_wc_InitRipeMd */
-
-/*
- * Testing wc_RipeMdUpdate()
- */
-static int test_wc_RipeMdUpdate(void)
-{
-    EXPECT_DECLS;
-#ifdef WOLFSSL_RIPEMD
-    RipeMd ripemd;
-    byte hash[RIPEMD_DIGEST_SIZE];
-    testVector a, b, c;
-
-    ExpectIntEQ(wc_InitRipeMd(&ripemd), 0);
-
-    /* Input */
-    a.input = "a";
-    a.inLen = XSTRLEN(a.input);
-    ExpectIntEQ(wc_RipeMdUpdate(&ripemd, (byte*)a.input, (word32)a.inLen), 0);
-    ExpectIntEQ(wc_RipeMdFinal(&ripemd, hash), 0);
-
-    /* Update input. */
-    a.input = "abc";
-    a.output = "\x8e\xb2\x08\xf7\xe0\x5d\x98\x7a\x9b\x04\x4a\x8e\x98\xc6"
-               "\xb0\x87\xf1\x5a\x0b\xfc";
-    a.inLen = XSTRLEN(a.input);
-    a.outLen = XSTRLEN(a.output);
-    ExpectIntEQ(wc_RipeMdUpdate(&ripemd, (byte*)a.input, (word32)a.inLen), 0);
-    ExpectIntEQ(wc_RipeMdFinal(&ripemd, hash), 0);
-    ExpectIntEQ(XMEMCMP(hash, a.output, RIPEMD_DIGEST_SIZE), 0);
-
-    /* Pass in bad values. */
-    b.input = NULL;
-    b.inLen = 0;
-    ExpectIntEQ(wc_RipeMdUpdate(&ripemd, (byte*)b.input, (word32)b.inLen), 0);
-    c.input = NULL;
-    c.inLen = RIPEMD_DIGEST_SIZE;
-    ExpectIntEQ(wc_RipeMdUpdate(&ripemd, (byte*)c.input, (word32)c.inLen),
-        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_RipeMdUpdate(NULL, (byte*)a.input, (word32)a.inLen),
-        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-#endif
-    return EXPECT_RESULT();
-} /* END test_wc_RipeMdUdpate */
-
-/*
- * Unit test function for wc_RipeMdFinal()
- */
-static int test_wc_RipeMdFinal(void)
-{
-    EXPECT_DECLS;
-#ifdef WOLFSSL_RIPEMD
-    RipeMd ripemd;
-    byte* hash_test[3];
-    byte hash1[RIPEMD_DIGEST_SIZE];
-    byte hash2[2*RIPEMD_DIGEST_SIZE];
-    byte hash3[5*RIPEMD_DIGEST_SIZE];
-    int times, i;
-
-    /* Initialize */
-    ExpectIntEQ(wc_InitRipeMd(&ripemd), 0);
-
-    hash_test[0] = hash1;
-    hash_test[1] = hash2;
-    hash_test[2] = hash3;
-    times = sizeof(hash_test) / sizeof(byte*);
-    /* Testing oversized buffers. */
-    for (i = 0; i < times; i++) {
-         ExpectIntEQ(wc_RipeMdFinal(&ripemd, hash_test[i]), 0);
-    }
-
-    /* Test bad args. */
-    ExpectIntEQ(wc_RipeMdFinal(NULL, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_RipeMdFinal(NULL, hash1), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_RipeMdFinal(&ripemd, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-#endif
-    return EXPECT_RESULT();
-} /* END test_wc_RipeMdFinal */
-
-
-/*
- * Testing wc_InitSha3_224, wc_InitSha3_256, wc_InitSha3_384, and
- * wc_InitSha3_512
- */
-static int test_wc_InitSha3(void)
-{
-    EXPECT_DECLS;
-#if defined(WOLFSSL_SHA3)
-    wc_Sha3 sha3;
-
-    (void)sha3;
-
-#if !defined(WOLFSSL_NOSHA3_224)
-    ExpectIntEQ(wc_InitSha3_224(&sha3, HEAP_HINT, testDevId), 0);
-    /* Test bad args. */
-    ExpectIntEQ(wc_InitSha3_224(NULL, HEAP_HINT, testDevId), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    wc_Sha3_224_Free(&sha3);
-#endif /* NOSHA3_224 */
-#if !defined(WOLFSSL_NOSHA3_256)
-    ExpectIntEQ(wc_InitSha3_256(&sha3, HEAP_HINT, testDevId), 0);
-    /* Test bad args. */
-    ExpectIntEQ(wc_InitSha3_256(NULL, HEAP_HINT, testDevId), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    wc_Sha3_256_Free(&sha3);
-#endif /* NOSHA3_256 */
-#if !defined(WOLFSSL_NOSHA3_384)
-    ExpectIntEQ(wc_InitSha3_384(&sha3, HEAP_HINT, testDevId), 0);
-    /* Test bad args. */
-    ExpectIntEQ(wc_InitSha3_384(NULL, HEAP_HINT, testDevId),  WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    wc_Sha3_384_Free(&sha3);
-#endif /* NOSHA3_384 */
-#if !defined(WOLFSSL_NOSHA3_512)
-    ExpectIntEQ(wc_InitSha3_512(&sha3, HEAP_HINT, testDevId), 0);
-    /* Test bad args. */
-    ExpectIntEQ(wc_InitSha3_512(NULL, HEAP_HINT, testDevId), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    wc_Sha3_512_Free(&sha3);
-#endif /* NOSHA3_512 */
-#endif
-    return EXPECT_RESULT();
-} /* END test_wc_InitSha3 */
-
-
-/*
- * Testing wc_Sha3_Update()
- */
-static int testing_wc_Sha3_Update(void)
-{
-    EXPECT_DECLS;
-#if defined(WOLFSSL_SHA3) && !defined(WOLFSSL_XILINX_CRYPT) && \
-   !defined(WOLFSSL_AFALG_XILINX)
-    wc_Sha3 sha3;
-    byte    msg[] = "Everybody's working for the weekend.";
-    byte    msg2[] = "Everybody gets Friday off.";
-    byte    msgCmp[] = "\x45\x76\x65\x72\x79\x62\x6f\x64\x79\x27\x73\x20"
-                    "\x77\x6f\x72\x6b\x69\x6e\x67\x20\x66\x6f\x72\x20\x74"
-                    "\x68\x65\x20\x77\x65\x65\x6b\x65\x6e\x64\x2e\x45\x76"
-                    "\x65\x72\x79\x62\x6f\x64\x79\x20\x67\x65\x74\x73\x20"
-                    "\x46\x72\x69\x64\x61\x79\x20\x6f\x66\x66\x2e";
-    word32  msglen = sizeof(msg) - 1;
-    word32  msg2len = sizeof(msg2);
-    word32  msgCmplen = sizeof(msgCmp);
-
-    #if !defined(WOLFSSL_NOSHA3_224)
-        ExpectIntEQ(wc_InitSha3_224(&sha3, HEAP_HINT, testDevId), 0);
-        ExpectIntEQ(wc_Sha3_224_Update(&sha3, msg, msglen), 0);
-        ExpectIntEQ(XMEMCMP(msg, sha3.t, msglen), 0);
-        ExpectTrue(sha3.i == msglen);
-
-        ExpectIntEQ(wc_Sha3_224_Update(&sha3, msg2, msg2len), 0);
-        ExpectIntEQ(XMEMCMP(sha3.t, msgCmp, msgCmplen), 0);
-
-        /* Pass bad args. */
-        ExpectIntEQ(wc_Sha3_224_Update(NULL, msg2, msg2len), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-        ExpectIntEQ(wc_Sha3_224_Update(&sha3, NULL, 5), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-        wc_Sha3_224_Free(&sha3);
-
-        ExpectIntEQ(wc_InitSha3_224(&sha3, HEAP_HINT, testDevId), 0);
-        ExpectIntEQ(wc_Sha3_224_Update(&sha3, NULL, 0), 0);
-        ExpectIntEQ(wc_Sha3_224_Update(&sha3, msg2, msg2len), 0);
-        ExpectIntEQ(XMEMCMP(msg2, sha3.t, msg2len), 0);
-        wc_Sha3_224_Free(&sha3);
-    #endif /* SHA3_224 */
-
-    #if !defined(WOLFSSL_NOSHA3_256)
-        ExpectIntEQ(wc_InitSha3_256(&sha3, HEAP_HINT, testDevId), 0);
-        ExpectIntEQ(wc_Sha3_256_Update(&sha3, msg, msglen), 0);
-        ExpectIntEQ(XMEMCMP(msg, sha3.t, msglen), 0);
-        ExpectTrue(sha3.i == msglen);
-
-        ExpectIntEQ(wc_Sha3_256_Update(&sha3, msg2, msg2len), 0);
-        ExpectIntEQ(XMEMCMP(sha3.t, msgCmp, msgCmplen), 0);
-
-        /* Pass bad args. */
-        ExpectIntEQ(wc_Sha3_256_Update(NULL, msg2, msg2len), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-        ExpectIntEQ(wc_Sha3_256_Update(&sha3, NULL, 5), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-        wc_Sha3_256_Free(&sha3);
-
-        ExpectIntEQ(wc_InitSha3_256(&sha3, HEAP_HINT, testDevId), 0);
-        ExpectIntEQ(wc_Sha3_256_Update(&sha3, NULL, 0), 0);
-        ExpectIntEQ(wc_Sha3_256_Update(&sha3, msg2, msg2len), 0);
-        ExpectIntEQ(XMEMCMP(msg2, sha3.t, msg2len), 0);
-        wc_Sha3_256_Free(&sha3);
-    #endif /* SHA3_256 */
-
-    #if !defined(WOLFSSL_NOSHA3_384)
-        ExpectIntEQ(wc_InitSha3_384(&sha3, HEAP_HINT, testDevId), 0);
-        ExpectIntEQ(wc_Sha3_384_Update(&sha3, msg, msglen), 0);
-        ExpectIntEQ(XMEMCMP(msg, sha3.t, msglen), 0);
-        ExpectTrue(sha3.i == msglen);
-
-        ExpectIntEQ(wc_Sha3_384_Update(&sha3, msg2, msg2len), 0);
-        ExpectIntEQ(XMEMCMP(sha3.t, msgCmp, msgCmplen), 0);
-
-        /* Pass bad args. */
-        ExpectIntEQ(wc_Sha3_384_Update(NULL, msg2, msg2len), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-        ExpectIntEQ(wc_Sha3_384_Update(&sha3, NULL, 5), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-        wc_Sha3_384_Free(&sha3);
-
-        ExpectIntEQ(wc_InitSha3_384(&sha3, HEAP_HINT, testDevId), 0);
-        ExpectIntEQ(wc_Sha3_384_Update(&sha3, NULL, 0), 0);
-        ExpectIntEQ(wc_Sha3_384_Update(&sha3, msg2, msg2len), 0);
-        ExpectIntEQ(XMEMCMP(msg2, sha3.t, msg2len), 0);
-        wc_Sha3_384_Free(&sha3);
-    #endif /* SHA3_384 */
-
-    #if !defined(WOLFSSL_NOSHA3_512)
-        ExpectIntEQ(wc_InitSha3_512(&sha3, HEAP_HINT, testDevId), 0);
-        ExpectIntEQ(wc_Sha3_512_Update(&sha3, msg, msglen), 0);
-        ExpectIntEQ(XMEMCMP(msg, sha3.t, msglen), 0);
-        ExpectTrue(sha3.i == msglen);
-
-        ExpectIntEQ(wc_Sha3_512_Update(&sha3, msg2, msg2len), 0);
-        ExpectIntEQ(XMEMCMP(sha3.t, msgCmp, msgCmplen), 0);
-
-        /* Pass bad args. */
-        ExpectIntEQ(wc_Sha3_512_Update(NULL, msg2, msg2len), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-        ExpectIntEQ(wc_Sha3_512_Update(&sha3, NULL, 5), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-        wc_Sha3_512_Free(&sha3);
-
-        ExpectIntEQ(wc_InitSha3_512(&sha3, HEAP_HINT, testDevId), 0);
-        ExpectIntEQ(wc_Sha3_512_Update(&sha3, NULL, 0), 0);
-        ExpectIntEQ(wc_Sha3_512_Update(&sha3, msg2, msg2len), 0);
-        ExpectIntEQ(XMEMCMP(msg2, sha3.t, msg2len), 0);
-        wc_Sha3_512_Free(&sha3);
-    #endif /* SHA3_512 */
-#endif /* WOLFSSL_SHA3 */
-    return EXPECT_RESULT();
-} /* END testing_wc_Sha3_Update */
-
-/*
- *  Testing wc_Sha3_224_Final()
- */
-static int test_wc_Sha3_224_Final(void)
-{
-    EXPECT_DECLS;
-#if defined(WOLFSSL_SHA3) && !defined(WOLFSSL_NOSHA3_224)
-    wc_Sha3     sha3;
-    const char* msg    = "abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnom"
-                         "nopnopq";
-    const char* expOut = "\x8a\x24\x10\x8b\x15\x4a\xda\x21\xc9\xfd\x55"
-                         "\x74\x49\x44\x79\xba\x5c\x7e\x7a\xb7\x6e\xf2"
-                         "\x64\xea\xd0\xfc\xce\x33";
-    byte        hash[WC_SHA3_224_DIGEST_SIZE];
-    byte        hashRet[WC_SHA3_224_DIGEST_SIZE];
-
-    /* Init stack variables. */
-    XMEMSET(hash, 0, sizeof(hash));
-
-    ExpectIntEQ(wc_InitSha3_224(&sha3, HEAP_HINT, testDevId), 0);
-    ExpectIntEQ(wc_Sha3_224_Update(&sha3, (byte*)msg, (word32)XSTRLEN(msg)), 0);
-    ExpectIntEQ(wc_Sha3_224_Final(&sha3, hash), 0);
-    ExpectIntEQ(XMEMCMP(expOut, hash, WC_SHA3_224_DIGEST_SIZE), 0);
-
-    /* Test bad args. */
-    ExpectIntEQ(wc_Sha3_224_Final(NULL, hash), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_Sha3_224_Final(&sha3, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    wc_Sha3_224_Free(&sha3);
-
-    ExpectIntEQ(wc_InitSha3_224(&sha3, HEAP_HINT, testDevId), 0);
-    /* Init stack variables. */
-    XMEMSET(hash, 0, sizeof(hash));
-    XMEMSET(hashRet, 0, sizeof(hashRet));
-    ExpectIntEQ(wc_Sha3_224_Update(&sha3, (byte*)msg, (word32)XSTRLEN(msg)), 0);
-    ExpectIntEQ(wc_Sha3_224_GetHash(&sha3, hashRet), 0);
-    ExpectIntEQ(wc_Sha3_224_Final(&sha3, hash), 0);
-    ExpectIntEQ(XMEMCMP(hash, hashRet, WC_SHA3_224_DIGEST_SIZE), 0);
-
-    /* Test bad args. */
-    ExpectIntEQ(wc_Sha3_224_GetHash(NULL, hashRet), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_Sha3_224_GetHash(&sha3, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-
-    wc_Sha3_224_Free(&sha3);
-#endif
-    return EXPECT_RESULT();
-} /* END test_wc_Sha3_224_Final */
-
-
-/*
- *  Testing wc_Sha3_256_Final()
- */
-static int test_wc_Sha3_256_Final(void)
-{
-    EXPECT_DECLS;
-#if defined(WOLFSSL_SHA3) && !defined(WOLFSSL_NOSHA3_256)
-    wc_Sha3     sha3;
-    const char* msg    = "abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnom"
-                         "nopnopq";
-    const char* expOut = "\x41\xc0\xdb\xa2\xa9\xd6\x24\x08\x49\x10\x03\x76\xa8"
-                        "\x23\x5e\x2c\x82\xe1\xb9\x99\x8a\x99\x9e\x21\xdb\x32"
-                        "\xdd\x97\x49\x6d\x33\x76";
-    byte        hash[WC_SHA3_256_DIGEST_SIZE];
-    byte        hashRet[WC_SHA3_256_DIGEST_SIZE];
-
-    /* Init stack variables. */
-    XMEMSET(hash, 0, sizeof(hash));
-
-    ExpectIntEQ(wc_InitSha3_256(&sha3, HEAP_HINT, testDevId), 0);
-    ExpectIntEQ(wc_Sha3_256_Update(&sha3, (byte*)msg, (word32)XSTRLEN(msg)), 0);
-    ExpectIntEQ(wc_Sha3_256_Final(&sha3, hash), 0);
-    ExpectIntEQ(XMEMCMP(expOut, hash, WC_SHA3_256_DIGEST_SIZE), 0);
-
-    /* Test bad args. */
-    ExpectIntEQ(wc_Sha3_256_Final(NULL, hash), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_Sha3_256_Final(&sha3, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    wc_Sha3_256_Free(&sha3);
-
-    ExpectIntEQ(wc_InitSha3_256(&sha3, HEAP_HINT, testDevId), 0);
-    /* Init stack variables. */
-    XMEMSET(hash, 0, sizeof(hash));
-    XMEMSET(hashRet, 0, sizeof(hashRet));
-    ExpectIntEQ(wc_Sha3_256_Update(&sha3, (byte*)msg, (word32)XSTRLEN(msg)), 0);
-    ExpectIntEQ(wc_Sha3_256_GetHash(&sha3, hashRet), 0);
-    ExpectIntEQ(wc_Sha3_256_Final(&sha3, hash), 0);
-    ExpectIntEQ(XMEMCMP(hash, hashRet, WC_SHA3_256_DIGEST_SIZE), 0);
-
-    /* Test bad args. */
-    ExpectIntEQ(wc_Sha3_256_GetHash(NULL, hashRet), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_Sha3_256_GetHash(&sha3, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-
-    wc_Sha3_256_Free(&sha3);
-#endif
-    return EXPECT_RESULT();
-} /* END test_wc_Sha3_256_Final */
-
-
-/*
- *  Testing wc_Sha3_384_Final()
- */
-static int test_wc_Sha3_384_Final(void)
-{
-    EXPECT_DECLS;
-#if defined(WOLFSSL_SHA3) && !defined(WOLFSSL_NOSHA3_384)
-    wc_Sha3        sha3;
-    const char* msg    = "abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnom"
-                         "nopnopq";
-    const char* expOut = "\x99\x1c\x66\x57\x55\xeb\x3a\x4b\x6b\xbd\xfb\x75\xc7"
-                         "\x8a\x49\x2e\x8c\x56\xa2\x2c\x5c\x4d\x7e\x42\x9b\xfd"
-                         "\xbc\x32\xb9\xd4\xad\x5a\xa0\x4a\x1f\x07\x6e\x62\xfe"
-                         "\xa1\x9e\xef\x51\xac\xd0\x65\x7c\x22";
-    byte        hash[WC_SHA3_384_DIGEST_SIZE];
-    byte        hashRet[WC_SHA3_384_DIGEST_SIZE];
-
-    /* Init stack variables. */
-    XMEMSET(hash, 0, sizeof(hash));
-
-    ExpectIntEQ(wc_InitSha3_384(&sha3, HEAP_HINT, testDevId), 0);
-    ExpectIntEQ(wc_Sha3_384_Update(&sha3, (byte*)msg, (word32)XSTRLEN(msg)), 0);
-    ExpectIntEQ(wc_Sha3_384_Final(&sha3, hash), 0);
-    ExpectIntEQ(XMEMCMP(expOut, hash, WC_SHA3_384_DIGEST_SIZE), 0);
-
-    /* Test bad args. */
-    ExpectIntEQ(wc_Sha3_384_Final(NULL, hash), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_Sha3_384_Final(&sha3, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    wc_Sha3_384_Free(&sha3);
-
-    ExpectIntEQ(wc_InitSha3_384(&sha3, HEAP_HINT, testDevId), 0);
-    /* Init stack variables. */
-    XMEMSET(hash, 0, sizeof(hash));
-    XMEMSET(hashRet, 0, sizeof(hashRet));
-    ExpectIntEQ(wc_Sha3_384_Update(&sha3, (byte*)msg, (word32)XSTRLEN(msg)), 0);
-    ExpectIntEQ(wc_Sha3_384_GetHash(&sha3, hashRet), 0);
-    ExpectIntEQ(wc_Sha3_384_Final(&sha3, hash), 0);
-    ExpectIntEQ(XMEMCMP(hash, hashRet, WC_SHA3_384_DIGEST_SIZE), 0);
-
-    /* Test bad args. */
-    ExpectIntEQ(wc_Sha3_384_GetHash(NULL, hashRet), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_Sha3_384_GetHash(&sha3, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-
-    wc_Sha3_384_Free(&sha3);
-#endif
-    return EXPECT_RESULT();
-} /* END test_wc_Sha3_384_Final */
-
-
-
-/*
- *  Testing wc_Sha3_512_Final()
- */
-static int test_wc_Sha3_512_Final(void)
-{
-    EXPECT_DECLS;
-#if defined(WOLFSSL_SHA3) && !defined(WOLFSSL_NOSHA3_512) && \
-   !defined(WOLFSSL_NOSHA3_384)
-    wc_Sha3     sha3;
-    const char* msg    = "abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnom"
-                         "nopnopq";
-    const char* expOut = "\x04\xa3\x71\xe8\x4e\xcf\xb5\xb8\xb7\x7c\xb4\x86\x10"
-                         "\xfc\xa8\x18\x2d\xd4\x57\xce\x6f\x32\x6a\x0f\xd3\xd7"
-                         "\xec\x2f\x1e\x91\x63\x6d\xee\x69\x1f\xbe\x0c\x98\x53"
-                         "\x02\xba\x1b\x0d\x8d\xc7\x8c\x08\x63\x46\xb5\x33\xb4"
-                         "\x9c\x03\x0d\x99\xa2\x7d\xaf\x11\x39\xd6\xe7\x5e";
-    byte        hash[WC_SHA3_512_DIGEST_SIZE];
-    byte        hashRet[WC_SHA3_512_DIGEST_SIZE];
-
-    /* Init stack variables. */
-    XMEMSET(hash, 0, sizeof(hash));
-
-    ExpectIntEQ(wc_InitSha3_512(&sha3, HEAP_HINT, testDevId), 0);
-    ExpectIntEQ(wc_Sha3_512_Update(&sha3, (byte*)msg, (word32)XSTRLEN(msg)), 0);
-    ExpectIntEQ(wc_Sha3_512_Final(&sha3, hash), 0);
-    ExpectIntEQ(XMEMCMP(expOut, hash, WC_SHA3_512_DIGEST_SIZE), 0);
-
-    /* Test bad args. */
-    ExpectIntEQ(wc_Sha3_512_Final(NULL, hash), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_Sha3_512_Final(&sha3, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    wc_Sha3_512_Free(&sha3);
-
-    ExpectIntEQ(wc_InitSha3_512(&sha3, HEAP_HINT, testDevId), 0);
-    /* Init stack variables. */
-    XMEMSET(hash, 0, sizeof(hash));
-    XMEMSET(hashRet, 0, sizeof(hashRet));
-    ExpectIntEQ(wc_Sha3_512_Update(&sha3, (byte*)msg, (word32)XSTRLEN(msg)), 0);
-    ExpectIntEQ(wc_Sha3_512_GetHash(&sha3, hashRet), 0);
-    ExpectIntEQ(wc_Sha3_512_Final(&sha3, hash), 0);
-    ExpectIntEQ(XMEMCMP(hash, hashRet, WC_SHA3_512_DIGEST_SIZE), 0);
-
-    /* Test bad args. */
-    ExpectIntEQ(wc_Sha3_512_GetHash(NULL, hashRet), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_Sha3_512_GetHash(&sha3, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-
-    wc_Sha3_512_Free(&sha3);
-#endif
-    return EXPECT_RESULT();
-} /* END test_wc_Sha3_512_Final */
-
-
-/*
- *  Testing wc_Sha3_224_Copy()
- */
-static int test_wc_Sha3_224_Copy(void)
-{
-    EXPECT_DECLS;
-#if defined(WOLFSSL_SHA3) && !defined(WOLFSSL_NOSHA3_224)
-    wc_Sha3     sha3, sha3Cpy;
-    const char* msg = TEST_STRING;
-    word32      msglen = (word32)TEST_STRING_SZ;
-    byte        hash[WC_SHA3_224_DIGEST_SIZE];
-    byte        hashCpy[WC_SHA3_224_DIGEST_SIZE];
-
-    XMEMSET(hash, 0, sizeof(hash));
-    XMEMSET(hashCpy, 0, sizeof(hashCpy));
-    XMEMSET(&sha3, 0, sizeof(wc_Sha3));
-    XMEMSET(&sha3Cpy, 0, sizeof(wc_Sha3));
-
-    ExpectIntEQ(wc_InitSha3_224(&sha3, HEAP_HINT, testDevId), 0);
-    ExpectIntEQ(wc_InitSha3_224(&sha3Cpy, HEAP_HINT, testDevId), 0);
-    ExpectIntEQ(wc_Sha3_224_Update(&sha3, (byte*)msg, msglen), 0);
-    ExpectIntEQ(wc_Sha3_224_Copy(&sha3Cpy, &sha3), 0);
-    ExpectIntEQ(wc_Sha3_224_Final(&sha3, hash), 0);
-    ExpectIntEQ(wc_Sha3_224_Final(&sha3Cpy, hashCpy), 0);
-    ExpectIntEQ(XMEMCMP(hash, hashCpy, sizeof(hash)), 0);
-
-    /* Test bad args. */
-    ExpectIntEQ(wc_Sha3_224_Copy(NULL, &sha3), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_Sha3_224_Copy(&sha3Cpy, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-
-    wc_Sha3_224_Free(&sha3);
-    wc_Sha3_224_Free(&sha3Cpy);
-#endif
-    return EXPECT_RESULT();
-} /* END test_wc_Sha3_224_Copy */
-
-
-
-/*
- *  Testing wc_Sha3_256_Copy()
- */
-static int test_wc_Sha3_256_Copy(void)
-{
-    EXPECT_DECLS;
-#if defined(WOLFSSL_SHA3) && !defined(WOLFSSL_NOSHA3_256)
-    wc_Sha3     sha3, sha3Cpy;
-    const char* msg = TEST_STRING;
-    word32      msglen = (word32)TEST_STRING_SZ;
-    byte        hash[WC_SHA3_256_DIGEST_SIZE];
-    byte        hashCpy[WC_SHA3_256_DIGEST_SIZE];
-
-    XMEMSET(hash, 0, sizeof(hash));
-    XMEMSET(hashCpy, 0, sizeof(hashCpy));
-    XMEMSET(&sha3, 0, sizeof(wc_Sha3));
-    XMEMSET(&sha3Cpy, 0, sizeof(wc_Sha3));
-
-    ExpectIntEQ(wc_InitSha3_256(&sha3, HEAP_HINT, testDevId), 0);
-    ExpectIntEQ(wc_InitSha3_256(&sha3Cpy, HEAP_HINT, testDevId), 0);
-    ExpectIntEQ(wc_Sha3_256_Update(&sha3, (byte*)msg, msglen), 0);
-    ExpectIntEQ(wc_Sha3_256_Copy(&sha3Cpy, &sha3), 0);
-    ExpectIntEQ(wc_Sha3_256_Final(&sha3, hash), 0);
-    ExpectIntEQ(wc_Sha3_256_Final(&sha3Cpy, hashCpy), 0);
-    ExpectIntEQ(XMEMCMP(hash, hashCpy, sizeof(hash)), 0);
-
-    /* Test bad args. */
-    ExpectIntEQ(wc_Sha3_256_Copy(NULL, &sha3), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_Sha3_256_Copy(&sha3Cpy, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-
-    wc_Sha3_256_Free(&sha3);
-    wc_Sha3_256_Free(&sha3Cpy);
-#endif
-    return EXPECT_RESULT();
-} /* END test_wc_Sha3_256_Copy */
-
-
-
-/*
- *  Testing wc_Sha3_384_Copy()
- */
-static int test_wc_Sha3_384_Copy(void)
-{
-    EXPECT_DECLS;
-#if defined(WOLFSSL_SHA3) && !defined(WOLFSSL_NOSHA3_384)
-    wc_Sha3     sha3, sha3Cpy;
-    const char* msg = TEST_STRING;
-    word32      msglen = (word32)TEST_STRING_SZ;
-    byte        hash[WC_SHA3_384_DIGEST_SIZE];
-    byte        hashCpy[WC_SHA3_384_DIGEST_SIZE];
-
-    XMEMSET(hash, 0, sizeof(hash));
-    XMEMSET(hashCpy, 0, sizeof(hashCpy));
-    XMEMSET(&sha3, 0, sizeof(wc_Sha3));
-    XMEMSET(&sha3Cpy, 0, sizeof(wc_Sha3));
-
-    ExpectIntEQ(wc_InitSha3_384(&sha3, HEAP_HINT, testDevId), 0);
-    ExpectIntEQ(wc_InitSha3_384(&sha3Cpy, HEAP_HINT, testDevId), 0);
-    ExpectIntEQ(wc_Sha3_384_Update(&sha3, (byte*)msg, msglen), 0);
-    ExpectIntEQ(wc_Sha3_384_Copy(&sha3Cpy, &sha3), 0);
-    ExpectIntEQ(wc_Sha3_384_Final(&sha3, hash), 0);
-    ExpectIntEQ(wc_Sha3_384_Final(&sha3Cpy, hashCpy), 0);
-    ExpectIntEQ(XMEMCMP(hash, hashCpy, sizeof(hash)), 0);
-
-    /* Test bad args. */
-    ExpectIntEQ(wc_Sha3_384_Copy(NULL, &sha3), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_Sha3_384_Copy(&sha3Cpy, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-
-    wc_Sha3_384_Free(&sha3);
-    wc_Sha3_384_Free(&sha3Cpy);
-#endif
-    return EXPECT_RESULT();
-} /* END test_wc_Sha3_384_Copy */
-
-
-/*
- *  Testing wc_Sha3_512_Copy()
- */
-static int test_wc_Sha3_512_Copy(void)
-{
-    EXPECT_DECLS;
-#if defined(WOLFSSL_SHA3) && !defined(WOLFSSL_NOSHA3_512)
-    wc_Sha3     sha3, sha3Cpy;
-    const char* msg = TEST_STRING;
-    word32      msglen = (word32)TEST_STRING_SZ;
-    byte        hash[WC_SHA3_512_DIGEST_SIZE];
-    byte        hashCpy[WC_SHA3_512_DIGEST_SIZE];
-
-    XMEMSET(hash, 0, sizeof(hash));
-    XMEMSET(hashCpy, 0, sizeof(hashCpy));
-    XMEMSET(&sha3, 0, sizeof(wc_Sha3));
-    XMEMSET(&sha3Cpy, 0, sizeof(wc_Sha3));
-
-    ExpectIntEQ(wc_InitSha3_512(&sha3, HEAP_HINT, testDevId), 0);
-    ExpectIntEQ(wc_InitSha3_512(&sha3Cpy, HEAP_HINT, testDevId), 0);
-    ExpectIntEQ(wc_Sha3_512_Update(&sha3, (byte*)msg, msglen), 0);
-    ExpectIntEQ(wc_Sha3_512_Copy(&sha3Cpy, &sha3), 0);
-    ExpectIntEQ(wc_Sha3_512_Final(&sha3, hash), 0);
-    ExpectIntEQ(wc_Sha3_512_Final(&sha3Cpy, hashCpy), 0);
-    ExpectIntEQ(XMEMCMP(hash, hashCpy, sizeof(hash)), 0);
-
-    /* Test bad args. */
-    ExpectIntEQ(wc_Sha3_512_Copy(NULL, &sha3), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_Sha3_512_Copy(&sha3Cpy, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-
-    wc_Sha3_512_Free(&sha3);
-    wc_Sha3_512_Free(&sha3Cpy);
-#endif
-    return EXPECT_RESULT();
-} /* END test_wc_Sha3_512_Copy */
-/*
- * Unit test function for wc_Sha3_GetFlags()
- */
-static int test_wc_Sha3_GetFlags(void)
-{
-    EXPECT_DECLS;
-#if defined(WOLFSSL_SHA3) && defined(WOLFSSL_HASH_FLAGS)
-    wc_Sha3 sha3;
-    word32  flags = 0;
-
-    /* Initialize */
-    ExpectIntEQ(wc_InitSha3_224(&sha3, HEAP_HINT, testDevId), 0);
-    ExpectIntEQ(wc_Sha3_GetFlags(&sha3, &flags), 0);
-    ExpectTrue((flags & WC_HASH_FLAG_ISCOPY) == 0);
-    wc_Sha3_224_Free(&sha3);
-#endif
-    return EXPECT_RESULT();
-} /* END test_wc_Sha3_GetFlags */
-
-
-static int test_wc_InitShake256(void)
-{
-    EXPECT_DECLS;
-#ifdef WOLFSSL_SHAKE256
-    wc_Shake shake;
-
-    ExpectIntEQ(wc_InitShake256(&shake, HEAP_HINT, testDevId), 0);
-    /* Test bad args. */
-    ExpectIntEQ(wc_InitShake256(NULL, HEAP_HINT, testDevId), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-
-    wc_Shake256_Free(&shake);
-#endif
-    return EXPECT_RESULT();
-}
-
-
-static int testing_wc_Shake256_Update(void)
-{
-    EXPECT_DECLS;
-#ifdef WOLFSSL_SHAKE256
-    wc_Shake shake;
-    byte     msg[] = "Everybody's working for the weekend.";
-    byte     msg2[] = "Everybody gets Friday off.";
-    byte     msgCmp[] = "\x45\x76\x65\x72\x79\x62\x6f\x64\x79\x27\x73\x20"
-                        "\x77\x6f\x72\x6b\x69\x6e\x67\x20\x66\x6f\x72\x20\x74"
-                        "\x68\x65\x20\x77\x65\x65\x6b\x65\x6e\x64\x2e\x45\x76"
-                        "\x65\x72\x79\x62\x6f\x64\x79\x20\x67\x65\x74\x73\x20"
-                        "\x46\x72\x69\x64\x61\x79\x20\x6f\x66\x66\x2e";
-    word32   msglen = sizeof(msg) - 1;
-    word32   msg2len = sizeof(msg2);
-    word32   msgCmplen = sizeof(msgCmp);
-
-    ExpectIntEQ(wc_InitShake256(&shake, HEAP_HINT, testDevId), 0);
-    ExpectIntEQ(wc_Shake256_Update(&shake, msg, msglen), 0);
-    ExpectIntEQ(XMEMCMP(msg, shake.t, msglen), 0);
-    ExpectTrue(shake.i == msglen);
-
-    ExpectIntEQ(wc_Shake256_Update(&shake, msg2, msg2len), 0);
-    ExpectIntEQ(XMEMCMP(shake.t, msgCmp, msgCmplen), 0);
-
-    /* Pass bad args. */
-    ExpectIntEQ(wc_Shake256_Update(NULL, msg2, msg2len), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_Shake256_Update(&shake, NULL, 5), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    wc_Shake256_Free(&shake);
-
-    ExpectIntEQ(wc_InitShake256(&shake, HEAP_HINT, testDevId), 0);
-    ExpectIntEQ(wc_Shake256_Update(&shake, NULL, 0), 0);
-    ExpectIntEQ(wc_Shake256_Update(&shake, msg2, msg2len), 0);
-    ExpectIntEQ(XMEMCMP(msg2, shake.t, msg2len), 0);
-    wc_Shake256_Free(&shake);
-#endif /* WOLFSSL_SHAKE256 */
-    return EXPECT_RESULT();
-}
-
-static int test_wc_Shake256_Final(void)
-{
-    EXPECT_DECLS;
-#ifdef WOLFSSL_SHAKE256
-    wc_Shake    shake;
-    const char* msg    = "abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnom"
-                         "nopnopq";
-    const char* expOut = "\x4d\x8c\x2d\xd2\x43\x5a\x01\x28\xee\xfb\xb8\xc3\x6f"
-                         "\x6f\x87\x13\x3a\x79\x11\xe1\x8d\x97\x9e\xe1\xae\x6b"
-                         "\xe5\xd4\xfd\x2e\x33\x29\x40\xd8\x68\x8a\x4e\x6a\x59"
-                         "\xaa\x80\x60\xf1\xf9\xbc\x99\x6c\x05\xac\xa3\xc6\x96"
-                         "\xa8\xb6\x62\x79\xdc\x67\x2c\x74\x0b\xb2\x24\xec\x37"
-                         "\xa9\x2b\x65\xdb\x05\x39\xc0\x20\x34\x55\xf5\x1d\x97"
-                         "\xcc\xe4\xcf\xc4\x91\x27\xd7\x26\x0a\xfc\x67\x3a\xf2"
-                         "\x08\xba\xf1\x9b\xe2\x12\x33\xf3\xde\xbe\x78\xd0\x67"
-                         "\x60\xcf\xa5\x51\xee\x1e\x07\x91\x41\xd4";
-    byte        hash[114];
-
-    /* Init stack variables. */
-    XMEMSET(hash, 0, sizeof(hash));
-
-    ExpectIntEQ(wc_InitShake256(&shake, HEAP_HINT, testDevId), 0);
-    ExpectIntEQ(wc_Shake256_Update(&shake, (byte*)msg, (word32)XSTRLEN(msg)),
-        0);
-    ExpectIntEQ(wc_Shake256_Final(&shake, hash, (word32)sizeof(hash)), 0);
-    ExpectIntEQ(XMEMCMP(expOut, hash, (word32)sizeof(hash)), 0);
-
-    /* Test bad args. */
-    ExpectIntEQ(wc_Shake256_Final(NULL, hash, (word32)sizeof(hash)),
-        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_Shake256_Final(&shake, NULL, (word32)sizeof(hash)),
-        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-
-    wc_Shake256_Free(&shake);
-#endif
-    return EXPECT_RESULT();
-}
-/*
- *  Testing wc_Shake256_Copy()
- */
-static int test_wc_Shake256_Copy(void)
-{
-    EXPECT_DECLS;
-#ifdef WOLFSSL_SHAKE256
-    wc_Shake    shake, shakeCpy;
-    const char* msg = TEST_STRING;
-    word32      msglen = (word32)TEST_STRING_SZ;
-    byte        hash[144];
-    byte        hashCpy[144];
-    word32      hashLen = sizeof(hash);
-    word32      hashLenCpy = sizeof(hashCpy);
-
-    XMEMSET(hash, 0, sizeof(hash));
-    XMEMSET(hashCpy, 0, sizeof(hashCpy));
-
-    ExpectIntEQ(wc_InitShake256(&shake, HEAP_HINT, testDevId), 0);
-    ExpectIntEQ(wc_InitShake256(&shakeCpy, HEAP_HINT, testDevId), 0);
-
-    ExpectIntEQ(wc_Shake256_Update(&shake, (byte*)msg, msglen), 0);
-    ExpectIntEQ(wc_Shake256_Copy(&shakeCpy, &shake), 0);
-    ExpectIntEQ(wc_Shake256_Final(&shake, hash, hashLen), 0);
-    ExpectIntEQ(wc_Shake256_Final(&shakeCpy, hashCpy, hashLenCpy), 0);
-    ExpectIntEQ(XMEMCMP(hash, hashCpy, sizeof(hash)), 0);
-
-    /* Test bad args. */
-    ExpectIntEQ(wc_Shake256_Copy(NULL, &shake), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_Shake256_Copy(&shakeCpy, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-
-    wc_Shake256_Free(&shake);
-    wc_Shake256_Free(&shakeCpy);
-#endif
-    return EXPECT_RESULT();
-} /* END test_wc_Shake256_Copy */
-/*
- * Unit test function for wc_Shake256Hash()
- */
-static int test_wc_Shake256Hash(void)
-{
-    EXPECT_DECLS;
-#ifdef WOLFSSL_SHAKE256
-    const byte data[] = { /* Hello World */
-        0x48,0x65,0x6c,0x6c,0x6f,0x20,0x57,0x6f,
-        0x72,0x6c,0x64
-    };
-    word32     len = sizeof(data);
-    byte       hash[144];
-    word32     hashLen = sizeof(hash);
-
-    ExpectIntEQ(wc_Shake256Hash(data, len, hash, hashLen), 0);
-#endif
-    return EXPECT_RESULT();
-}  /* END test_wc_Shake256Hash */
-
-
-/*
- *  Testing wc_InitSm3(), wc_Sm3Free()
- */
-static int test_wc_InitSm3Free(void)
-{
-    EXPECT_DECLS;
-#ifdef WOLFSSL_SM3
-    wc_Sm3 sm3;
-
-    /* Invalid Parameters */
-    ExpectIntEQ(wc_InitSm3(NULL, NULL, INVALID_DEVID), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-
-    /* Valid Parameters */
-    ExpectIntEQ(wc_InitSm3(&sm3, NULL, INVALID_DEVID), 0);
-
-    wc_Sm3Free(NULL);
-    wc_Sm3Free(&sm3);
-#endif
-    return EXPECT_RESULT();
-}  /* END test_wc_InitSm3 */
-
-/*
- *  Testing wc_Sm3Update(), wc_Sm3Final()
- */
-static int test_wc_Sm3UpdateFinal(void)
-{
-    EXPECT_DECLS;
-#ifdef WOLFSSL_SM3
-    wc_Sm3 sm3;
-    byte data[WC_SM3_BLOCK_SIZE * 4];
-    byte hash[WC_SM3_DIGEST_SIZE];
-    byte calcHash[WC_SM3_DIGEST_SIZE];
-    byte expHash[WC_SM3_DIGEST_SIZE] = {
-        0x38, 0x48, 0x15, 0xa7, 0x0e, 0xae, 0x0b, 0x27,
-        0x5c, 0xde, 0x9d, 0xa5, 0xd1, 0xa4, 0x30, 0xa1,
-        0xca, 0xd4, 0x54, 0x58, 0x44, 0xa2, 0x96, 0x1b,
-        0xd7, 0x14, 0x80, 0x3f, 0x80, 0x1a, 0x07, 0xb6
-    };
-    word32 chunk;
-    word32 i;
-
-    XMEMSET(data, 0, sizeof(data));
-
-    ExpectIntEQ(wc_InitSm3(&sm3, NULL, INVALID_DEVID), 0);
-
-    /* Invalid Parameters */
-    ExpectIntEQ(wc_Sm3Update(NULL, NULL, 1), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_Sm3Update(&sm3, NULL, 1), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_Sm3Update(NULL, data, 1), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-
-    /* Valid Parameters */
-    ExpectIntEQ(wc_Sm3Update(&sm3, NULL, 0), 0);
-    ExpectIntEQ(wc_Sm3Update(&sm3, data, 1), 0);
-    ExpectIntEQ(wc_Sm3Update(&sm3, data, 1), 0);
-    ExpectIntEQ(wc_Sm3Update(&sm3, data, WC_SM3_BLOCK_SIZE), 0);
-    ExpectIntEQ(wc_Sm3Update(&sm3, data, WC_SM3_BLOCK_SIZE - 2), 0);
-    ExpectIntEQ(wc_Sm3Update(&sm3, data, WC_SM3_BLOCK_SIZE * 2), 0);
-    /* Ensure too many bytes for lengths. */
-    ExpectIntEQ(wc_Sm3Update(&sm3, data, WC_SM3_PAD_SIZE), 0);
-
-    /* Invalid Parameters */
-    ExpectIntEQ(wc_Sm3Final(NULL, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_Sm3Final(&sm3, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_Sm3Final(NULL, hash), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-
-    /* Valid Parameters */
-    ExpectIntEQ(wc_Sm3Final(&sm3, hash), 0);
-    ExpectBufEQ(hash, expHash, WC_SM3_DIGEST_SIZE);
-
-    /* Chunk tests. */
-    ExpectIntEQ(wc_Sm3Update(&sm3, data, sizeof(data)), 0);
-    ExpectIntEQ(wc_Sm3Final(&sm3, calcHash), 0);
-    for (chunk = 1; chunk <= WC_SM3_BLOCK_SIZE + 1; chunk++) {
-        for (i = 0; i + chunk <= (word32)sizeof(data); i += chunk) {
-            ExpectIntEQ(wc_Sm3Update(&sm3, data + i, chunk), 0);
-        }
-        if (i < (word32)sizeof(data)) {
-            ExpectIntEQ(wc_Sm3Update(&sm3, data + i, (word32)sizeof(data) - i),
-                0);
-        }
-        ExpectIntEQ(wc_Sm3Final(&sm3, hash), 0);
-        ExpectBufEQ(hash, calcHash, WC_SM3_DIGEST_SIZE);
-    }
-
-    /* Not testing when the low 32-bit length overflows. */
-
-    wc_Sm3Free(&sm3);
-#endif
-    return EXPECT_RESULT();
-}  /* END test_wc_Sm3Update */
-
-/*
- *  Testing wc_Sm3GetHash()
- */
-static int test_wc_Sm3GetHash(void)
-{
-    EXPECT_DECLS;
-#ifdef WOLFSSL_SM3
-    wc_Sm3 sm3;
-    byte hash[WC_SM3_DIGEST_SIZE];
-    byte calcHash[WC_SM3_DIGEST_SIZE];
-    byte data[WC_SM3_BLOCK_SIZE];
-
-    XMEMSET(data, 0, sizeof(data));
-
-    ExpectIntEQ(wc_InitSm3(&sm3, NULL, INVALID_DEVID), 0);
-    ExpectIntEQ(wc_Sm3Final(&sm3, calcHash), 0);
-
-    /* Invalid Parameters */
-    ExpectIntEQ(wc_Sm3GetHash(NULL, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_Sm3GetHash(&sm3, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_Sm3GetHash(NULL, hash), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-
-    /* Valid Parameters */
-    ExpectIntEQ(wc_Sm3GetHash(&sm3, hash), 0);
-    ExpectBufEQ(hash, calcHash, WC_SM3_DIGEST_SIZE);
-
-    /* With update. */
-    ExpectIntEQ(wc_Sm3Update(&sm3, data, sizeof(data)), 0);
-    ExpectIntEQ(wc_Sm3GetHash(&sm3, hash), 0);
-    ExpectIntEQ(wc_Sm3Final(&sm3, calcHash), 0);
-    ExpectBufEQ(hash, calcHash, WC_SM3_DIGEST_SIZE);
-
-    wc_Sm3Free(&sm3);
-#endif
-    return EXPECT_RESULT();
-}  /* END test_wc_Sm3Update */
-
-/*
- *  Testing wc_Sm3Copy()
- */
-static int test_wc_Sm3Copy(void)
-{
-    EXPECT_DECLS;
-#if defined(WOLFSSL_SM3) && defined(WOLFSSL_HASH_FLAGS)
-    wc_Sm3 sm3;
-    wc_Sm3 sm3Copy;
-    byte hash[WC_SM3_DIGEST_SIZE];
-    byte hashCopy[WC_SM3_DIGEST_SIZE];
-    byte data[WC_SM3_BLOCK_SIZE + 1];
-    int i;
-
-    ExpectIntEQ(wc_InitSm3(&sm3, NULL, INVALID_DEVID), 0);
-    ExpectIntEQ(wc_InitSm3(&sm3Copy, NULL, INVALID_DEVID), 0);
-
-    /* Invalid Parameters */
-    ExpectIntEQ(wc_Sm3Copy(NULL, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_Sm3Copy(&sm3, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_Sm3Copy(NULL, &sm3Copy), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-
-    /* Valid Parameters */
-    ExpectIntEQ(wc_Sm3Copy(&sm3, &sm3Copy), 0);
-
-    /* Ensure all parts of data updated during hashing are copied. */
-    for (i = 0; i < WC_SM3_BLOCK_SIZE + 1; i++) {
-        ExpectIntEQ(wc_Sm3Update(&sm3, data, i), 0);
-        ExpectIntEQ(wc_Sm3Copy(&sm3, &sm3Copy), 0);
-        ExpectIntEQ(wc_Sm3Update(&sm3, data, 1), 0);
-        ExpectIntEQ(wc_Sm3Update(&sm3Copy, data, 1), 0);
-        ExpectIntEQ(wc_Sm3Final(&sm3, hash), 0);
-        ExpectIntEQ(wc_Sm3Final(&sm3Copy, hashCopy), 0);
-        ExpectBufEQ(hash, hashCopy, WC_SM3_DIGEST_SIZE);
-    }
-
-    wc_Sm3Free(&sm3Copy);
-    wc_Sm3Free(&sm3);
-#endif
-    return EXPECT_RESULT();
-}  /* END test_wc_Sm3Copy */
-
-/*
- * Testing wc_Sm3FinalRaw()
- */
-static int test_wc_Sm3FinalRaw(void)
-{
-    EXPECT_DECLS;
-#if defined(WOLFSSL_SM3) && !defined(HAVE_SELFTEST) && \
-    !defined(WOLFSSL_DEVCRYPTO) && (!defined(HAVE_FIPS) || \
-    (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 3))) && \
-    !defined(WOLFSSL_NO_HASH_RAW)
-    wc_Sm3 sm3;
-    byte hash1[WC_SM3_DIGEST_SIZE];
-    byte hash2[WC_SM3_DIGEST_SIZE];
-    byte hash3[WC_SM3_DIGEST_SIZE];
-    byte* hash_test[3] = { hash1, hash2, hash3 };
-    int times;
-    int i;
-
-    XMEMSET(&sm3, 0, sizeof(sm3));
-
-    /* Initialize */
-    ExpectIntEQ(wc_InitSm3(&sm3, NULL, INVALID_DEVID), 0);
-
-    /* Invalid Parameters */
-    ExpectIntEQ(wc_Sm3FinalRaw(NULL, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_Sm3FinalRaw(&sm3, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_Sm3FinalRaw(NULL, hash1), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-
-    times = sizeof(hash_test) / sizeof(byte*);
-    for (i = 0; i < times; i++) {
-        ExpectIntEQ(wc_Sm3FinalRaw(&sm3, hash_test[i]), 0);
-    }
-
-    wc_Sm3Free(&sm3);
-#endif
-    return EXPECT_RESULT();
-} /* END test_wc_Sm3FinalRaw */
-/*
- *  Testing wc_Sm3GetFlags, wc_Sm3SetFlags()
- */
-static int test_wc_Sm3GetSetFlags(void)
-{
-    EXPECT_DECLS;
-#if defined(WOLFSSL_SM3) && defined(WOLFSSL_HASH_FLAGS)
-    wc_Sm3 sm3;
-    wc_Sm3 sm3Copy;
-    word32 flags = 0;
-
-    ExpectIntEQ(wc_InitSm3(&sm3, NULL, INVALID_DEVID), 0);
-    ExpectIntEQ(wc_InitSm3(&sm3Copy, NULL, INVALID_DEVID), 0);
-
-    ExpectIntEQ(wc_Sm3GetFlags(NULL, &flags), 0);
-    ExpectIntEQ(flags, 0);
-    ExpectIntEQ(wc_Sm3SetFlags(NULL, WC_HASH_FLAG_WILLCOPY), 0);
-    ExpectIntEQ(wc_Sm3GetFlags(NULL, &flags), 0);
-    ExpectIntEQ(flags, 0);
-    ExpectIntEQ(wc_Sm3GetFlags(&sm3, &flags), 0);
-    ExpectIntEQ(flags, 0);
-    ExpectIntEQ(wc_Sm3SetFlags(&sm3, WC_HASH_FLAG_WILLCOPY), 0);
-    ExpectIntEQ(wc_Sm3GetFlags(&sm3, &flags), 0);
-    ExpectIntEQ(flags, WC_HASH_FLAG_WILLCOPY);
-
-    ExpectIntEQ(wc_Sm3Copy(&sm3, &sm3Copy), 0);
-    ExpectIntEQ(wc_Sm3GetFlags(&sm3Copy, &flags), 0);
-    ExpectIntEQ(flags, WC_HASH_FLAG_ISCOPY | WC_HASH_FLAG_WILLCOPY);
-
-    wc_Sm3Free(&sm3Copy);
-    wc_Sm3Free(&sm3);
-#endif
-    return EXPECT_RESULT();
-}  /* END test_wc_Sm3Update */
-
-/*
- *  Testing wc_Sm3Hash()
- */
-static int test_wc_Sm3Hash(void)
-{
-    EXPECT_DECLS;
-#if defined(WOLFSSL_SM3) && defined(WOLFSSL_HASH_FLAGS)
-    byte data[WC_SM3_BLOCK_SIZE];
-    byte hash[WC_SM3_DIGEST_SIZE];
-
-    /* Invalid parameters. */
-    ExpectIntEQ(wc_Sm3Hash(NULL, sizeof(data), hash), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_Sm3Hash(data, sizeof(data), NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-
-    /* Valid parameters. */
-    ExpectIntEQ(wc_Sm3Hash(data, sizeof(data), hash), 0);
-#endif
-    return EXPECT_RESULT();
-}  /* END test_wc_Sm3Hash */
 
 /*
  * Test function for wc_HmacSetKey
@@ -24929,6 +22144,9 @@ static int test_wc_curve25519_shared_secret_ex(void)
     int            endian = EC25519_BIG_ENDIAN;
 
     ExpectIntEQ(wc_curve25519_init(&private_key), 0);
+#ifdef WOLFSSL_CURVE25519_BLINDING
+    ExpectIntEQ(wc_curve25519_set_rng(&private_key, &rng), 0);
+#endif
     ExpectIntEQ(wc_curve25519_init(&public_key), 0);
     ExpectIntEQ(wc_InitRng(&rng), 0);
 
@@ -53664,192 +50882,6 @@ static int test_wc_SignatureGetSize_rsa(void)
 } /* END test_wc_SignatureGetSize_rsa(void) */
 
 /*----------------------------------------------------------------------------*
- | hash.h Tests
- *----------------------------------------------------------------------------*/
-
-static int test_wc_HashInit(void)
-{
-    EXPECT_DECLS;
-    int i;  /* 0 indicates tests passed, 1 indicates failure */
-
-    wc_HashAlg hash;
-
-    /* enum for holding supported algorithms, #ifndef's restrict if disabled */
-    enum wc_HashType enumArray[] = {
-    #ifndef NO_MD5
-        WC_HASH_TYPE_MD5,
-    #endif
-    #ifndef NO_SHA
-        WC_HASH_TYPE_SHA,
-    #endif
-    #ifdef WOLFSSL_SHA224
-        WC_HASH_TYPE_SHA224,
-    #endif
-    #ifndef NO_SHA256
-        WC_HASH_TYPE_SHA256,
-    #endif
-    #ifdef WOLFSSL_SHA384
-        WC_HASH_TYPE_SHA384,
-    #endif
-    #ifdef WOLFSSL_SHA512
-        WC_HASH_TYPE_SHA512,
-    #endif
-    };
-    /* dynamically finds the length */
-    int enumlen = (sizeof(enumArray)/sizeof(enum wc_HashType));
-
-    /* For loop to test various arguments... */
-    for (i = 0; i < enumlen; i++) {
-        /* check for bad args */
-        ExpectIntEQ(wc_HashInit(&hash, enumArray[i]), 0);
-        wc_HashFree(&hash, enumArray[i]);
-
-        /* check for null ptr */
-        ExpectIntEQ(wc_HashInit(NULL, enumArray[i]), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-
-    }  /* end of for loop */
-
-    return EXPECT_RESULT();
-}  /* end of test_wc_HashInit */
-/*
- * Unit test function for wc_HashSetFlags()
- */
-static int test_wc_HashSetFlags(void)
-{
-    EXPECT_DECLS;
-#ifdef WOLFSSL_HASH_FLAGS
-    wc_HashAlg hash;
-    word32 flags = 0;
-    int i, j;
-    int notSupportedLen;
-
-    /* enum for holding supported algorithms, #ifndef's restrict if disabled */
-    enum wc_HashType enumArray[] = {
-    #ifndef NO_MD5
-            WC_HASH_TYPE_MD5,
-    #endif
-    #ifndef NO_SHA
-            WC_HASH_TYPE_SHA,
-    #endif
-    #ifdef WOLFSSL_SHA224
-            WC_HASH_TYPE_SHA224,
-    #endif
-    #ifndef NO_SHA256
-            WC_HASH_TYPE_SHA256,
-    #endif
-    #ifdef WOLFSSL_SHA384
-            WC_HASH_TYPE_SHA384,
-    #endif
-    #ifdef WOLFSSL_SHA512
-            WC_HASH_TYPE_SHA512,
-    #endif
-    #ifdef WOLFSSL_SHA3
-            WC_HASH_TYPE_SHA3_224,
-    #endif
-    };
-    enum wc_HashType notSupported[] = {
-              WC_HASH_TYPE_MD5_SHA,
-              WC_HASH_TYPE_MD2,
-              WC_HASH_TYPE_MD4,
-              WC_HASH_TYPE_BLAKE2B,
-              WC_HASH_TYPE_BLAKE2S,
-              WC_HASH_TYPE_NONE,
-     };
-
-    /* dynamically finds the length */
-    int enumlen = (sizeof(enumArray)/sizeof(enum wc_HashType));
-
-    /* For loop to test various arguments... */
-    for (i = 0; i < enumlen; i++) {
-        ExpectIntEQ(wc_HashInit(&hash, enumArray[i]), 0);
-        ExpectIntEQ(wc_HashSetFlags(&hash, enumArray[i], flags), 0);
-        ExpectTrue((flags & WC_HASH_FLAG_ISCOPY) == 0);
-        ExpectIntEQ(wc_HashSetFlags(NULL, enumArray[i], flags), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-        wc_HashFree(&hash, enumArray[i]);
-
-    }
-    /* For loop to test not supported cases */
-    notSupportedLen = (sizeof(notSupported)/sizeof(enum wc_HashType));
-    for (j = 0; j < notSupportedLen; j++) {
-        ExpectIntEQ(wc_HashInit(&hash, notSupported[j]), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-        ExpectIntEQ(wc_HashSetFlags(&hash, notSupported[j], flags),
-            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-        ExpectIntEQ(wc_HashFree(&hash, notSupported[j]), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    }
-#endif
-    return EXPECT_RESULT();
-}  /* END test_wc_HashSetFlags */
-/*
- * Unit test function for wc_HashGetFlags()
- */
-static int test_wc_HashGetFlags(void)
-{
-    EXPECT_DECLS;
-#ifdef WOLFSSL_HASH_FLAGS
-    wc_HashAlg hash;
-    word32 flags = 0;
-    int i, j;
-
-    /* enum for holding supported algorithms, #ifndef's restrict if disabled */
-    enum wc_HashType enumArray[] = {
-    #ifndef NO_MD5
-            WC_HASH_TYPE_MD5,
-    #endif
-    #ifndef NO_SHA
-            WC_HASH_TYPE_SHA,
-    #endif
-    #ifdef WOLFSSL_SHA224
-            WC_HASH_TYPE_SHA224,
-    #endif
-    #ifndef NO_SHA256
-            WC_HASH_TYPE_SHA256,
-    #endif
-    #ifdef WOLFSSL_SHA384
-            WC_HASH_TYPE_SHA384,
-    #endif
-    #ifdef WOLFSSL_SHA512
-            WC_HASH_TYPE_SHA512,
-    #endif
-    #ifdef WOLFSSL_SHA3
-            WC_HASH_TYPE_SHA3_224,
-    #endif
-    };
-    enum wc_HashType notSupported[] = {
-              WC_HASH_TYPE_MD5_SHA,
-              WC_HASH_TYPE_MD2,
-              WC_HASH_TYPE_MD4,
-              WC_HASH_TYPE_BLAKE2B,
-              WC_HASH_TYPE_BLAKE2S,
-              WC_HASH_TYPE_NONE,
-    };
-    int enumlen = (sizeof(enumArray)/sizeof(enum wc_HashType));
-    int notSupportedLen;
-
-    /* For loop to test various arguments... */
-    for (i = 0; i < enumlen; i++) {
-        ExpectIntEQ(wc_HashInit(&hash, enumArray[i]), 0);
-        ExpectIntEQ(wc_HashGetFlags(&hash, enumArray[i], &flags), 0);
-        ExpectTrue((flags & WC_HASH_FLAG_ISCOPY) == 0);
-        ExpectIntEQ(wc_HashGetFlags(NULL, enumArray[i], &flags), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-        wc_HashFree(&hash, enumArray[i]);
-    }
-    /* For loop to test not supported cases */
-    notSupportedLen = (sizeof(notSupported)/sizeof(enum wc_HashType));
-    for (j = 0; j < notSupportedLen; j++) {
-        ExpectIntEQ(wc_HashInit(&hash, notSupported[j]), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-        ExpectIntEQ(wc_HashGetFlags(&hash, notSupported[j], &flags),
-            WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-        ExpectIntEQ(wc_HashFree(&hash, notSupported[j]), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    }
-#endif
-    return EXPECT_RESULT();
-}  /* END test_wc_HashGetFlags */
-
-/*----------------------------------------------------------------------------*
- | Compatibility Tests
- *----------------------------------------------------------------------------*/
-
-/*----------------------------------------------------------------------------*
  | ASN.1 Tests
  *----------------------------------------------------------------------------*/
 
@@ -55552,9 +52584,10 @@ static int test_wolfSSL_ASN1_TIME_diff_compare(void)
 
     ExpectIntEQ(ASN1_TIME_diff(&daysDiff, &secsDiff, fromTime, toTime), 1);
 
-    /* Error conditions. */
-    ExpectIntEQ(ASN1_TIME_diff(NULL, &secsDiff, fromTime, toTime), 0);
-    ExpectIntEQ(ASN1_TIME_diff(&daysDiff, NULL, fromTime, toTime), 0);
+    /* Test when secsDiff or daysDiff is NULL. */
+    ExpectIntEQ(ASN1_TIME_diff(NULL, &secsDiff, fromTime, toTime), 1);
+    ExpectIntEQ(ASN1_TIME_diff(&daysDiff, NULL, fromTime, toTime), 1);
+    ExpectIntEQ(ASN1_TIME_diff(NULL, NULL, fromTime, toTime), 1);
 
     /* If both times are NULL, difference is 0. */
     ExpectIntEQ(ASN1_TIME_diff(&daysDiff, &secsDiff, NULL, NULL), 1);
@@ -63650,17 +60683,16 @@ static int test_wolfSSL_BN_CTX(void)
 #if defined(OPENSSL_EXTRA) && !defined(NO_ASN) && \
     !defined(OPENSSL_EXTRA_NO_BN) && !defined(WOLFSSL_SP_MATH)
     WOLFSSL_BN_CTX* bn_ctx = NULL;
-    WOLFSSL_BIGNUM* t = NULL;
 
-    ExpectNotNull(bn_ctx = wolfSSL_BN_CTX_new());
+    ExpectNotNull(bn_ctx = BN_CTX_new());
 
-    /* No implementation. */
-    BN_CTX_init(NULL);
-
-    ExpectNotNull(t = BN_CTX_get(NULL));
-    BN_free(t);
-    ExpectNotNull(t = BN_CTX_get(bn_ctx));
-    BN_free(t);
+    ExpectNull(BN_CTX_get(NULL));
+    ExpectNotNull(BN_CTX_get(bn_ctx));
+    ExpectNotNull(BN_CTX_get(bn_ctx));
+    ExpectNotNull(BN_CTX_get(bn_ctx));
+    ExpectNotNull(BN_CTX_get(bn_ctx));
+    ExpectNotNull(BN_CTX_get(bn_ctx));
+    ExpectNotNull(BN_CTX_get(bn_ctx));
 
 #ifndef NO_WOLFSSL_STUB
     /* No implementation. */
@@ -73661,9 +70693,14 @@ static int test_wolfSSL_d2i_PrivateKeys_bio(void)
 
 #if defined(WOLFSSL_KEY_GEN) && !defined(NO_RSA)
     {
+        const unsigned char seqOnly[] = { 0x30, 0x00, 0x00, 0x00, 0x00, 0x00 };
         RSA* rsa = NULL;
         /* Tests bad parameters */
         ExpectNull(d2i_RSAPrivateKey_bio(NULL, NULL));
+
+        /* Test using bad data. */
+        ExpectIntGT(BIO_write(bio, seqOnly, sizeof(seqOnly)), 0);
+        ExpectNull(d2i_RSAPrivateKey_bio(bio, NULL));
 
         /* RSA not set yet, expecting to fail*/
         rsa = wolfSSL_RSA_new();
@@ -79018,7 +76055,7 @@ static int test_wolfSSL_d2i_and_i2d_PublicKey_ecc(void)
     int derLen;
     unsigned char pub_buf[65];
     const int pub_len = 65;
-    BN_CTX* ctx;
+    BN_CTX* ctx = NULL;
     EC_GROUP* curve = NULL;
     EC_KEY* ephemeral_key = NULL;
     const EC_POINT* h = NULL;
@@ -79058,6 +76095,7 @@ static int test_wolfSSL_d2i_and_i2d_PublicKey_ecc(void)
     EVP_PKEY_free(pkey);
     EC_KEY_free(ephemeral_key);
     EC_GROUP_free(curve);
+    BN_CTX_free(ctx);
 #endif
     return EXPECT_RESULT();
 }
@@ -80312,18 +77350,21 @@ static int test_wc_ParseCert_Error(void)
     const byte c4[] = { 0x02, 0x80, 0x10, 0x00, 0x00};
 
     /* Test data */
-    const struct testStruct {
+    struct testStruct {
         const byte* c;
         word32 cSz;
-        const int expRet;
-    } t[] = {
-        {c0, sizeof(c0), WC_NO_ERR_TRACE(ASN_PARSE_E)}, /* Invalid bit-string length */
-        {c1, sizeof(c1), WC_NO_ERR_TRACE(ASN_PARSE_E)}, /* Invalid bit-string length */
-        {c2, sizeof(c2), WC_NO_ERR_TRACE(ASN_PARSE_E)}, /* Invalid integer length (zero) */
-        {c3, sizeof(c3), WC_NO_ERR_TRACE(ASN_PARSE_E)}, /* Valid INTEGER, but buffer too short */
-        {c4, sizeof(c4), WC_NO_ERR_TRACE(ASN_PARSE_E)}, /* Valid INTEGER, but not in bit-string */
-    };
+        int expRet;
+    } t[5];
     const int tSz = (int)(sizeof(t) / sizeof(struct testStruct));
+
+    #define INIT_TEST_DATA(i,x,y) \
+        t[i].c = x; t[i].cSz = sizeof(x); t[i].expRet = y
+    INIT_TEST_DATA(0, c0, WC_NO_ERR_TRACE(ASN_PARSE_E) );
+    INIT_TEST_DATA(1, c1, WC_NO_ERR_TRACE(ASN_PARSE_E) );
+    INIT_TEST_DATA(2, c2, WC_NO_ERR_TRACE(ASN_PARSE_E) );
+    INIT_TEST_DATA(3, c3, WC_NO_ERR_TRACE(ASN_PARSE_E) );
+    INIT_TEST_DATA(4, c4, WC_NO_ERR_TRACE(ASN_PARSE_E) );
+    #undef INIT_TEST_DATA
 
     for (i = 0; i < tSz; i++) {
         WOLFSSL_MSG_EX("i == %d", i);
@@ -82894,7 +79935,10 @@ static       char earlyDataBuffer[1];
 static int test_tls13_apis(void)
 {
     EXPECT_DECLS;
-    int          ret;
+#if defined(HAVE_SUPPORTED_CURVES) && defined(HAVE_ECC) && \
+    (!defined(NO_WOLFSSL_SERVER) || !defined(NO_WOLFSSL_CLIENT))
+     int          ret;
+#endif
 #ifndef WOLFSSL_NO_TLS12
 #ifndef NO_WOLFSSL_CLIENT
     WOLFSSL_CTX* clientTls12Ctx = NULL;
@@ -83017,8 +80061,6 @@ static int test_tls13_apis(void)
 #if defined(WOLFSSL_HAVE_KYBER)
     int kyberLevel;
 #endif
-
-    (void)ret;
 
 #ifndef WOLFSSL_NO_TLS12
 #ifndef NO_WOLFSSL_CLIENT
@@ -91970,10 +89012,17 @@ static int test_wolfSSL_dtls_bad_record(void)
 #if defined(WOLFSSL_DTLS13) && !defined(WOLFSSL_TLS13_IGNORE_AEAD_LIMITS) && \
     !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
     defined(HAVE_IO_TESTS_DEPENDENCIES)
-static byte test_AEAD_fail_decryption = 0;
-static byte test_AEAD_seq_num = 0;
-static byte test_AEAD_done = 0;
+static volatile int test_AEAD_seq_num = 0;
+#ifdef WOLFSSL_ATOMIC_INITIALIZER
+wolfSSL_Atomic_Int test_AEAD_done = WOLFSSL_ATOMIC_INITIALIZER(0);
+#else
+static volatile int test_AEAD_done = 0;
+#endif
+#ifdef WOLFSSL_MUTEX_INITIALIZER
+static wolfSSL_Mutex test_AEAD_mutex = WOLFSSL_MUTEX_INITIALIZER(test_AEAD_mutex);
+#endif
 
+static int test_AEAD_fail_decryption = 0;
 static int test_AEAD_cbiorecv(WOLFSSL *ssl, char *buf, int sz, void *ctx)
 {
     int fd = wolfSSL_get_fd(ssl);
@@ -92077,6 +89126,9 @@ static void test_AEAD_limit_client(WOLFSSL* ssl)
 
     if (!w64IsZero(sendLimit)) {
         /* Test the sending limit for AEAD ciphers */
+#ifdef WOLFSSL_MUTEX_INITIALIZER
+        (void)wc_LockMutex(&test_AEAD_mutex);
+#endif
         Dtls13GetEpoch(ssl, ssl->dtls13Epoch)->nextSeqNumber = sendLimit;
         test_AEAD_seq_num = 1;
         XMEMSET(msgBuf, 0, sizeof(msgBuf));
@@ -92084,6 +89136,9 @@ static void test_AEAD_limit_client(WOLFSSL* ssl)
         AssertIntGT(ret, 0);
         didReKey = 0;
         w64Zero(&counter);
+#ifdef WOLFSSL_MUTEX_INITIALIZER
+        wc_UnLockMutex(&test_AEAD_mutex);
+#endif
         /* 100 read calls should be enough to complete the key update */
         for (i = 0; i < 100; i++) {
             /* Key update should be sent and negotiated */
@@ -92107,7 +89162,11 @@ static void test_AEAD_limit_client(WOLFSSL* ssl)
     AssertIntEQ(ret, WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR));
     AssertIntEQ(wolfSSL_get_error(ssl, ret), WC_NO_ERR_TRACE(DECRYPT_ERROR));
 
+#ifdef WOLFSSL_ATOMIC_INITIALIZER
+    WOLFSSL_ATOMIC_STORE(test_AEAD_done, 1);
+#else
     test_AEAD_done = 1;
+#endif
 }
 
 int counter = 0;
@@ -92123,8 +89182,18 @@ static void test_AEAD_limit_server(WOLFSSL* ssl)
     tcp_set_nonblocking(&fd); /* So that read doesn't block */
     wolfSSL_dtls_set_using_nonblock(ssl, 1);
     test_AEAD_get_limits(ssl, NULL, NULL, &sendLimit);
-    while (!test_AEAD_done && ret > 0) {
+    while (!
+    #ifdef WOLFSSL_ATOMIC_INITIALIZER
+           WOLFSSL_ATOMIC_LOAD(test_AEAD_done)
+    #else
+           test_AEAD_done
+    #endif
+           && ret > 0)
+    {
         counter++;
+#ifdef WOLFSSL_MUTEX_INITIALIZER
+        (void)wc_LockMutex(&test_AEAD_mutex);
+#endif
         if (test_AEAD_seq_num) {
             /* We need to update the seq number so that we can understand the
              * peer. Otherwise we will incorrectly interpret the seq number. */
@@ -92133,6 +89202,9 @@ static void test_AEAD_limit_server(WOLFSSL* ssl)
             e->nextPeerSeqNumber = sendLimit;
             test_AEAD_seq_num = 0;
         }
+#ifdef WOLFSSL_MUTEX_INITIALIZER
+        wc_UnLockMutex(&test_AEAD_mutex);
+#endif
         (void)wolfSSL_read(ssl, msgBuf, sizeof(msgBuf));
         ret = wolfSSL_write(ssl, msgBuf, sizeof(msgBuf));
         nanosleep(&delay, NULL);
@@ -94050,10 +91122,10 @@ static int test_wolfSSL_CTX_set_timeout(void)
     EXPECT_DECLS;
 #if !defined(NO_WOLFSSL_SERVER) && !defined(NO_TLS) && \
     !defined(NO_SESSION_CACHE)
-    int timeout;
     WOLFSSL_CTX* ctx = NULL;
-
-    (void)timeout;
+#if defined(WOLFSSL_ERROR_CODE_OPENSSL)
+    int timeout;
+#endif
 
     ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_server_method()));
 
@@ -100499,488 +97571,6 @@ static int test_dtls_old_seq_number(void)
     return EXPECT_RESULT();
 }
 
-static int test_dtls12_basic_connection_id(void)
-{
-    EXPECT_DECLS;
-#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS_CID)
-    unsigned char client_cid[] = { 9, 8, 7, 6, 5, 4, 3, 2, 1, 0 };
-    unsigned char server_cid[] = { 0, 1, 2, 3, 4, 5 };
-    unsigned char readBuf[40];
-    const char* params[] = {
-#ifndef NO_RSA
-#ifndef NO_SHA256
-#if defined(WOLFSSL_AES_128) && defined(WOLFSSL_STATIC_RSA)
-        "AES128-SHA256",
-#ifdef HAVE_AESCCM
-        "AES128-CCM8",
-#endif
-        "DHE-RSA-AES128-SHA256",
-        "ECDHE-RSA-AES128-SHA256",
-#ifdef HAVE_AESGCM
-        "DHE-RSA-AES128-GCM-SHA256",
-        "ECDHE-RSA-AES128-GCM-SHA256",
-#endif
-#endif /* WOLFSSL_AES_128 && WOLFSSL_STATIC_RSA */
-#endif /* NO_SHA256 */
-#endif /* NO_RSA */
-#if defined(HAVE_CHACHA) && defined(HAVE_POLY1305) && !defined(HAVE_FIPS)
-        "DHE-RSA-CHACHA20-POLY1305",
-        "DHE-RSA-CHACHA20-POLY1305-OLD",
-        "ECDHE-RSA-CHACHA20-POLY1305",
-        "ECDHE-RSA-CHACHA20-POLY1305-OLD",
-#endif
-#ifndef NO_PSK
-        "DHE-PSK-AES128-CBC-SHA256",
-        "DHE-PSK-AES256-GCM-SHA384",
-#ifdef HAVE_NULL_CIPHER
-        "DHE-PSK-NULL-SHA256",
-#endif
-        "DHE-PSK-AES128-CCM",
-#endif
-    };
-    size_t i;
-    struct {
-        byte drop:1;
-        byte changeCID:1;
-    } run_params[] = {
-        { .drop = 0, .changeCID = 0 },
-        { .drop = 1, .changeCID = 0 },
-        { .drop = 0, .changeCID = 1 },
-    };
-
-    /* We check if the side included the CID in their output */
-#define CLIENT_CID() mymemmem(test_ctx.s_buff, test_ctx.s_len, \
-                              client_cid, sizeof(client_cid))
-#define SERVER_CID() mymemmem(test_ctx.c_buff, test_ctx.c_len, \
-                              server_cid, sizeof(server_cid))
-
-    printf("\n");
-    for (i = 0; i < XELEM_CNT(params) && EXPECT_SUCCESS(); i++) {
-        size_t j;
-        for (j = 0; j < XELEM_CNT(run_params); j++) {
-            WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
-            WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
-            struct test_memio_ctx test_ctx;
-
-            printf("Testing %s run #%ld ... ", params[i], (long int)j);
-
-            XMEMSET(&test_ctx, 0, sizeof(test_ctx));
-
-            ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c,
-                &ssl_s, wolfDTLSv1_2_client_method, wolfDTLSv1_2_server_method),
-                0);
-
-            ExpectIntEQ(wolfSSL_set_cipher_list(ssl_c, params[i]), 1);
-            ExpectIntEQ(wolfSSL_set_cipher_list(ssl_s, params[i]), 1);
-
-            ExpectIntEQ(wolfSSL_dtls_cid_use(ssl_c), 1);
-            ExpectIntEQ(wolfSSL_dtls_cid_set(ssl_c, server_cid,
-                    sizeof(server_cid)), 1);
-            ExpectIntEQ(wolfSSL_dtls_cid_use(ssl_s), 1);
-            ExpectIntEQ(wolfSSL_dtls_cid_set(ssl_s, client_cid,
-                    sizeof(client_cid)), 1);
-
-#ifndef NO_PSK
-            if (XSTRSTR(params[i], "-PSK-") != NULL) {
-                wolfSSL_set_psk_client_callback(ssl_c, my_psk_client_cb);
-                wolfSSL_set_psk_server_callback(ssl_s, my_psk_server_cb);
-            }
-#endif
-
-#ifdef HAVE_SECURE_RENEGOTIATION
-            ExpectIntEQ(wolfSSL_UseSecureRenegotiation(ssl_c), 1);
-            ExpectIntEQ(wolfSSL_UseSecureRenegotiation(ssl_s), 1);
-#endif
-
-            /* CH1 */
-            wolfSSL_SetLoggingPrefix("client");
-            ExpectIntEQ(wolfSSL_negotiate(ssl_c), -1);
-            ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
-            ExpectNull(CLIENT_CID());
-            if (run_params[j].drop) {
-                test_ctx.c_len = test_ctx.s_len = 0;
-                ExpectIntEQ(wolfSSL_dtls_got_timeout(ssl_c), 1);
-                ExpectNull(CLIENT_CID());
-            }
-            /* HVR */
-            wolfSSL_SetLoggingPrefix("server");
-            ExpectIntEQ(wolfSSL_negotiate(ssl_s), -1);
-            ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
-            ExpectNull(SERVER_CID());
-            /* No point dropping HVR */
-            /* CH2 */
-            wolfSSL_SetLoggingPrefix("client");
-            ExpectIntEQ(wolfSSL_negotiate(ssl_c), -1);
-            ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
-            ExpectNull(CLIENT_CID());
-            if (run_params[j].drop) {
-                test_ctx.c_len = test_ctx.s_len = 0;
-                ExpectIntEQ(wolfSSL_dtls_got_timeout(ssl_c), 1);
-                ExpectNull(CLIENT_CID());
-            }
-            /* Server first flight */
-            wolfSSL_SetLoggingPrefix("server");
-            ExpectIntEQ(wolfSSL_negotiate(ssl_s), -1);
-            ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
-            ExpectNull(SERVER_CID());
-            if (run_params[j].drop) {
-                test_ctx.c_len = test_ctx.s_len = 0;
-                ExpectIntEQ(wolfSSL_dtls_got_timeout(ssl_s), 1);
-                ExpectNull(SERVER_CID());
-            }
-            /* Client second flight */
-            wolfSSL_SetLoggingPrefix("client");
-            ExpectIntEQ(wolfSSL_negotiate(ssl_c), -1);
-            ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
-            ExpectNotNull(CLIENT_CID());
-            if (run_params[j].drop) {
-                test_ctx.c_len = test_ctx.s_len = 0;
-                ExpectIntEQ(wolfSSL_dtls_got_timeout(ssl_c), 1);
-                ExpectNotNull(CLIENT_CID());
-            }
-            /* Server second flight */
-            wolfSSL_SetLoggingPrefix("server");
-            ExpectIntEQ(wolfSSL_negotiate(ssl_s), 1);
-            ExpectNotNull(SERVER_CID());
-            if (run_params[j].drop) {
-                test_ctx.c_len = test_ctx.s_len = 0;
-                ExpectIntEQ(wolfSSL_dtls_got_timeout(ssl_s), 1);
-                ExpectNotNull(SERVER_CID());
-            }
-            /* Client complete connection */
-            wolfSSL_SetLoggingPrefix("client");
-            ExpectIntEQ(wolfSSL_negotiate(ssl_c), 1);
-            ExpectNull(CLIENT_CID());
-
-            /* Write some data */
-            wolfSSL_SetLoggingPrefix("client");
-            ExpectIntEQ(wolfSSL_write(ssl_c, params[i],
-                    (int)XSTRLEN(params[i])), XSTRLEN(params[i]));
-            ExpectNotNull(CLIENT_CID());
-            wolfSSL_SetLoggingPrefix("server");
-            ExpectIntEQ(wolfSSL_write(ssl_s, params[i],
-                    (int)XSTRLEN(params[i])), XSTRLEN(params[i]));
-            ExpectNotNull(SERVER_CID());
-            /* Read the data */
-            wolfSSL_SetLoggingPrefix("client");
-            XMEMSET(readBuf, 0, sizeof(readBuf));
-            ExpectIntEQ(wolfSSL_read(ssl_c, readBuf, sizeof(readBuf)),
-                    XSTRLEN(params[i]));
-            ExpectStrEQ(readBuf, params[i]);
-            XMEMSET(readBuf, 0, sizeof(readBuf));
-            wolfSSL_SetLoggingPrefix("server");
-            ExpectIntEQ(wolfSSL_read(ssl_s, readBuf, sizeof(readBuf)),
-                    XSTRLEN(params[i]));
-            ExpectStrEQ(readBuf, params[i]);
-            /* Write short data */
-            wolfSSL_SetLoggingPrefix("client");
-            ExpectIntEQ(wolfSSL_write(ssl_c, params[i], 1), 1);
-            ExpectNotNull(CLIENT_CID());
-            wolfSSL_SetLoggingPrefix("server");
-            ExpectIntEQ(wolfSSL_write(ssl_s, params[i], 1), 1);
-            ExpectNotNull(SERVER_CID());
-            /* Read the short data */
-            XMEMSET(readBuf, 0, sizeof(readBuf));
-            wolfSSL_SetLoggingPrefix("client");
-            ExpectIntEQ(wolfSSL_read(ssl_c, readBuf, sizeof(readBuf)), 1);
-            ExpectIntEQ(readBuf[0], params[i][0]);
-            XMEMSET(readBuf, 0, sizeof(readBuf));
-            wolfSSL_SetLoggingPrefix("server");
-            ExpectIntEQ(wolfSSL_read(ssl_s, readBuf, sizeof(readBuf)), 1);
-            ExpectIntEQ(readBuf[0], params[i][0]);
-
-#ifdef HAVE_SECURE_RENEGOTIATION
-            /* do two SCR's */
-            wolfSSL_SetLoggingPrefix("client");
-            ExpectIntEQ(wolfSSL_Rehandshake(ssl_c), -1);
-            ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
-            ExpectIntEQ(wolfSSL_read(ssl_s, readBuf, sizeof(readBuf)), -1);
-            ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
-            ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
-            /* SCR's after the first one have extra internal logic */
-            wolfSSL_SetLoggingPrefix("client");
-            ExpectIntEQ(wolfSSL_Rehandshake(ssl_c), -1);
-            ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
-            ExpectIntEQ(wolfSSL_read(ssl_s, readBuf, sizeof(readBuf)), -1);
-            ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
-            ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
-
-            if (run_params[j].changeCID) {
-                ExpectIntEQ(wolfSSL_dtls_cid_set(ssl_c, client_cid,
-                        sizeof(client_cid)), 0);
-                /* Forcefully change the CID */
-                ssl_c->dtlsCidInfo->rx->id[0] = -1;
-                /* We need to init the rehandshake from the client, otherwise
-                 * we won't be able to test changing the CID. It would be
-                 * rejected by the record CID matching code. */
-                wolfSSL_SetLoggingPrefix("client");
-                ExpectIntEQ(wolfSSL_Rehandshake(ssl_c), -1);
-                ExpectIntEQ(wolfSSL_get_error(ssl_c, -1),
-                        WOLFSSL_ERROR_WANT_READ);
-                ExpectNotNull(CLIENT_CID());
-                ExpectIntEQ(wolfSSL_SSL_renegotiate_pending(ssl_c), 1);
-                /* Server first flight */
-                wolfSSL_SetLoggingPrefix("server");
-                ExpectIntEQ(wolfSSL_read(ssl_s, readBuf, sizeof(readBuf)), -1);
-                /* We expect the server to reject the CID change. */
-                ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), DTLS_CID_ERROR);
-                goto loop_exit;
-            }
-            /* Server init'd SCR */
-            /* Server request */
-            wolfSSL_SetLoggingPrefix("server");
-            ExpectIntEQ(wolfSSL_Rehandshake(ssl_s), -1);
-            ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
-            ExpectNotNull(SERVER_CID());
-            ExpectIntEQ(wolfSSL_SSL_renegotiate_pending(ssl_s), 1);
-            if (run_params[j].drop) {
-                test_ctx.c_len = test_ctx.s_len = 0;
-                ExpectIntEQ(wolfSSL_dtls_got_timeout(ssl_s), 1);
-                ExpectNotNull(SERVER_CID());
-            }
-            /* Init SCR on client side with the server's request */
-            /* CH no HVR on SCR */
-            XMEMSET(readBuf, 0, sizeof(readBuf));
-            wolfSSL_SetLoggingPrefix("client");
-            ExpectIntEQ(wolfSSL_read(ssl_c, readBuf, sizeof(readBuf)), -1);
-            ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
-            ExpectNotNull(CLIENT_CID());
-            ExpectIntEQ(wolfSSL_SSL_renegotiate_pending(ssl_c), 1);
-            if (run_params[j].drop) {
-                test_ctx.c_len = test_ctx.s_len = 0;
-                ExpectIntEQ(wolfSSL_dtls_got_timeout(ssl_c), 1);
-                ExpectNotNull(CLIENT_CID());
-            }
-            /* Server first flight */
-            wolfSSL_SetLoggingPrefix("server");
-            ExpectIntEQ(wolfSSL_negotiate(ssl_s), -1);
-            ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
-            ExpectNotNull(SERVER_CID());
-            if (run_params[j].drop) {
-                test_ctx.c_len = test_ctx.s_len = 0;
-                ExpectIntEQ(wolfSSL_dtls_got_timeout(ssl_s), 1);
-                ExpectNotNull(SERVER_CID());
-            }
-            /* Client second flight */
-            wolfSSL_SetLoggingPrefix("client");
-            ExpectIntEQ(wolfSSL_negotiate(ssl_c), -1);
-            ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
-            ExpectNotNull(CLIENT_CID());
-            if (run_params[j].drop) {
-                test_ctx.c_len = test_ctx.s_len = 0;
-                ExpectIntEQ(wolfSSL_dtls_got_timeout(ssl_c), 1);
-                ExpectNotNull(CLIENT_CID());
-            }
-            ExpectIntEQ(wolfSSL_write(ssl_c, params[i],
-                    (int)XSTRLEN(params[i])), XSTRLEN(params[i]));
-            /* Server second flight */
-            wolfSSL_SetLoggingPrefix("server");
-            ExpectIntEQ(wolfSSL_negotiate(ssl_s), -1);
-            ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), APP_DATA_READY);
-            XMEMSET(readBuf, 0, sizeof(readBuf));
-            ExpectIntEQ(wolfSSL_read(ssl_s, readBuf, sizeof(readBuf)),
-                    XSTRLEN(params[i]));
-            ExpectStrEQ(readBuf, params[i]);
-            if (!run_params[j].drop) {
-                ExpectIntEQ(wolfSSL_write(ssl_s, params[i],
-                        (int)XSTRLEN(params[i])), XSTRLEN(params[i]));
-            }
-            ExpectIntEQ(wolfSSL_negotiate(ssl_s), 1);
-            ExpectNotNull(SERVER_CID());
-            if (run_params[j].drop) {
-                test_ctx.c_len = test_ctx.s_len = 0;
-                ExpectIntEQ(wolfSSL_dtls_got_timeout(ssl_s), 1);
-                ExpectNotNull(SERVER_CID());
-            }
-            /* Test loading old epoch */
-            /* Client complete connection */
-            wolfSSL_SetLoggingPrefix("client");
-            if (!run_params[j].drop) {
-                ExpectIntEQ(wolfSSL_negotiate(ssl_c), -1);
-                ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), APP_DATA_READY);
-                XMEMSET(readBuf, 0, sizeof(readBuf));
-                ExpectIntEQ(wolfSSL_read(ssl_c, readBuf, sizeof(readBuf)),
-                        XSTRLEN(params[i]));
-                ExpectStrEQ(readBuf, params[i]);
-            }
-            ExpectIntEQ(wolfSSL_negotiate(ssl_c), 1);
-            ExpectNull(CLIENT_CID());
-            ExpectIntEQ(wolfSSL_SSL_renegotiate_pending(ssl_c), 0);
-            ExpectIntEQ(wolfSSL_SSL_renegotiate_pending(ssl_s), 0);
-#endif
-            /* Close connection */
-            wolfSSL_SetLoggingPrefix("client");
-            ExpectIntEQ(wolfSSL_shutdown(ssl_c), WOLFSSL_SHUTDOWN_NOT_DONE);
-            ExpectNotNull(CLIENT_CID());
-            wolfSSL_SetLoggingPrefix("server");
-            ExpectIntEQ(wolfSSL_shutdown(ssl_s), WOLFSSL_SHUTDOWN_NOT_DONE);
-            ExpectNotNull(SERVER_CID());
-            wolfSSL_SetLoggingPrefix("client");
-            ExpectIntEQ(wolfSSL_shutdown(ssl_c), 1);
-            wolfSSL_SetLoggingPrefix("server");
-            ExpectIntEQ(wolfSSL_shutdown(ssl_s), 1);
-
-#ifdef HAVE_SECURE_RENEGOTIATION
-loop_exit:
-#endif
-            wolfSSL_SetLoggingPrefix(NULL);
-            wolfSSL_free(ssl_c);
-            wolfSSL_CTX_free(ctx_c);
-            wolfSSL_free(ssl_s);
-            wolfSSL_CTX_free(ctx_s);
-
-            if (EXPECT_SUCCESS())
-                printf("ok\n");
-            else
-                printf("failed\n");
-        }
-
-    }
-
-#undef CLIENT_CID
-#undef SERVER_CID
-#endif
-    return EXPECT_RESULT();
-}
-
-static int test_dtls13_basic_connection_id(void)
-{
-    EXPECT_DECLS;
-#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS13) \
-    && defined(WOLFSSL_DTLS_CID)
-    unsigned char client_cid[] = { 9, 8, 7, 6, 5, 4, 3, 2, 1, 0 };
-    unsigned char server_cid[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 };
-    unsigned char readBuf[50];
-    const char* params[] = {
-#ifndef NO_SHA256
-#ifdef WOLFSSL_AES_128
-#ifdef HAVE_AESGCM
-        "TLS13-AES128-GCM-SHA256",
-#endif
-#if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
-        "TLS13-CHACHA20-POLY1305-SHA256",
-#endif
-#ifdef HAVE_AESCCM
-        "TLS13-AES128-CCM-8-SHA256",
-        "TLS13-AES128-CCM-SHA256",
-#endif
-#endif
-#ifdef HAVE_NULL_CIPHER
-        "TLS13-SHA256-SHA256",
-#endif
-#endif
-    };
-    size_t i;
-
-    /* We check if the side included the CID in their output */
-#define CLIENT_CID() mymemmem(test_ctx.s_buff, test_ctx.s_len, \
-                              client_cid, sizeof(client_cid))
-#define SERVER_CID() mymemmem(test_ctx.c_buff, test_ctx.c_len, \
-                              server_cid, sizeof(server_cid))
-
-    printf("\n");
-    for (i = 0; i < XELEM_CNT(params) && EXPECT_SUCCESS(); i++) {
-        WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
-        WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
-        struct test_memio_ctx test_ctx;
-
-        printf("Testing %s ... ", params[i]);
-
-        XMEMSET(&test_ctx, 0, sizeof(test_ctx));
-
-        ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
-            wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method), 0);
-
-        ExpectIntEQ(wolfSSL_set_cipher_list(ssl_c, params[i]), WOLFSSL_SUCCESS);
-        ExpectIntEQ(wolfSSL_set_cipher_list(ssl_s, params[i]), WOLFSSL_SUCCESS);
-
-        ExpectIntEQ(wolfSSL_dtls_cid_use(ssl_c), 1);
-        ExpectIntEQ(wolfSSL_dtls_cid_set(ssl_c, server_cid, sizeof(server_cid)),
-                1);
-        ExpectIntEQ(wolfSSL_dtls_cid_use(ssl_s), 1);
-        ExpectIntEQ(wolfSSL_dtls_cid_set(ssl_s, client_cid, sizeof(client_cid)),
-                1);
-
-        /* CH1 */
-        ExpectIntEQ(wolfSSL_negotiate(ssl_c), -1);
-        ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
-        ExpectNull(CLIENT_CID());
-        /* HRR */
-        ExpectIntEQ(wolfSSL_negotiate(ssl_s), -1);
-        ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
-        ExpectNull(SERVER_CID());
-        /* CH2 */
-        ExpectIntEQ(wolfSSL_negotiate(ssl_c), -1);
-        ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
-        ExpectNull(CLIENT_CID());
-        /* Server first flight */
-        ExpectIntEQ(wolfSSL_negotiate(ssl_s), -1);
-        ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
-        ExpectNotNull(SERVER_CID());
-        /* Client second flight */
-        ExpectIntEQ(wolfSSL_negotiate(ssl_c), -1);
-        ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
-        ExpectNotNull(CLIENT_CID());
-        /* Server process flight */
-        ExpectIntEQ(wolfSSL_negotiate(ssl_s), 1);
-        /* Client process flight */
-        ExpectIntEQ(wolfSSL_negotiate(ssl_c), 1);
-
-        /* Write some data */
-        ExpectIntEQ(wolfSSL_write(ssl_c, params[i], (int)XSTRLEN(params[i])),
-                XSTRLEN(params[i]));
-        ExpectNotNull(CLIENT_CID());
-        ExpectIntEQ(wolfSSL_write(ssl_s, params[i], (int)XSTRLEN(params[i])),
-                XSTRLEN(params[i]));
-        ExpectNotNull(SERVER_CID());
-        /* Read the data */
-        XMEMSET(readBuf, 0, sizeof(readBuf));
-        ExpectIntEQ(wolfSSL_read(ssl_c, readBuf, sizeof(readBuf)),
-                XSTRLEN(params[i]));
-        ExpectStrEQ(readBuf, params[i]);
-        XMEMSET(readBuf, 0, sizeof(readBuf));
-        ExpectIntEQ(wolfSSL_read(ssl_s, readBuf, sizeof(readBuf)),
-                XSTRLEN(params[i]));
-        ExpectStrEQ(readBuf, params[i]);
-        /* Write short data */
-        ExpectIntEQ(wolfSSL_write(ssl_c, params[i], 1), 1);
-        ExpectNotNull(CLIENT_CID());
-        ExpectIntEQ(wolfSSL_write(ssl_s, params[i], 1), 1);
-        ExpectNotNull(SERVER_CID());
-        /* Read the short data */
-        XMEMSET(readBuf, 0, sizeof(readBuf));
-        ExpectIntEQ(wolfSSL_read(ssl_c, readBuf, sizeof(readBuf)), 1);
-        ExpectIntEQ(readBuf[0], params[i][0]);
-        XMEMSET(readBuf, 0, sizeof(readBuf));
-        ExpectIntEQ(wolfSSL_read(ssl_s, readBuf, sizeof(readBuf)), 1);
-        ExpectIntEQ(readBuf[0], params[i][0]);
-
-        /* Close connection */
-        ExpectIntEQ(wolfSSL_shutdown(ssl_c), WOLFSSL_SHUTDOWN_NOT_DONE);
-        ExpectNotNull(CLIENT_CID());
-        ExpectIntEQ(wolfSSL_shutdown(ssl_s), WOLFSSL_SHUTDOWN_NOT_DONE);
-        ExpectNotNull(SERVER_CID());
-        ExpectIntEQ(wolfSSL_shutdown(ssl_c), 1);
-        ExpectIntEQ(wolfSSL_shutdown(ssl_s), 1);
-
-        if (EXPECT_SUCCESS())
-            printf("ok\n");
-        else
-            printf("failed\n");
-
-        wolfSSL_free(ssl_c);
-        wolfSSL_CTX_free(ctx_c);
-        wolfSSL_free(ssl_s);
-        wolfSSL_CTX_free(ctx_s);
-    }
-
-#undef CLIENT_CID
-#undef SERVER_CID
-
-#endif
-    return EXPECT_RESULT();
-}
-
 static int test_dtls12_missing_finished(void)
 {
     EXPECT_DECLS;
@@ -101898,6 +98488,11 @@ static int test_get_signature_nid(void)
         TGSN_TLS13_ED448("ED448", NID_ED448, NID_sha512),
 #endif
     };
+    /* These correspond to WOLFSSL_SSLV3...WOLFSSL_DTLSV1_3 */
+    const char* tls_desc[] = {
+        "SSLv3", "TLSv1.0", "TLSv1.1", "TLSv1.2", "TLSv1.3",
+        "DTLSv1.0", "DTLSv1.2", "DTLSv1.3"
+    };
 
     printf("\n");
 
@@ -102351,38 +98946,6 @@ static int test_wolfSSL_inject(void)
     return EXPECT_RESULT();
 }
 
-static int test_wolfSSL_dtls_cid_parse(void)
-{
-    EXPECT_DECLS;
-#if defined(WOLFSSL_DTLS) && defined(WOLFSSL_DTLS_CID)
-    /* Taken from Wireshark. Right-click -> copy -> ... as escaped string */
-    /* Plaintext ServerHelloDone. No CID. */
-    byte noCid[] =
-            "\x16\xfe\xfd\x00\x00\x00\x00\x00\x00\x00\x04\x00\x0c\x0e\x00\x00" \
-            "\x00\x00\x04\x00\x00\x00\x00\x00\x00";
-    /* 1.2 app data containing CID */
-    byte cid12[] =
-            "\x19\xfe\xfd\x00\x01\x00\x00\x00\x00\x00\x01\x77\xa3\x79\x34\xb3" \
-            "\xf1\x1f\x34\x00\x1f\xdb\x8c\x28\x25\x9f\xe1\x02\x26\x77\x1c\x3a" \
-            "\x50\x1b\x50\x99\xd0\xb5\x20\xd8\x2c\x2e\xaa\x36\x36\xe0\xb7\xb7" \
-            "\xf7\x7d\xff\xb0";
-#ifdef WOLFSSL_DTLS13
-    /* 1.3 app data containing CID */
-    byte cid13[] =
-            "\x3f\x70\x64\x04\xc6\xfb\x97\x21\xd9\x28\x27\x00\x17\xc1\x01\x86" \
-            "\xe7\x23\x2c\xad\x65\x83\xa8\xf4\xbf\xbf\x7b\x25\x16\x80\x19\xc3" \
-            "\x81\xda\xf5\x3f";
-#endif
-
-    ExpectPtrEq(wolfSSL_dtls_cid_parse(noCid, sizeof(noCid), 8), NULL);
-    ExpectPtrEq(wolfSSL_dtls_cid_parse(cid12, sizeof(cid12), 8), cid12 + 11);
-#ifdef WOLFSSL_DTLS13
-    ExpectPtrEq(wolfSSL_dtls_cid_parse(cid13, sizeof(cid13), 8), cid13 + 1);
-#endif
-#endif
-    return EXPECT_RESULT();
-}
-
 /*----------------------------------------------------------------------------*
  | Main
  *----------------------------------------------------------------------------*/
@@ -102418,12 +98981,15 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wc_LockMutex_ex),
 
     /* Digests */
+    /* test_md5.c */
     TEST_DECL(test_wc_InitMd5),
     TEST_DECL(test_wc_Md5Update),
     TEST_DECL(test_wc_Md5Final),
     TEST_DECL(test_wc_InitSha),
     TEST_DECL(test_wc_ShaUpdate),
     TEST_DECL(test_wc_ShaFinal),
+
+    /* test_sha256.c */
     TEST_DECL(test_wc_InitSha256),
     TEST_DECL(test_wc_Sha256Update),
     TEST_DECL(test_wc_Sha256Final),
@@ -102442,11 +99008,12 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wc_Sha224GetHash),
     TEST_DECL(test_wc_Sha224Copy),
 
+    /* test_sha512.c */
     TEST_DECL(test_wc_InitSha512),
     TEST_DECL(test_wc_Sha512Update),
     TEST_DECL(test_wc_Sha512Final),
-    TEST_DECL(test_wc_Sha512GetFlags),
     TEST_DECL(test_wc_Sha512FinalRaw),
+    TEST_DECL(test_wc_Sha512GetFlags),
     TEST_DECL(test_wc_Sha512Free),
     TEST_DECL(test_wc_Sha512GetHash),
     TEST_DECL(test_wc_Sha512Copy),
@@ -102454,16 +99021,17 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wc_InitSha512_224),
     TEST_DECL(test_wc_Sha512_224Update),
     TEST_DECL(test_wc_Sha512_224Final),
-    TEST_DECL(test_wc_Sha512_224GetFlags),
     TEST_DECL(test_wc_Sha512_224FinalRaw),
+    TEST_DECL(test_wc_Sha512_224GetFlags),
     TEST_DECL(test_wc_Sha512_224Free),
     TEST_DECL(test_wc_Sha512_224GetHash),
     TEST_DECL(test_wc_Sha512_224Copy),
+
     TEST_DECL(test_wc_InitSha512_256),
     TEST_DECL(test_wc_Sha512_256Update),
     TEST_DECL(test_wc_Sha512_256Final),
-    TEST_DECL(test_wc_Sha512_256GetFlags),
     TEST_DECL(test_wc_Sha512_256FinalRaw),
+    TEST_DECL(test_wc_Sha512_256GetFlags),
     TEST_DECL(test_wc_Sha512_256Free),
     TEST_DECL(test_wc_Sha512_256GetHash),
     TEST_DECL(test_wc_Sha512_256Copy),
@@ -102471,21 +99039,15 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wc_InitSha384),
     TEST_DECL(test_wc_Sha384Update),
     TEST_DECL(test_wc_Sha384Final),
-    TEST_DECL(test_wc_Sha384GetFlags),
     TEST_DECL(test_wc_Sha384FinalRaw),
+    TEST_DECL(test_wc_Sha384GetFlags),
     TEST_DECL(test_wc_Sha384Free),
     TEST_DECL(test_wc_Sha384GetHash),
     TEST_DECL(test_wc_Sha384Copy),
 
-    TEST_DECL(test_wc_InitBlake2b),
-    TEST_DECL(test_wc_InitBlake2b_WithKey),
-    TEST_DECL(test_wc_InitBlake2s_WithKey),
-    TEST_DECL(test_wc_InitRipeMd),
-    TEST_DECL(test_wc_RipeMdUpdate),
-    TEST_DECL(test_wc_RipeMdFinal),
-
+    /* test_sha3.c */
     TEST_DECL(test_wc_InitSha3),
-    TEST_DECL(testing_wc_Sha3_Update),
+    TEST_DECL(test_wc_Sha3_Update),
     TEST_DECL(test_wc_Sha3_224_Final),
     TEST_DECL(test_wc_Sha3_256_Final),
     TEST_DECL(test_wc_Sha3_384_Final),
@@ -102495,13 +99057,19 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wc_Sha3_384_Copy),
     TEST_DECL(test_wc_Sha3_512_Copy),
     TEST_DECL(test_wc_Sha3_GetFlags),
+
     TEST_DECL(test_wc_InitShake256),
-    TEST_DECL(testing_wc_Shake256_Update),
+    TEST_DECL(test_wc_Shake256_Update),
     TEST_DECL(test_wc_Shake256_Final),
     TEST_DECL(test_wc_Shake256_Copy),
     TEST_DECL(test_wc_Shake256Hash),
 
-    /* SM3 Digest */
+    /* test_blake.c */
+    TEST_DECL(test_wc_InitBlake2b),
+    TEST_DECL(test_wc_InitBlake2b_WithKey),
+    TEST_DECL(test_wc_InitBlake2s_WithKey),
+
+    /* test_sm3.c: SM3 Digest */
     TEST_DECL(test_wc_InitSm3Free),
     TEST_DECL(test_wc_Sm3UpdateFinal),
     TEST_DECL(test_wc_Sm3GetHash),
@@ -102510,6 +99078,12 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wc_Sm3GetSetFlags),
     TEST_DECL(test_wc_Sm3Hash),
 
+    /* test_ripemd.c */
+    TEST_DECL(test_wc_InitRipeMd),
+    TEST_DECL(test_wc_RipeMdUpdate),
+    TEST_DECL(test_wc_RipeMdFinal),
+
+    /* test_hash.c */
     TEST_DECL(test_wc_HashInit),
     TEST_DECL(test_wc_HashSetFlags),
     TEST_DECL(test_wc_HashGetFlags),
@@ -102582,6 +99156,10 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wc_AesEaxEncryptAuth),
     TEST_DECL(test_wc_AesEaxDecryptAuth),
 #endif /* WOLFSSL_AES_EAX */
+
+    /* Ascon */
+    TEST_DECL(test_ascon_hash256),
+    TEST_DECL(test_ascon_aead128),
 
     /* SM4 cipher */
     TEST_DECL(test_wc_Sm4),
@@ -102763,10 +99341,6 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wc_dilithium_sig_kats),
     TEST_DECL(test_wc_dilithium_verify_kats),
 
-    /* Ascon */
-    TEST_DECL(test_ascon_hash256),
-    TEST_DECL(test_ascon_aead128),
-
     /* MlDsaComposite */
     TEST_DECL(test_wc_mldsa_composite),
     TEST_DECL(test_wc_mldsa_composite_make_key),
@@ -102865,6 +99439,8 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_Init),
 
     TEST_DECL(test_dual_alg_support),
+
+    TEST_DECL(test_dual_alg_ecdsa_mldsa),
 
     /*********************************
      * OpenSSL compatibility API tests
@@ -103929,14 +100505,19 @@ static const char* apitest_res_string(int res)
 
 #ifndef WOLFSSL_UNIT_TEST_NO_TIMING
 static double gettime_secs(void)
-    #if defined(_MSC_VER) && defined(_WIN32)
+    #if defined(_WIN32) && (defined(_MSC_VER) || defined(__WATCOMC__))
     {
         /* there's no gettimeofday for Windows, so we'll use system time */
         #define EPOCH_DIFF 11644473600LL
         FILETIME currentFileTime;
-        GetSystemTimePreciseAsFileTime(&currentFileTime);
-
         ULARGE_INTEGER uli = { 0, 0 };
+
+    #if defined(__WATCOMC__)
+        GetSystemTimeAsFileTime(&currentFileTime);
+    #else
+        GetSystemTimePreciseAsFileTime(&currentFileTime);
+    #endif
+
         uli.LowPart = currentFileTime.dwLowDateTime;
         uli.HighPart = currentFileTime.dwHighDateTime;
 

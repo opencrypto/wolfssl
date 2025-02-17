@@ -4582,14 +4582,11 @@ void DecodeSigAlg(const byte* input, byte* hashAlgo, byte* hsType)
             }
             break;
     #endif
-#if defined(HAVE_FALCON) || defined(HAVE_DILITHIUM)
-        case PQC_SA_MAJOR:
-            /* Hash performed as part of sign/verify operation.
-             * However, if we want a dual alg signature with a
-             * classic algorithm as alternative, we need an explicit
-             * hash algo here.
-             */
+    /* Hash performed as part of sign/verify operation.
+     * However, if we want a dual alg signature with a classic algorithm as
+     * alternative, we need an explicit hash algo here. */
     #ifdef HAVE_FALCON
+        case FALCON_SA_MAJOR:
             if (input[1] == FALCON_LEVEL1_SA_MINOR) {
                 *hsType = falcon_level1_sa_algo;
                 *hashAlgo = sha256_mac;
@@ -4598,8 +4595,10 @@ void DecodeSigAlg(const byte* input, byte* hashAlgo, byte* hsType)
                 *hsType = falcon_level5_sa_algo;
                 *hashAlgo = sha512_mac;
             }
+            break;
     #endif /* HAVE_FALCON */
     #ifdef HAVE_DILITHIUM
+        case DILITHIUM_SA_MAJOR:
             if (input[1] == DILITHIUM_LEVEL2_SA_MINOR) {
                 *hsType = dilithium_level2_sa_algo;
                 *hashAlgo = sha256_mac;
@@ -4612,9 +4611,8 @@ void DecodeSigAlg(const byte* input, byte* hashAlgo, byte* hsType)
                 *hsType = dilithium_level5_sa_algo;
                 *hashAlgo = sha512_mac;
             }
-    #endif /* HAVE_DILITHIUM */
             break;
-#endif
+    #endif /* HAVE_DILITHIUM */
         default:
             *hashAlgo = input[0];
             *hsType   = input[1];
@@ -6054,8 +6052,14 @@ static int X25519SharedSecret(WOLFSSL* ssl, curve25519_key* priv_key,
     else
 #endif
     {
-        ret = wc_curve25519_shared_secret_ex(priv_key, pub_key, out, outlen,
-                                             EC25519_LITTLE_ENDIAN);
+    #ifdef WOLFSSL_CURVE25519_BLINDING
+        ret = wc_curve25519_set_rng(priv_key, ssl->rng);
+        if (ret == 0)
+    #endif
+        {
+            ret = wc_curve25519_shared_secret_ex(priv_key, pub_key, out, outlen,
+                                                 EC25519_LITTLE_ENDIAN);
+        }
     }
 
     /* Handle async pending response */
@@ -11916,7 +11920,7 @@ static int GetRecordHeader(WOLFSSL* ssl, word32* inOutIdx,
                              (!ssl->options.dtls &&
                               rh->pvMinor < ssl->version.minor))
         #else
-                            rh->pvMinor < ssl->version.minor
+                            (rh->pvMinor < ssl->version.minor)
         #endif
                    )) {
             WOLFSSL_MSG("SSL version error");
@@ -25676,6 +25680,9 @@ int SendData(WOLFSSL* ssl, const void* data, size_t sz)
             }
             return error;
         }
+        else {
+            ssl->error = 0; /* Clear any previous errors */
+        }
 
         sent += buffSz;
 
@@ -27819,6 +27826,7 @@ static int ParseCipherList(Suites* suites,
             }
             if (currLen == 0)
                 break;
+            ++next; /* increment to skip ':' */
         }
 
     #if defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)
@@ -28170,8 +28178,7 @@ static int ParseCipherList(Suites* suites,
                 break;
             }
         }
-    }
-    while (next++); /* increment to skip ':' */
+    } while (next);
 
     if (ret) {
         int keySz = 0;
