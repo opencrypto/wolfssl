@@ -137,8 +137,7 @@ static int wc_mldsa_composite_domain(const byte** domain, word32* domainLen, mld
     *domain = mldsa_composite_oid_data[compType];
     *domainLen = sizeof(mldsa_composite_oid_data[compType]);
 
-    MADWOLF_DEBUG("Domain: %d (len: %d)", compType, *domainLen);
-
+    // Success
     return 0;
 }
 
@@ -948,6 +947,10 @@ int wc_mldsa_composite_sign_msg_ex(const byte* msg, word32 msgLen,
     word32 sig_size = 0;
         // Length of the input signature buffer
 
+    byte * domain = NULL;
+    word32 domainLen = 0;
+        // Domain Separator
+
     byte msgDigest[WC_SHA384_DIGEST_SIZE];
         // Digest Buffer for traditional component
 
@@ -962,17 +965,16 @@ int wc_mldsa_composite_sign_msg_ex(const byte* msg, word32 msgLen,
         return 0;
     }
 
-    if (*sigLen <= 0)
+    if (*sigLen < sig_size)
         return BAD_FUNC_ARG;
 
     /* Saves the length of the output buffer. */
     bufSize = *sigLen;
-    if (bufSize < sig_size)
-        return BUFFER_E;
 
-    /* Generate a random seed for the ML-DSA component. */
-    ret = wc_RNG_GenerateBlock(rng, rnd, DILITHIUM_RND_SZ);
-    if (ret != 0) return ret;
+    /* Gets the Domain Separator */
+    if ((ret = wc_mldsa_composite_domain((const byte **)&domain, &domainLen, key)) < 0) {
+        goto err;
+    }
 
     /* Gets the tbs composite data */
     tbsMsgLen = msgLen;
@@ -992,9 +994,15 @@ int wc_mldsa_composite_sign_msg_ex(const byte* msg, word32 msgLen,
         goto err;
     }
 
+    /* Generate a random seed for the ML-DSA component. */
+    ret = wc_RNG_GenerateBlock(rng, rnd, DILITHIUM_RND_SZ);
+    if (ret != 0) return ret;
+
     /* Sign the message with the ML-DSA key. */
-    if ((ret = wc_dilithium_sign_ctx_msg(context,
-                                         contextLen,
+    /* In the Composite Signature, we use the contex = Domain 
+     * as the context for the ML-DSA component. */
+    if ((ret = wc_dilithium_sign_ctx_msg(domain,
+                                         domainLen,
                                          tbsMsg,
                                          tbsMsgLen,
                                          sig, 
@@ -1281,6 +1289,9 @@ int wc_mldsa_composite_sign_msg_ex(const byte* msg, word32 msgLen,
             ret = ALGO_ID_E;
             goto err;
     }
+
+    // Set the output signature length
+    *sigLen = idx;
 
 err:
 
@@ -2456,41 +2467,48 @@ int wc_mldsa_composite_import_public(const byte* inBuffer, word32 inLen,
 
     word32 idx = 0;
         // Index for the ASN.1 data
+    
+    byte * mldsaPub = (byte*)inBuffer;
+    word32 mldsaPubLen = 0;
+
+    byte * tradPub = NULL;
+    word32 tradPubLen = 0;
+        // Index for the ASN.1 data
         
-    ASNItem compPubKeyIT[mldsaCompASN_Length] = {
-         { 0, ASN_SEQUENCE, 1, 1, 0 },
-            { 1, ASN_OCTET_STRING, 0, 0, 0 },
-            { 1, ASN_OCTET_STRING, 0, 0, 0 }
-    };
-        // ASN.1 items for the composite signature
+    // ASNItem compPubKeyIT[mldsaCompASN_Length] = {
+    //      { 0, ASN_SEQUENCE, 1, 1, 0 },
+    //         { 1, ASN_OCTET_STRING, 0, 0, 0 },
+    //         { 1, ASN_OCTET_STRING, 0, 0, 0 }
+    // };
+    //     // ASN.1 items for the composite signature
 
-    ASNGetData compPubKeyASN[mldsaCompASN_Length];
-        // ASN.1 data for the composite signature
+    // ASNGetData compPubKeyASN[mldsaCompASN_Length];
+    //     // ASN.1 data for the composite signature
 
-    byte mldsa_Buffer[DILITHIUM_ML_DSA_87_PUB_KEY_SIZE];
-    word32 mldsa_BufferLen = DILITHIUM_ML_DSA_87_PUB_KEY_SIZE;
-        // Buffer to hold the ML-DSA public key
+    // byte mldsa_Buffer[DILITHIUM_ML_DSA_87_PUB_KEY_SIZE];
+    // word32 mldsa_BufferLen = DILITHIUM_ML_DSA_87_PUB_KEY_SIZE;
+    //     // Buffer to hold the ML-DSA public key
 
-    byte other_Buffer[MLDSA_COMPOSITE_MAX_OTHER_KEY_SZ];
-    word32 other_BufferLen = MLDSA_COMPOSITE_MAX_OTHER_KEY_SZ;
-        // Buffer to hold the public key of the other DSA component
+    // byte other_Buffer[MLDSA_COMPOSITE_MAX_OTHER_KEY_SZ];
+    // word32 other_BufferLen = MLDSA_COMPOSITE_MAX_OTHER_KEY_SZ;
+    //     // Buffer to hold the public key of the other DSA component
 
-    /* Validate parameters. */
-    if (!inBuffer || !key) {
-        return BAD_FUNC_ARG;
-    }
+    // /* Validate parameters. */
+    // if (!inBuffer || !key) {
+    //     return BAD_FUNC_ARG;
+    // }
 
-    // Sets the buffers to 0
-    XMEMSET(compPubKeyASN, 0, sizeof(*compPubKeyASN) * mldsaCompASN_Length);
+    // // Sets the buffers to 0
+    // XMEMSET(compPubKeyASN, 0, sizeof(*compPubKeyASN) * mldsaCompASN_Length);
 
-    // Initialize the ASN data
-    GetASN_Buffer(&compPubKeyASN[MLDSA_COMPASN_IDX_MLDSA], mldsa_Buffer, &mldsa_BufferLen);
-    GetASN_Buffer(&compPubKeyASN[MLDSA_COMPASN_IDX_OTHER], other_Buffer, &other_BufferLen);
+    // // Initialize the ASN data
+    // GetASN_Buffer(&compPubKeyASN[MLDSA_COMPASN_IDX_MLDSA], mldsa_Buffer, &mldsa_BufferLen);
+    // GetASN_Buffer(&compPubKeyASN[MLDSA_COMPASN_IDX_OTHER], other_Buffer, &other_BufferLen);
 
-    // Parse the ASN.1 data
-    if ((ret = GetASN_Items(compPubKeyIT, compPubKeyASN, 3, 0, inBuffer, &idx, inLen)) < 0) {
-        return ret;
-    }
+    // // Parse the ASN.1 data
+    // if ((ret = GetASN_Items(compPubKeyIT, compPubKeyASN, 3, 0, inBuffer, &idx, inLen)) < 0) {
+    //     return ret;
+    // }
 
     // If no passed type, let's check the key type
     if (comp_level == 0) comp_level = wc_mldsa_composite_level(key);
@@ -2512,6 +2530,7 @@ int wc_mldsa_composite_import_public(const byte* inBuffer, word32 inLen,
             case WC_MLDSA44_ED25519_SHA256:
             case WC_MLDSA44_NISTP256_SHA256: {
                 ret = wc_dilithium_set_level(&key->mldsa_key, WC_ML_DSA_44);
+                mldsaPubLen = ML_DSA_LEVEL2_PUB_KEY_SIZE;
             } break;
 
             // Level 3
@@ -2523,6 +2542,8 @@ int wc_mldsa_composite_import_public(const byte* inBuffer, word32 inLen,
             case WC_MLDSA65_NISTP256_SHA384:
             case WC_MLDSA65_BPOOL256_SHA384: {
                 ret = wc_dilithium_set_level(&key->mldsa_key, WC_ML_DSA_65);
+                mldsaPubLen = ML_DSA_LEVEL3_PUB_KEY_SIZE;
+
             } break;
 
             // Level 5
@@ -2530,6 +2551,7 @@ int wc_mldsa_composite_import_public(const byte* inBuffer, word32 inLen,
             case WC_MLDSA87_BPOOL384_SHA384:
             case WC_MLDSA87_ED448_SHA384: {
                 ret = wc_dilithium_set_level(&key->mldsa_key, WC_ML_DSA_87);
+                mldsaPubLen = ML_DSA_LEVEL5_PUB_KEY_SIZE;
             } break;
 
             case WC_MLDSA_COMPOSITE_UNDEF:
@@ -2542,9 +2564,16 @@ int wc_mldsa_composite_import_public(const byte* inBuffer, word32 inLen,
     idx = 0;
 
     // Import ML-DSA Component
-    if ((ret = wc_dilithium_import_public(mldsa_Buffer, mldsa_BufferLen, &key->mldsa_key)) < 0) {
+    if ((ret = wc_dilithium_import_public(mldsaPub, mldsaPubLen, &key->mldsa_key)) < 0) {
         return ret;
     }
+
+    // Sets the index to the next component
+    idx += mldsaPubLen;
+
+    // Sets the expected size of the other component
+    tradPubLen = inLen - idx;
+    tradPub = (byte*)inBuffer + idx;
 
    // Verify Individual Key Components: 
     switch (comp_level) {
@@ -2556,7 +2585,7 @@ int wc_mldsa_composite_import_public(const byte* inBuffer, word32 inLen,
         case WC_MLDSA65_RSAPSS4096_SHA384:
         case WC_MLDSA65_RSA4096_SHA384: {
             // Checks the RSA pubkey buffer size
-            if (other_BufferLen < RSA2048_PUB_KEY_SIZE) {
+            if (tradPubLen < RSA2048_PUB_KEY_SIZE) {
                 return BUFFER_E;
             }
 
@@ -2568,7 +2597,7 @@ int wc_mldsa_composite_import_public(const byte* inBuffer, word32 inLen,
             if ((ret = wc_InitRsaKey(&key->alt_key.rsa, NULL)) < 0) {
                 return ret;
             }
-            if ((ret = wc_RsaPublicKeyDecode(other_Buffer, &idx, &key->alt_key.rsa, other_BufferLen)) < 0) {
+            if ((ret = wc_RsaPublicKeyDecode(tradPub, &idx, &key->alt_key.rsa, tradPubLen)) < 0) {
                 return ret;
             }
         } break;
@@ -2583,7 +2612,7 @@ int wc_mldsa_composite_import_public(const byte* inBuffer, word32 inLen,
                 goto err;
             }
 
-            ret = wc_ecc_import_x963(other_Buffer, other_BufferLen, &key->alt_key.ecc);
+            ret = wc_ecc_import_x963(tradPub, tradPubLen, &key->alt_key.ecc);
             if (ret < 0)
                 goto err;
 
@@ -2593,7 +2622,7 @@ int wc_mldsa_composite_import_public(const byte* inBuffer, word32 inLen,
         case WC_MLDSA65_ED25519_SHA384: {
             
             // Cehcks the ED25519 pubkey buffer size
-            if (other_BufferLen != ED25519_PUB_KEY_SIZE) {
+            if (tradPubLen != ED25519_PUB_KEY_SIZE) {
                 ret = BUFFER_E;
                 goto err;
             }
@@ -2604,7 +2633,7 @@ int wc_mldsa_composite_import_public(const byte* inBuffer, word32 inLen,
                 goto err;
             }
 
-            if ((ret = wc_ed25519_import_public(other_Buffer, other_BufferLen, &key->alt_key.ed25519)) < 0) {
+            if ((ret = wc_ed25519_import_public(tradPub, tradPubLen, &key->alt_key.ed25519)) < 0) {
                 goto err;
             }
 
@@ -2618,19 +2647,19 @@ int wc_mldsa_composite_import_public(const byte* inBuffer, word32 inLen,
                 ret = BAD_STATE_E;
                 goto err;
             }
-            ret = wc_ecc_import_x963(other_Buffer, other_BufferLen, &key->alt_key.ecc);
+            ret = wc_ecc_import_x963(tradPub, tradPubLen, &key->alt_key.ecc);
             if (ret < 0)
                 goto err;
 
         } break;
 
         case WC_MLDSA87_ED448_SHA384: {
-            if (other_BufferLen != ED448_PUB_KEY_SIZE) {
+            if (tradPubLen != ED448_PUB_KEY_SIZE) {
                 ret = BUFFER_E;
                 goto err;
             }
             wc_ed448_free(&key->alt_key.ed448);
-            ret = wc_ed448_import_public(other_Buffer, other_BufferLen, &key->alt_key.ed448);
+            ret = wc_ed448_import_public(tradPub, tradPubLen, &key->alt_key.ed448);
             if (ret < 0)
                 goto err;
 

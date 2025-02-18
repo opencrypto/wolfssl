@@ -3665,7 +3665,7 @@ int wc_AsymKey_SignCert_ex(byte * out, word32 outSz, int outform,
         goto exit;
     
     // Adds the missing size for the signature
-    certSz += ret + MAX_SEQ_SZ * 3;
+    certSz += ret;
 
     // Allocates the needed size
     cert = (byte *)XMALLOC(certSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);

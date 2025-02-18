@@ -421,11 +421,11 @@ int sign_cert(const char * req_file, const char * outCertFilename, int outCertFo
     if (aCert.selfSigned == 1)
         pubKeyPnt = (AsymKey *)caKeyPair;
 
-    ret = wc_AsymKey_SignCert_ex(NULL, 0, 1, ca, caSz, &aCert, pubKeyPnt, 0, caKeyPair, NULL, &rng);
-    if (ret < 0) {
-        printf("Error generating the certificate: %d\n", ret);
-        return ret;
-    }
+    // ret = wc_AsymKey_SignCert_ex(NULL, 0, 1, ca, caSz, &aCert, pubKeyPnt, 0, caKeyPair, NULL, &rng);
+    // if (ret < 0) {
+    //     printf("Error generating the certificate: %d\n", ret);
+    //     return ret;
+    // }
     
     certSz = ret = wc_AsymKey_SignCert_ex(NULL, 0, 1, ca, caSz, &aCert, pubKeyPnt, 0, caKeyPair, NULL, &rng);
     if (ret < 0) {
