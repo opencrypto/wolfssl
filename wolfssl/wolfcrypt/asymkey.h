@@ -521,6 +521,14 @@ WOLFSSL_API int wc_AsymKey_CertReq_SetIssuer_CaCert(Cert * tbsCert, const byte *
 
 WOLFSSL_API int wc_AsymKey_CertReq_GetPublicKey(AsymKey * aKey, byte *req, word32 reqSz);
 
+#define wc_AsymKey_Cert_SetTemplate wc_AsymKey_CertReq_SetTemplate
+#define wc_AsymKey_Cert_SetSerial wc_AsymKey_CertReq_SetSerial
+#define wc_AsymKey_Cert_SetSigtype wc_AsymKey_CertReq_SetSigtype
+#define wc_AsymKey_Cert_SetSubject wc_AsymKey_CertReq_SetSubject
+#define wc_AsymKey_Cert_SetIssuer wc_AsymKey_CertReq_SetIssuer
+#define wc_AsymKey_Cert_SetIssuer_CaCert wc_AsymKey_CertReq_SetIssuer_CaCert
+#define wc_AsymKey_Cert_GetPublicKey wc_AsymKey_CertReq_GetPublicKey
+
 /* Make a new certificate request (PKCS#10).
  *
  * @param [in]  der     The DER encoded certificate request.
@@ -578,18 +586,6 @@ WOLFSSL_API int wc_AsymKey_SignCert_ex(byte * out, word32 outSz, int outform,
 WOLFSSL_API int wc_AsymKey_SignCertTemplate(byte * out, word32 outSz, int format, byte * req, word32 reqSz, byte * ca, word32 caSz,
                         enum wc_CertTemplate templateId, const char * subjectOverride, enum wc_HashType hashType, const AsymKey* priv_key,
                         WC_RNG* rng);
-
-WOLFSSL_API int wc_X509_Req_Sign(byte * der, word32 derLen, Cert * req, enum wc_HashType htype, const AsymKey* key, WC_RNG* rng);
-WOLFSSL_API int wc_X509_Req_Sign_ex(byte * der, word32 derLen, Cert * req, enum wc_HashType htype, const byte* context, byte contextLen, const AsymKey* key, WC_RNG* rng);
-
-WOLFSSL_API int wc_X509_Req_Verify(const byte * der, word32 derLen);
-WOLFSSL_API int wc_X509_Req_Verify_ex(const byte * der, word32 derLen, const byte* context, byte contextLen, const AsymKey* caKey);
-
-WOLFSSL_API int wc_X509_Cert_Sign(byte * der, word32 derLen, Cert * req, enum wc_HashType htype, const AsymKey* caKey, WC_RNG* rng);
-WOLFSSL_API int wc_X509_Cert_Sign_ex(byte * der, word32 derLen, Cert * req, enum wc_HashType htype, const byte* context, byte contextLen, const AsymKey* key, WC_RNG* rng);
-
-WOLFSSL_API int wc_X509_Cert_Verify(const byte * der, word32 derLen, const AsymKey * key);
-WOLFSSL_API int wc_X509_Cert_Verify_ex(const byte * der, word32 derLen, const byte* context, byte contextLen, const AsymKey * caKey);
 #ifdef __cplusplus
     }    /* extern "C" */
 #endif

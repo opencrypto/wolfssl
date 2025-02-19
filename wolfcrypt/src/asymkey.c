@@ -3257,17 +3257,11 @@ int wc_AsymKey_CertReq_SetIssuer(Cert * tbsCert, const char * issuerStr) {
 
 int wc_AsymKey_CertReq_SetIssuer_CaCert(Cert * tbsCert, const byte * der, word32 derSz) {
 
-    int ret = 0;
     if (!tbsCert || !der || derSz <= 0) {
-        printf("Error: %s: %d\n", __FILE__, __LINE__);
-        ret = BAD_FUNC_ARG;
+        return BAD_FUNC_ARG;
     }
 
-    if (ret == 0) {
-        ret = wc_SetIssuerBuffer(tbsCert, der, derSz);
-    }
-
-    return ret;
+    return wc_SetIssuerBuffer(tbsCert, der, derSz);
 }
 
 int wc_AsymKey_CertReq_GetPublicKey(AsymKey * aKey, byte *reqData, word32 reqDataSz) {
@@ -3473,18 +3467,30 @@ int wc_AsymKey_SignReq_ex(byte** der, word32 *derSz, Cert* req, enum wc_HashType
     if (ret < 0)
         return req->sigType;
 
-    tbsReq = (byte *)XMALLOC(WC_CTC_MAX_ALT_SIZE, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    // Makes sure the request has the right version
+    req->version = 0;
+
+    tbsReqSz = ret = wc_MakeCertReq_ex(req, NULL, WC_CTC_MAX_ALT_SIZE, certType, (void *)&key->val);
+    if (ret <= 0) {
+        return ret;
+    }
+
+    // Adds enough space for the signature
+    tbsReqSz += 16384;
+
+    // Allocates the temporary buffer
+    tbsReq = (byte *)XMALLOC(tbsReqSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (tbsReq == NULL)
         return MEMORY_E;
 
-    ret = wc_MakeCertReq_ex(req, tbsReq, WC_CTC_MAX_ALT_SIZE, certType, (void *)&key->val);
+    ret = wc_MakeCertReq_ex(req, tbsReq, tbsReqSz, certType, (void *)&key->val);
     if (ret <= 0) {
         XFREE(tbsReq, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         return ret;
     }
     
     tbsReqSz = ret = wc_SignCert_ex(req->bodySz, req->sigType, 
-                        tbsReq, WC_CTC_MAX_ALT_SIZE, certType,
+                        tbsReq, tbsReqSz, certType,
                         (void *)&key->val, rng);
     if (ret <= 0) {
         XFREE(tbsReq, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -3524,18 +3530,27 @@ int wc_AsymKey_SignReq_ex(byte** der, word32 *derSz, Cert* req, enum wc_HashType
     }
 
     if (der && *der) {
+        // If the buffer is not big enough, we return an error
         if (tbsReqSz > *derSz) {
             XFREE(tbsReq, NULL, DYNAMIC_TYPE_TMP_BUFFER);
             return BUFFER_E;
         }
+        // Otherwise, we copy the data to the buffer
         XMEMCPY(der, tbsReq, tbsReqSz);
-        *derSz = tbsReqSz;
+        
+        // Free the temporary buffer
+        XFREE(tbsReq, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
     } else if (der) {
+        // Use the temporary buffer as the output
         *der = tbsReq;
+    } else {
+        // Free the temporary buffer
+        XFREE(tbsReq, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     }
 
+    // Returns the size of the buffer
     *derSz = tbsReqSz;
-    XFREE(tbsReq, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     return ret;
 }
@@ -3637,7 +3652,6 @@ int wc_AsymKey_SignCert_ex(byte * out, word32 outSz, int outform,
     if (tbsCert->skidSz > 0) {
         ret = wc_SetSubjectKeyIdFromPublicKey_ex(tbsCert, certType, pubKeyPtr);
         if (ret != 0) {
-            printf("Error setting the Subject Key ID: %d\n", ret);
             goto exit;
         }
     }
@@ -3649,7 +3663,6 @@ int wc_AsymKey_SignCert_ex(byte * out, word32 outSz, int outform,
                                               (void *)&caKey->val);
         // ret = wc_SetAuthKeyIdFromCert(tbsCert, derCa, derCaSz);
         if (ret != 0) {
-            printf("Error setting the Authority Key ID: %d\n", ret);
             goto exit;
         }
     }
@@ -3657,7 +3670,6 @@ int wc_AsymKey_SignCert_ex(byte * out, word32 outSz, int outform,
     // Generates the DER certificate (unsigned)
     certSz = ret = wc_MakeCert_ex(tbsCert, NULL, certSz, certType, pubKeyPtr, rng);
     if (ret <= 0) {
-        printf("Make Cert failed: %d\n", ret);
         goto exit;
     }
     ret = wc_AsymKey_sig_size(caKey);
@@ -3670,7 +3682,6 @@ int wc_AsymKey_SignCert_ex(byte * out, word32 outSz, int outform,
     // Allocates the needed size
     cert = (byte *)XMALLOC(certSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (cert == NULL) {
-        printf("Memory Error exporting key\n");
         goto exit;
     }
 
@@ -3678,7 +3689,6 @@ int wc_AsymKey_SignCert_ex(byte * out, word32 outSz, int outform,
         // Signs the tbsCert
         ret = wc_MakeCert_ex(tbsCert, cert, certSz, certType, pubKeyPtr, rng);
         if (ret <= 0) {
-            printf("Make Cert failed: %d\n", ret);
             goto exit;
         }
 
@@ -3692,7 +3702,6 @@ int wc_AsymKey_SignCert_ex(byte * out, word32 outSz, int outform,
                             cert, certSz, certType,
                             (void *)&caKey->val, rng);
         if (ret <= 0) {
-            printf("Sign Cert failed: %d\n", ret);
             goto exit;
         }
         certSz = ret;
@@ -3860,94 +3869,3 @@ int wc_AsymKey_SignCertTemplate(byte * out, word32 outSz, int outform, byte * re
     return ret;
 }
                         
-
-int wc_X509_Req_Sign(byte * der, word32 derLen, Cert * req, enum wc_HashType htype, const AsymKey* key, WC_RNG* rng) {
-
-    (void)der;
-    (void)derLen;
-    (void)req;
-    (void)htype;
-    (void)key;
-    (void)rng;
-
-    return NOT_COMPILED_IN;
-}
-
-int wc_X509_Req_Sign_ex(byte * der, word32 derLen, Cert * req, enum wc_HashType htype, const byte* context, byte contextLen, const AsymKey* key, WC_RNG* rng) {
-
-    (void)der;
-    (void)derLen;
-    (void)req;
-    (void)htype;
-    (void)context;
-    (void)contextLen;
-    (void)key;
-    (void)rng;
-
-    return NOT_COMPILED_IN;
-}
-
-int wc_X509_Req_Verify(const byte * der, word32 derLen) {
-
-    (void)der;
-    (void)derLen;
-
-    return NOT_COMPILED_IN;
-}
-
-int wc_X509_Req_Verify_ex(const byte * der, word32 derLen, const byte* context, byte contextLen, const AsymKey* caKey) {
-
-    (void)der;
-    (void)derLen;
-    (void)context;
-    (void)contextLen;
-    (void)caKey;
-
-    return NOT_COMPILED_IN;
-}
-
-int wc_X509_Cert_Sign(byte * der, word32 derLen, Cert * req, enum wc_HashType htype, const AsymKey* caKey, WC_RNG* rng) {
-
-    (void)der;
-    (void)derLen;
-    (void)req;
-    (void)htype;
-    (void)caKey;
-    (void)rng;
-
-    return NOT_COMPILED_IN;
-}
-
-int wc_X509_Cert_Sign_ex(byte * der, word32 derLen, Cert * req, enum wc_HashType htype, const byte* context, byte contextLen, const AsymKey* key, WC_RNG* rng) {
-
-    (void)der;
-    (void)derLen;
-    (void)req;
-    (void)htype;
-    (void)context;
-    (void)contextLen;
-    (void)key;
-    (void)rng;
-
-    return NOT_COMPILED_IN;
-}
-
-int wc_X509_Cert_Verify(const byte * der, word32 derLen, const AsymKey * key) {
-
-    (void)der;
-    (void)derLen;
-    (void)key;
-
-    return NOT_COMPILED_IN;
-}
-
-int wc_X509_Cert_Verify_ex(const byte * der, word32 derLen, const byte* context, byte contextLen, const AsymKey * caKey) {
-
-    (void)der;
-    (void)derLen;
-    (void)context;
-    (void)contextLen;
-    (void)caKey;
-
-    return NOT_COMPILED_IN;
-}

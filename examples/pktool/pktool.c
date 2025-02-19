@@ -374,7 +374,7 @@ int sign_cert(const char * req_file, const char * outCertFilename, int outCertFo
     // Initializes the certificate structure
     wc_InitCert(&aCert);
 
-    ret = wc_AsymKey_CertReq_SetTemplate(&aCert, templateId);
+    ret = wc_AsymKey_Cert_SetTemplate(&aCert, templateId);
     if (ret < 0) {
         printf("Error setting the template (id: %d): ret = %d\n", templateId, ret);
         return ret;
