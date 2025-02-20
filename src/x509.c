@@ -10950,6 +10950,9 @@ static int CertFromX509(Cert* cert, WOLFSSL_X509* x509)
     #if defined(HAVE_DILITHIUM)
         dilithium_key* dilithium = NULL;
     #endif
+    #if defined(HAVE_MLDSA_COMPOSITE)
+        mldsa_composite_key* mldsa_comp_key = NULL;
+    #endif
     #if defined(HAVE_SPHINCS)
         sphincs_key* sphincs = NULL;
     #endif
@@ -11181,6 +11184,77 @@ static int CertFromX509(Cert* cert, WOLFSSL_X509* x509)
             }
             key = (void*)dilithium;
         }
+    #endif
+    #if defined(HAVE_MLDSA_COMPOSITE)
+        if ((x509->pubKeyOID == MLDSA44_RSAPSS2048k) ||
+            (x509->pubKeyOID == MLDSA44_RSA2048k) ||
+            (x509->pubKeyOID == MLDSA44_ED25519k) ||
+            (x509->pubKeyOID == MLDSA44_NISTP256k) ||
+            (x509->pubKeyOID == MLDSA65_RSAPSS3072k) ||
+            (x509->pubKeyOID == MLDSA65_RSA3072k) ||
+            (x509->pubKeyOID == MLDSA65_RSAPSS4096k) ||
+            (x509->pubKeyOID == MLDSA65_RSA4096k) ||
+            (x509->pubKeyOID == MLDSA65_NISTP256k) ||
+            (x509->pubKeyOID == MLDSA65_BPOOL256k) ||
+            (x509->pubKeyOID == MLDSA65_ED25519k) ||
+            (x509->pubKeyOID == MLDSA87_NISTP384k) ||
+            (x509->pubKeyOID == MLDSA87_BPOOL384k) ||
+            (x509->pubKeyOID == MLDSA87_ED448k)) {
+            mldsa_comp_key = (mldsa_composite_key*)XMALLOC(sizeof(mldsa_composite_key), NULL,
+                                          DYNAMIC_TYPE_MLDSA_COMPOSITE);
+            if (mldsa_comp_key == NULL) {
+                WOLFSSL_MSG("Failed to allocate memory for mldsa_composite_key");
+                XFREE(cert, NULL, DYNAMIC_TYPE_CERT);
+                return WOLFSSL_FAILURE;
+            }
+
+            ret = wc_mldsa_composite_init(mldsa_comp_key);
+            if (ret != 0) {
+                XFREE(mldsa_comp_key, NULL, DYNAMIC_TYPE_MLDSA_COMPOSITE);
+                XFREE(cert, NULL, DYNAMIC_TYPE_CERT);
+                return ret;
+            }
+
+            int composite_level = wc_mldsa_composite_key_sum_level(x509->pubKeyOID);
+            if (composite_level == 0) {
+                WOLFSSL_MSG("Invalid composite key OID");
+                XFREE(mldsa_comp_key, NULL, DYNAMIC_TYPE_MLDSA_COMPOSITE);
+                XFREE(cert, NULL, DYNAMIC_TYPE_CERT);
+                return WOLFSSL_FAILURE;
+            }
+
+            ret = wc_MlDsaComposite_PublicKeyDecode(x509->pubKey.buffer, 
+                                                    &idx,
+                                                    mldsa_comp_key,
+                                                    x509->pubKey.length,
+                                                    composite_level);
+
+            // if (x509->pubKeyOID == DILITHIUM_LEVEL2k) {
+            //     type = DILITHIUM_LEVEL2_TYPE;
+            //     wc_dilithium_set_level(dilithium, 2);
+            // }
+            // else if (x509->pubKeyOID == DILITHIUM_LEVEL3k) {
+            //     type = DILITHIUM_LEVEL3_TYPE;
+            //     wc_dilithium_set_level(dilithium, 3);
+            // }
+            // else if (x509->pubKeyOID == DILITHIUM_LEVEL5k) {
+            //     type = DILITHIUM_LEVEL5_TYPE;
+            //     wc_dilithium_set_level(dilithium, 5);
+            // }
+
+            // ret = wc_Dilithium_PublicKeyDecode(x509->pubKey.buffer, &idx,
+            //                         dilithium, x509->pubKey.length);
+            if (ret != 0) {
+                WOLFSSL_ERROR_VERBOSE(ret);
+                wc_mldsa_composite_free(mldsa_comp_key);
+                XFREE(cert, NULL, DYNAMIC_TYPE_CERT);
+                return ret;
+            }
+            key = (void*)mldsa_comp_key;
+        }
+    #endif
+    #if defined(HAVE_FIPS204)
+    printf("[%s:%d] FIPS204: Missing Code\n", __FILE__, __LINE__);
     #endif
     #if defined(HAVE_SPHINCS)
         if ((x509->pubKeyOID == SPHINCS_FAST_LEVEL1k) ||

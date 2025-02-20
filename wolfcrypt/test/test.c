@@ -296,6 +296,7 @@ const byte const_byte_array[] = "A+Gd\0\0\0";
 #include <wolfssl/wolfcrypt/pwdbased.h>
 #include <wolfssl/wolfcrypt/ripemd.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
+#include <wolfssl/wolfcrypt/asymkey.h>
 #ifdef HAVE_ECC
     #include <wolfssl/wolfcrypt/ecc.h>
 #endif
@@ -328,6 +329,9 @@ const byte const_byte_array[] = "A+Gd\0\0\0";
 #endif
 #ifdef HAVE_DILITHIUM
     #include <wolfssl/wolfcrypt/dilithium.h>
+#endif
+#ifdef HAVE_MLDSA_COMPOSITE
+    #include <wolfssl/wolfcrypt/mldsa_composite.h>
 #endif
 #if defined(WOLFSSL_HAVE_XMSS)
     #include <wolfssl/wolfcrypt/xmss.h>
@@ -679,6 +683,9 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t scrypt_test(void);
 #endif
 #ifdef HAVE_DILITHIUM
     WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  dilithium_test(void);
+#endif
+#ifdef HAVE_MLDSA_COMPOSITE
+    WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  mldsa_composite_test(void);
 #endif
 #if defined(WOLFSSL_HAVE_XMSS)
     #if !defined(WOLFSSL_SMALL_STACK) && WOLFSSL_XMSS_MIN_HEIGHT <= 10
@@ -2305,6 +2312,13 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
         TEST_FAIL("DILITHIUM test failed!\n", ret);
     else
         TEST_PASS("DILITHIUM test passed!\n");
+#endif
+
+#ifdef HAVE_MLDSA_COMPOSITE
+    if ( (ret = mldsa_composite_test()) != 0)
+        TEST_FAIL("ML-DSA Composite test failed!\n", ret);
+    else
+        TEST_PASS("ML-DSA Composite test passed!\n");
 #endif
 
 #if defined(WOLFSSL_HAVE_XMSS)
@@ -46760,6 +46774,247 @@ out:
     return ret;
 }
 #endif /* HAVE_DILITHIUM */
+
+#ifdef HAVE_MLDSA_COMPOSITE
+#ifndef WOLFSSL_MLDSA_COMPOSITE_NO_MAKE_KEY
+static wc_test_ret_t mldsa_composite_param_test(int param, WC_RNG* rng)
+{
+    wc_test_ret_t ret = 0;
+    mldsa_composite_key * key = NULL;
+    mldsa_composite_key imported_key;
+#ifndef WOLFSSL_MLDSA_COMPOSITE_NO_SIGN
+    word32 sigLen;
+    byte msg[] = { 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07 };
+#ifndef WOLFSSL_MLDSA_COMPOSITE_NO_VERIFY
+    int res = 0;
+#endif
+#endif
+
+    byte pub[MLDSA_COMPOSITE_MAX_PUB_KEY_SIZE];
+    word32 pubSz = MLDSA_COMPOSITE_MAX_PUB_KEY_SIZE;
+
+    byte priv[MLDSA_COMPOSITE_MAX_PRV_KEY_SIZE];
+    word32 privSz = MLDSA_COMPOSITE_MAX_PRV_KEY_SIZE;
+
+    byte buff[MLDSA_COMPOSITE_MAX_PRV_KEY_SIZE];
+    word32 buffSz = MLDSA_COMPOSITE_MAX_PRV_KEY_SIZE;
+
+    byte sig[MLDSA_COMPOSITE_MAX_SIG_SIZE];
+    word32 sigSz = MLDSA_COMPOSITE_MAX_SIG_SIZE;
+
+
+    // Generate a New Key
+    // ------------------
+
+    ret = wc_MlDsaCompositeKey_Init_ex(key, NULL, 0);
+    if (ret != 0) {
+        ret = WC_TEST_RET_ENC_EC(ret);
+        return ret;
+    }
+
+    ret = wc_MlDsaCompositeKey_MakeKey(key, param, rng);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    // Export the Public Key
+    // ---------------------
+
+    ret = wc_MlDsaCompositeKey_ExportPubRaw(key, pub, &pubSz);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    // Import the public key
+    // ---------------------
+
+    ret = wc_MlDsaCompositeKey_Init(&imported_key);
+    if (ret != 0) {
+        return WC_TEST_RET_ENC_EC(ret);
+    }
+
+    ret = wc_MlDsaCompositeKey_SetLevel(&imported_key, param);
+    if (ret < 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    pubSz = MLDSA_COMPOSITE_MAX_PUB_KEY_SIZE;
+    ret = wc_MlDsaCompositeKey_ImportPubRaw(&imported_key, pub, pubSz, param);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    wc_mldsa_composite_free(&imported_key);
+
+    // Export the Private Key
+    // ----------------------
+
+    privSz = MLDSA_COMPOSITE_MAX_PRV_KEY_SIZE;
+    ret = wc_MlDsaCompositeKey_ExportPrivRaw(key, priv, &privSz);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    // Import the private key
+    // ----------------------
+
+    wc_MlDsaCompositeKey_Init(&imported_key);
+    ret = wc_MlDsaCompositeKey_ImportPrivRaw(&imported_key, priv, privSz, param);
+    if (ret < 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    privSz = MLDSA_COMPOSITE_MAX_PRV_KEY_SIZE;
+    pubSz = MLDSA_COMPOSITE_MAX_PUB_KEY_SIZE;
+    ret = wc_mldsa_composite_export_key(key, priv, &privSz, pub, &pubSz);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    ret = wc_MlDsaComposite_PrivateKeyToDer(key, NULL, 0);
+    if (ret <= 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    privSz = MLDSA_COMPOSITE_MAX_PRV_KEY_SIZE;
+    ret = wc_MlDsaComposite_PrivateKeyToDer(key, priv, privSz);
+    if (ret <= 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    ret = wc_MlDsaComposite_KeyToDer(key, NULL, 0);
+    if (ret <= 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    buffSz = MLDSA_COMPOSITE_MAX_PRV_KEY_SIZE;
+    ret = wc_MlDsaComposite_KeyToDer(key, buff, buffSz);
+    if (ret <= 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    ret = wc_MlDsaCompositeKey_GetSigLen(key, (int *)&sigSz);
+    if (ret <= 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+#ifndef WOLFSSL_MLDSA_COMPOSITE_NO_SIGN
+
+    ret = wc_MlDsaCompositeKey_Sign(key, sig, &sigLen, msg, (word32)sizeof(msg), rng);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+#ifndef WOLFSSL_MLDSA_COMPOSITE_NO_VERIFY
+
+    ret = wc_MlDsaCompositeKey_Verify(key, sig, sigLen, msg, (word32)sizeof(msg), &res);
+    if (ret < 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+#endif
+#endif
+
+out:
+
+    wc_MlDsaCompositeKey_Free(key);
+
+    return ret;
+
+    (void)pub;
+}
+#endif
+
+WOLFSSL_TEST_SUBROUTINE wc_test_ret_t mldsa_composite_test(void)
+{
+    wc_test_ret_t ret = 0;
+    WC_RNG rng;
+
+#ifndef HAVE_FIPS
+    ret = wc_InitRng_ex(&rng, HEAP_HINT, INVALID_DEVID);
+#else
+    ret = wc_InitRng(&rng);
+#endif
+    if (ret != 0) {
+        ret = WC_TEST_RET_ENC_EC(ret);
+        return ret;
+    }
+
+#ifndef WOLFSSL_NO_ML_DSA_44
+#ifdef WOLFSSL_WC_MLDSA_COMPOSITE
+#ifndef WOLFSSL_MLDSA_COMPOSITE_NO_MAKE_KEY
+
+    int mldsa_composite_algos[14] = {
+
+        // Level 1
+        WC_MLDSA44_RSAPSS2048_SHA256,
+        WC_MLDSA44_RSA2048_SHA256,
+        WC_MLDSA44_ED25519_SHA256,
+        WC_MLDSA44_NISTP256_SHA256,
+        // WC_MLDSA44_BPOOL256_SHA256,
+
+        // Level 3
+        WC_MLDSA65_RSAPSS3072_SHA384,
+        WC_MLDSA65_RSA3072_SHA384,
+        WC_MLDSA65_RSAPSS4096_SHA384,
+        WC_MLDSA65_RSA4096_SHA384,
+        WC_MLDSA65_NISTP256_SHA384,
+        WC_MLDSA65_BPOOL256_SHA384,
+        WC_MLDSA65_ED25519_SHA384,
+        
+        // Level 5
+        WC_MLDSA87_NISTP384_SHA384,
+        WC_MLDSA87_BPOOL384_SHA384,
+        WC_MLDSA87_ED448_SHA384
+    };
+
+    mldsa_composite_key * c_key = XMALLOC(sizeof(mldsa_composite_key), NULL, DYNAMIC_TYPE_PRIVATE_KEY);
+    if (!c_key) {
+        return 100;
+    }
+
+    ret = wc_mldsa_composite_init_ex(c_key, NULL, INVALID_DEVID);
+    if (ret != 0) {
+        return 101;
+    }
+
+    // ret = wc_mldsa_composite_key_set_level(c_key, WC_MLDSA44_RSA2048_SHA256);
+    // if (ret < 0) {
+    //     return 102;
+    // }
+
+    ret = wc_mldsa_composite_make_key(c_key, WC_MLDSA44_RSA2048_SHA256, &rng);
+    if (ret < 0) {
+        return 103;
+    }
+
+    byte tmpBuffer[10240];
+    word32 tmpBufferLen = sizeof(tmpBuffer);
+
+    ret = wc_mldsa_composite_export_private(c_key, tmpBuffer, &tmpBufferLen);
+    if (ret < 0) {
+        return 104;
+    }
+
+    mldsa_composite_key * c_key2 = XMALLOC(sizeof(mldsa_composite_key), NULL, DYNAMIC_TYPE_PRIVATE_KEY);
+    if (!c_key2) {
+        return 100;
+    }
+
+    ret = wc_mldsa_composite_init_ex(c_key2, NULL, INVALID_DEVID);
+    if (ret != 0) {
+        return 101;
+    }
+    ret = wc_mldsa_composite_import_private(tmpBuffer, tmpBufferLen, c_key2, WC_MLDSA44_RSA2048_SHA256);
+    if (ret != 0) {
+        return 105;
+    }
+
+    for (int idx = 0; idx < 14; idx++) {
+        printf("[%s:%d] Starting New Param Test (param: %d)\n", __FILE__, __LINE__, mldsa_composite_algos[idx]);
+        ret = mldsa_composite_param_test(mldsa_composite_algos[idx], &rng);
+        if (ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    }
+
+#endif
+#endif
+
+#if !defined(WOLFSSL_MLDSA_COMPOSITE_NO_MAKE_KEY) || \
+    !defined(WOLFSSL_MLDSA_COMPOSITE_NO_VERIFY)
+out:
+#endif
+    wc_FreeRng(&rng);
+#endif
+    return ret;
+}
+#endif /* HAVE_MLDSA_COMPOSITE */
 
 #if defined(WOLFSSL_HAVE_XMSS) && !defined(WOLFSSL_XMSS_VERIFY_ONLY)
 static enum wc_XmssRc xmss_write_key_mem(const byte * priv, word32 privSz,

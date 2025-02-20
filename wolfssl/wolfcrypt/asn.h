@@ -1195,7 +1195,11 @@ enum Misc_ASN {
     MAX_OCSP_EXT_SZ     = 58,      /* Max OCSP Extension length */
     MAX_OCSP_NONCE_SZ   = 16,      /* OCSP Nonce size           */
 #if defined(HAVE_FALCON) || defined(HAVE_DILITHIUM)
+#if defined(HAVE_MLDSA_COMPOSITE)
+    MAX_PUBLIC_KEY_SZ   = MAX_PQC_PUBLIC_KEY_SZ + MAX_ALGO_SZ + MAX_SEQ_SZ * 2 + 200,
+#else
     MAX_PUBLIC_KEY_SZ   = MAX_PQC_PUBLIC_KEY_SZ + MAX_ALGO_SZ + MAX_SEQ_SZ * 2,
+#endif
 #else
     MAX_PUBLIC_KEY_SZ   = MAX_DSA_PUBKEY_SZ + MAX_ALGO_SZ + MAX_SEQ_SZ * 2,
 #endif
@@ -1338,7 +1342,60 @@ enum Key_Sum {
     SPHINCS_FAST_LEVEL5k   = 282, /* 1 3 9999 6 9 3 */
     SPHINCS_SMALL_LEVEL1k  = 287, /* 1 3 9999 6 7 10 */
     SPHINCS_SMALL_LEVEL3k  = 285, /* 1 3 9999 6 8 7 */
-    SPHINCS_SMALL_LEVEL5k  = 286  /* 1 3 9999 6 9 7 */
+    SPHINCS_SMALL_LEVEL5k  = 286,  /* 1 3 9999 6 9 7 */
+    // // ML-DSA Composite - Draft 2
+    // D2_MLDSA44_RSAPSS2048k = 884, /* 2.16.840.1.114027.80.8.1.1 */
+    // D2_MLDSA44_RSA2048k    = 885, /* 2.16.840.1.114027.80.8.1.2 */
+    // D2_MLDSA44_ED25519k    = 886, /* 2.16.840.1.114027.80.8.1.3 */
+    // D2_MLDSA44_NISTP256k   = 887, /* 2.16.840.1.114027.80.8.1.4 */
+    // D2_MLDSA44_BPOOL256k   = 888, /* 2.16.840.1.114027.80.8.1.5 */
+    // // Level 3
+    // D2_MLDSA65_RSAPSS3072k = 889, /* 2.16.840.1.114027.80.8.1.6 */
+    // D2_MLDSA65_RSA3072k    = 890, /* 2.16.840.1.114027.80.8.1.7 */
+    // D2_MLDSA65_NISTP256k   = 891, /* 2.16.840.1.114027.80.8.1.8 */
+    // D2_MLDSA65_BPOOL256k   = 892, /* 2.16.840.1.114027.80.8.1.9 */
+    // D2_MLDSA65_ED25519k    = 893, /* 2.16.840.1.114027.80.8.1.10 */
+    // // Level 5
+    // D2_MLDSA87_NISTP384k   = 894, /* 2.16.840.1.114027.80.8.1.11 */
+    // D2_MLDSA87_BPOOL384k   = 895, /* 2.16.840.1.114027.80.8.1.12 */
+    // D2_MLDSA87_ED448k      = 896, /* 2.16.840.1.114027.80.8.1.13 */
+
+    // // ML-DSA Composite
+    // MLDSA44_RSAPSS2048k    = 904, /* 2.16.840.1.114027.80.8.1.21 - id-MLDSA44-RSA2048-SHA256 - 78 + 900 + 21 */
+    // MLDSA44_RSA2048k       = 905, /* 2.16.840.1.114027.80.8.1.22 - id-MLDSA44-RSAPSS2048-SHA256 - 78 + 900 + 22 */
+    // MLDSA44_ED25519k       = 906, /* 2.16.840.1.114027.80.8.1.23 - id-MLDSA44-Ed25519-SHA512 - 78 + 900 + 23*/
+    // MLDSA44_NISTP256k      = 907, /* 2.16.840.1.114027.80.8.1.24 - id-MLDSA44-ECDSA-P256-SHA256 - 78 + 900 + 24 */
+    // // MLDSA44_BPOOL256k      = 908, 
+    // // Level 3
+    // MLDSA65_RSAPSS3072k    = 909,
+    // MLDSA65_RSA3072k       = 910,
+    // MLDSA65_RSAPSS4096k    = 917,
+    // MLDSA65_RSA4096k       = 918,
+    // MLDSA65_NISTP256k      = 911,
+    // MLDSA65_BPOOL256k      = 912,
+    // MLDSA65_ED25519k       = 913,
+    // // Level 5
+    // MLDSA87_NISTP384k      = 914,
+    // MLDSA87_BPOOL384k      = 915,
+    // MLDSA87_ED448k         = 916,
+    // ML-DSA Composite
+    MLDSA44_RSAPSS2048k    = 943, /* 2.16.840.1.114027.80.8.1.21 - id-MLDSA44-RSA2048-SHA256 - 78 + 900 + 60 */
+    MLDSA44_RSA2048k       = 944, /* 2.16.840.1.114027.80.8.1.22 - id-MLDSA44-RSAPSS2048-SHA256 - 78 + 900 + 61 */
+    MLDSA44_ED25519k       = 945, /* 2.16.840.1.114027.80.8.1.23 - id-MLDSA44-Ed25519-SHA512 - 78 + 900 + 62 */
+    MLDSA44_NISTP256k      = 946, /* 2.16.840.1.114027.80.8.1.24 - id-MLDSA44-ECDSA-P256-SHA256 - 78 + 900 + 63 */
+    // MLDSA44_BPOOL256k      = 908, 
+    // Level 3
+    MLDSA65_RSAPSS3072k    = 947,
+    MLDSA65_RSA3072k       = 948,
+    MLDSA65_RSAPSS4096k    = 949,
+    MLDSA65_RSA4096k       = 950,
+    MLDSA65_NISTP256k      = 951,
+    MLDSA65_BPOOL256k      = 952,
+    MLDSA65_ED25519k       = 953,
+    // Level 5
+    MLDSA87_NISTP384k      = 954,
+    MLDSA87_BPOOL384k      = 955,
+    MLDSA87_ED448k         = 956,
 };
 
 #if !defined(NO_AES) || defined(HAVE_PKCS7)
@@ -1673,6 +1730,9 @@ struct SignatureCtx {
     #endif
     #if defined(HAVE_SPHINCS)
         struct sphincs_key* sphincs;
+    #endif
+    #if defined(HAVE_MLDSA_COMPOSITE)
+        struct mldsa_composite_key *mldsa_composite;
     #endif
         void* ptr;
     } key;
@@ -2374,6 +2434,7 @@ WOLFSSL_LOCAL int TryDecodeRPKToKey(DecodedCert* cert);
 WOLFSSL_LOCAL int wc_GetPubX509(DecodedCert* cert, int verify, int* badDate);
 
 WOLFSSL_LOCAL const byte* OidFromId(word32 id, word32 type, word32* oidSz);
+WOLFSSL_LOCAL const byte* OidFromString(const char* oidStr, word32 type, word32 *oidSz, word32* keySum);
 WOLFSSL_LOCAL Signer* findSignerByKeyHash(Signer *list, byte *hash);
 WOLFSSL_LOCAL Signer* findSignerByName(Signer *list, byte *hash);
 WOLFSSL_LOCAL int FillSigner(Signer* signer, DecodedCert* cert, int type, DerBuffer *der);
@@ -2633,7 +2694,25 @@ enum cert_enums {
     SPHINCS_FAST_LEVEL5_KEY  = 26,
     SPHINCS_SMALL_LEVEL1_KEY = 27,
     SPHINCS_SMALL_LEVEL3_KEY = 28,
-    SPHINCS_SMALL_LEVEL5_KEY = 29
+    SPHINCS_SMALL_LEVEL5_KEY = 29,
+#ifdef HAVE_MLDSA_COMPOSITE
+    MLDSA44_RSAPSS2048_KEY   = 30,
+    MLDSA44_RSA2048_KEY      = 31,
+    MLDSA44_NISTP256_KEY     = 32,
+    MLDSA44_ED25519_KEY      = 33,
+    // MLDSA44_BPOOL256_KEY     = 34,
+    MLDSA65_RSAPSS3072_KEY   = 35,
+    MLDSA65_RSA3072_KEY      = 36,
+    MLDSA65_RSAPSS4096_KEY   = 37,
+    MLDSA65_RSA4096_KEY      = 38,
+    MLDSA65_NISTP384_KEY     = 39,
+    MLDSA65_ED25519_KEY      = 40,
+    MLDSA65_NISTP256_KEY     = 41,
+    MLDSA65_BPOOL256_KEY     = 42,
+    MLDSA87_NISTP384_KEY     = 43,
+    MLDSA87_BPOOL384_KEY     = 44,
+    MLDSA87_ED448_KEY        = 45,
+#endif
 };
 
 #endif /* WOLFSSL_CERT_GEN */
@@ -2926,6 +3005,7 @@ WOLFSSL_LOCAL int  ParseX509Acert(DecodedAcert* cert, int verify);
 WOLFSSL_LOCAL int  VerifyX509Acert(const byte* cert, word32 certSz,
                                    const byte* pubKey, word32 pubKeySz,
                                    int pubKeyOID, void * heap);
+WOLFSSL_LOCAL CertName * CertName_new(CertName * certName, const char * strName, void * heap);
 #endif /* WOLFSSL_ACERT */
 
 

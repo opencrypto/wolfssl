@@ -1229,6 +1229,10 @@ if BUILD_DILITHIUM
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/dilithium.c
 endif
 
+if BUILD_MLDSA_COMPOSITE
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/mldsa_composite.c
+endif
+
 if BUILD_WC_LMS
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/wc_lms.c
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/wc_lms_impl.c
@@ -1459,3 +1463,4 @@ src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/aria/aria-crypt.c
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/aria/aria-cryptocb.c
 endif
 
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/asymkey.c

@@ -76,6 +76,12 @@ This library defines the interface APIs for X509 certificates.
     typedef struct dilithium_key dilithium_key;
     #define WC_DILITHIUMKEY_TYPE_DEFINED
 #endif
+#ifndef WC_MLDSA_COMPOSITEKEY_TYPE_DEFINED
+    typedef struct mldsa_composite_key mldsa_composite_key;
+    typedef enum wc_mldsa_composite_type wc_MlDsaCompositeType;
+    typedef struct mldsa_composite_params wc_MlDsaCompositeParams;
+    #define WC_MLDSA_COMPOSITEKEY_TYPE_DEFINED
+#endif
 #ifndef WC_SPHINCSKEY_TYPE_DEFINED
     typedef struct sphincs_key sphincs_key;
     #define WC_SPHINCSKEY_TYPE_DEFINED
@@ -180,6 +186,22 @@ enum CertType {
     SPHINCS_SMALL_LEVEL1_TYPE,
     SPHINCS_SMALL_LEVEL3_TYPE,
     SPHINCS_SMALL_LEVEL5_TYPE,
+    // Composite Types
+    MLDSA44_RSAPSS2048_TYPE,
+    MLDSA44_RSA2048_TYPE,
+    MLDSA44_NISTP256_TYPE,
+    MLDSA44_ED25519_TYPE,
+    MLDSA65_RSAPSS3072_TYPE,
+    MLDSA65_RSA3072_TYPE,
+    MLDSA65_RSAPSS4096_TYPE,
+    MLDSA65_RSA4096_TYPE,
+    MLDSA65_NISTP256_TYPE,
+    MLDSA65_BPOOL256_TYPE,
+    MLDSA65_ED25519_TYPE,
+    MLDSA87_NISTP384_TYPE,
+    MLDSA87_BPOOL384_TYPE,
+    MLDSA87_ED448_TYPE,
+    // End Composite Types
     ECC_PARAM_TYPE,
     CHAIN_CERT_TYPE,
     PKCS7_TYPE,
@@ -236,7 +258,43 @@ enum Ctc_SigType {
     CTC_SPHINCS_FAST_LEVEL5  = 282,
     CTC_SPHINCS_SMALL_LEVEL1 = 287,
     CTC_SPHINCS_SMALL_LEVEL3 = 285,
-    CTC_SPHINCS_SMALL_LEVEL5 = 286
+    CTC_SPHINCS_SMALL_LEVEL5 = 286,
+
+#ifdef HAVE_MLDSA_COMPOSITE
+    D2_CTC_MLDSA44_RSAPSS2048_SHA256   = 884,
+    D2_CTC_MLDSA44_RSA2048_SHA256      = 885,
+    D2_CTC_MLDSA44_ED25519             = 886,
+    D2_CTC_MLDSA44_NISTP256_SHA256     = 887,
+    // D2_CTC_MLDSA44_BPOOL256_SHA256     = 889,
+
+    D2_CTC_MLDSA65_RSAPSS3072_SHA512   = 890,
+    D2_CTC_MLDSA65_RSA3072_SHA512      = 891,
+    D2_CTC_MLDSA65_NISTP256_SHA512     = 892,
+    D2_CTC_MLDSA65_BPOOL256_SHA512     = 893,
+    D2_CTC_MLDSA65_ED25519_SHA512      = 894,
+
+    D2_CTC_MLDSA87_NISTP384_SHA512     = 895,
+    D2_CTC_MLDSA87_BPOOL384_SHA512     = 896,
+    D2_CTC_MLDSA87_ED448_SHA512        = 897,
+
+    CTC_MLDSA44_RSAPSS2048_SHA256   = 904,
+    CTC_MLDSA44_RSA2048_SHA256      = 905,
+    CTC_MLDSA44_ED25519             = 906,
+    CTC_MLDSA44_NISTP256_SHA256     = 907,
+    // CTC_MLDSA44_BPOOL256_SHA256     = 908,
+
+    CTC_MLDSA65_RSAPSS3072_SHA384   = 909,
+    CTC_MLDSA65_RSA3072_SHA384      = 910,
+    CTC_MLDSA65_RSAPSS4096_SHA384   = 918,
+    CTC_MLDSA65_RSA4096_SHA384      = 919,
+    CTC_MLDSA65_NISTP256_SHA384     = 911,
+    CTC_MLDSA65_BPOOL256_SHA256     = 912,
+    CTC_MLDSA65_ED25519_SHA384      = 913,
+
+    CTC_MLDSA87_NISTP384_SHA384     = 914,
+    CTC_MLDSA87_BPOOL384_SHA384     = 915,
+    CTC_MLDSA87_ED448               = 917
+#endif
 };
 
 enum Ctc_Encoding {
@@ -560,6 +618,20 @@ typedef struct Cert {
 #endif
 } Cert;
 
+/* Returns the KeySum information from the provided name or keyType.
+ *
+ * @param name    [in, out] The name of the key type.
+ * @param keyType [in, out] The key type.
+ * @return        BAD_FUNC_ARG if the name or keyType is invalid, else 0.
+*/
+WOLFSSL_ABI WOLFSSL_API const char * wc_KeySum_name(const int keySum);
+
+/* Returns the KeySum information from the provided name.
+ *
+ * @param name    [in] The name of the key type.
+ * @return        BAD_FUNC_ARG if the name is invalid, or the Key_Sum value.
+*/
+WOLFSSL_ABI WOLFSSL_API int wc_KeySum_get(const char * name);
 
 /* Initialize and Set Certificate defaults:
    version    = 3 (0x2)
@@ -806,7 +878,7 @@ WOLFSSL_API int wc_DhPrivKeyToDer(DhKey* key, byte* out, word32* outSz);
      (defined(HAVE_CURVE25519) && defined(HAVE_CURVE25519_KEY_EXPORT)) || \
      (defined(HAVE_ED448)      && defined(HAVE_ED448_KEY_EXPORT)) || \
      (defined(HAVE_CURVE448)   && defined(HAVE_CURVE448_KEY_EXPORT)) || \
-     (defined(HAVE_FALCON) || defined(HAVE_DILITHIUM) || defined(HAVE_SPHINCS)))
+     (defined(HAVE_FALCON) || defined(HAVE_DILITHIUM) || defined(HAVE_SPHINCS) || defined(HAVE_MLDSA_COMPOSITE)))
     #define WC_ENABLE_ASYM_KEY_EXPORT
 #endif
 
@@ -815,7 +887,7 @@ WOLFSSL_API int wc_DhPrivKeyToDer(DhKey* key, byte* out, word32* outSz);
      (defined(HAVE_CURVE25519) && defined(HAVE_CURVE25519_KEY_IMPORT)) || \
      (defined(HAVE_ED448)      && defined(HAVE_ED448_KEY_IMPORT)) || \
      (defined(HAVE_CURVE448)   && defined(HAVE_CURVE448_KEY_IMPORT)) || \
-     (defined(HAVE_FALCON) || defined(HAVE_DILITHIUM) || defined(HAVE_SPHINCS)))
+     (defined(HAVE_FALCON) || defined(HAVE_DILITHIUM) || defined(HAVE_SPHINCS) || defined(HAVE_MLDSA_COMPOSITE)))
     #define WC_ENABLE_ASYM_KEY_IMPORT
 #endif
 
@@ -907,6 +979,8 @@ WOLFSSL_API int wc_CreateEncryptedPKCS8Key(byte* key, word32 keySz, byte* out,
         word32* outSz, const char* password, int passwordSz, int vPKCS,
         int pbeOid, int encAlgId, byte* salt, word32 saltSz, int itt,
         WC_RNG* rng, void* heap);
+WOLFSSL_API int wc_GetOid_ex(const char* text, word32 oidType, byte *oid, word32 *oidSz,
+         word32* oid_ID);
 
 #ifndef NO_ASN_TIME
 /* Time */
@@ -985,6 +1059,12 @@ WOLFSSL_API int  wc_ParseX509Acert(struct DecodedAcert* acert, int verify);
 WOLFSSL_API int  wc_VerifyX509Acert(const byte* acert, word32 acertSz,
                                     const byte* pubKey, word32 pubKeySz,
                                     int pubKeyOID, void * heap);
+
+/* Generic Functions for AsymKey and PKI operations */
+WOLFSSL_API CertName * wc_CertName_new(void * heap);
+WOLFSSL_API int wc_CertName_init(CertName * certName);
+WOLFSSL_API int wc_CertName_set(CertName * certName, const char * strName);
+WOLFSSL_API void wc_CertName_free(CertName * certName);
 #endif /* WOLFSSL_ACERT */
 
 #if !defined(XFPRINTF) || defined(NO_FILESYSTEM) || \

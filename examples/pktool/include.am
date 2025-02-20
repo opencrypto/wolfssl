@@ -1,0 +1,12 @@
+# vim:ft=automake
+# included from Top Level Makefile.am
+# All paths should be given relative to the root
+
+
+if BUILD_EXAMPLE_PKTOOL
+noinst_PROGRAMS   += examples/pktool/pktool
+examples_pktool_pktool_SOURCES  = examples/pktool/pktool.c
+examples_pktool_pktool_LDADD    = src/libwolfssl@LIBSUFFIX@.la $(LIB_STATIC_ADD)
+examples_pktool_pktool_DEPENDENCIES = src/libwolfssl@LIBSUFFIX@.la
+endif
+

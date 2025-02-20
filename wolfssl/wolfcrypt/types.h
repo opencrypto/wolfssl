@@ -1124,7 +1124,8 @@ typedef struct w64wrapper {
         DYNAMIC_TYPE_SNIFFER_KEY          = 1006,
         DYNAMIC_TYPE_SNIFFER_KEYLOG_NODE  = 1007,
         DYNAMIC_TYPE_SNIFFER_CHAIN_BUFFER = 1008,
-        DYNAMIC_TYPE_AES_EAX = 1009
+        DYNAMIC_TYPE_AES_EAX              = 1009,
+        DYNAMIC_TYPE_MLDSA_COMPOSITE      = 1010,
     };
 
     /* max error buffer string size */
@@ -1137,6 +1138,29 @@ typedef struct w64wrapper {
         MIN_STACK_BUFFER = 8
     };
 
+    typedef enum wc_KeyUsage {
+        WC_KU_DIGITAL_SIGNATURE = 0x80,
+        WC_KU_CONTENT_COMMIT = 0x0040,
+        WC_KU_KEY_ENCIPHER   = 0x0020,
+        WC_KU_DATA_ENCIPHER  = 0x0010,
+        WC_KU_KEY_AGREE      = 0x0008,
+        WC_KU_KEY_CERT_SIGN  = 0x0004,
+        WC_KU_CRL_SIGN       = 0x0002,
+        WC_KU_ENCIPHER_ONLY  = 0x0001,
+        WC_KU_DECIPHER_ONLY  = 0x0080,
+    } wc_KeyUsage;
+
+    /* Extended Key Usage Flags */
+    typedef enum wc_ExtKeyUsage {
+        WC_EKU_USER        = 0x0080,
+        WC_EKU_OCSP_SIGNING   = 0x0040,
+        WC_EKU_TIME_STAMPING  = 0x0020,
+        WC_EKU_EMAIL       = 0x0010,
+        WC_EKU_CODE_SIGNING   = 0x0008,
+        WC_EKU_CLIENT_AUTH = 0x0004,
+        WC_EKU_SERVER_AUTH = 0x0002,
+        WC_EKU_ANY         = 0x0001,
+    } wc_ExtKeyUsage;
 
     /* Algorithm Types */
     enum wc_AlgoType {
@@ -1279,7 +1303,7 @@ typedef struct w64wrapper {
         #undef _WC_PK_TYPE_MAX
         #define _WC_PK_TYPE_MAX WC_PK_TYPE_PQC_KEM_DECAPS
     #endif
-    #if defined(HAVE_DILITHIUM) || defined(HAVE_FALCON)
+    #if defined(HAVE_DILITHIUM) || defined(HAVE_FALCON) || defined (HAVE_SPHINCS) || defined(HAVE_MLDSA_COMPOSITE)
         WC_PK_TYPE_PQC_SIG_KEYGEN = 21,
         WC_PK_TYPE_PQC_SIG_SIGN = 22,
         WC_PK_TYPE_PQC_SIG_VERIFY = 23,
@@ -1287,9 +1311,19 @@ typedef struct w64wrapper {
         #undef _WC_PK_TYPE_MAX
         #define _WC_PK_TYPE_MAX WC_PK_TYPE_PQC_SIG_CHECK_PRIV_KEY
     #endif
-        WC_PK_TYPE_RSA_PKCS = 25,
-        WC_PK_TYPE_RSA_PSS = 26,
-        WC_PK_TYPE_RSA_OAEP = 27,
+    #if defined(HAVE_MLDSA_COMPOSITE)
+        WC_PK_TYPE_MLDSA_COMPOSITE_SIG_KEYGEN = 25,
+        WC_PK_TYPE_MLDSA_COMPOSITE_SIG_SIGN = 26,
+        WC_PK_TYPE_MLDSA_COMPOSITE_SIG_VERIFY = 27,
+        WC_PK_TYPE_MLDSA_COMPOSITE_SIG_CHECK_PRIV_KEY = 28,
+        #undef _WC_PK_TYPE_MAX
+        #define _WC_PK_TYPE_MAX WC_PK_TYPE_MLDSA_COMPOSITE_SIG_CHECK_PRIV_KEY
+    #endif
+        WC_PK_TYPE_RSA_PKCS = 29,
+        WC_PK_TYPE_RSA_PSS = 30,
+        WC_PK_TYPE_RSA_OAEP = 31,
+        #undef _WC_PK_TYPE_MAX
+        #define _WC_PK_TYPE_MAX WC_PK_TYPE_RSA_OAEP
         WC_PK_TYPE_MAX = _WC_PK_TYPE_MAX
     };
 
@@ -1307,7 +1341,7 @@ typedef struct w64wrapper {
     };
 #endif
 
-#if defined(HAVE_DILITHIUM) || defined(HAVE_FALCON)
+#if defined(HAVE_DILITHIUM) || defined(HAVE_FALCON) || defined(HAVE_MLDSA_COMPOSITE)
     /* Post quantum signature algorithms */
     enum wc_PqcSignatureType {
         WC_PQC_SIG_TYPE_NONE = 0,
@@ -1321,6 +1355,16 @@ typedef struct w64wrapper {
         WC_PQC_SIG_TYPE_FALCON = 2,
         #undef _WC_PQC_SIG_TYPE_MAX
         #define _WC_PQC_SIG_TYPE_MAX WC_PQC_SIG_TYPE_FALCON
+    #endif
+    #if defined(HAVE_SPINCS)
+        WC_PQC_SIG_TYPE_SPHINCS = 3,
+        #undef _WC_PQC_SIG_TYPE_MAX
+        #define _WC_PQC_SIG_TYPE_MAX WC_PQC_SIG_TYPE_SPHINCS
+    #endif
+    #if defined(HAVE_MLDSA_COMPOSITE)
+        WC_PQC_SIG_TYPE_MLDSA_COMPOSITE = 4,
+        #undef _WC_PQC_SIG_TYPE_MAX
+        #define _WC_PQC_SIG_TYPE_MAX WC_PQC_SIG_TYPE_MLDSA_COMPOSITE
     #endif
         WC_PQC_SIG_TYPE_MAX = _WC_PQC_SIG_TYPE_MAX
     };
