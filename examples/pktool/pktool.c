@@ -18,9 +18,10 @@ void usage(void) {
     printf(" -inform <format> .: input format (DER, PEM)\n");
     printf(" -outform <format> : output format (DER, PEM)\n");
     printf(" -template_id <id> : certificate template to use (0-20)\n");
-    printf(" -subject <DN> ... : certificate subject (e.g., 'O=wolfSSL, OU=Test, CN=John Doe')\n");
-    printf(" -algor <name> ....: use the named algorithm (e.g., rsa, ec, mldsa44, mldsa65-ed25519)\n");
-    printf(" -curve <name> ....: use the named curve (e.g., nistp256, nistp384, nistp521, bpool256, bpool384, bpool512)\n");
+    printf(" -subject <DN> ... : certificate subject (e.g., 'CN=John Doe')\n");
+    printf(" -hash <algor> ....: hash algorithm (e.g., sha256, sha3-256, shake128, etc.)\n");
+    printf(" -algor <name> ....: public key algorithm (e.g., rsa, ec, ml-dsa-44, mldsa65-ed25519)\n");
+    printf(" -curve <name> ....: use the named curve (e.g., nistp256, bpool256, etc.)\n");
     printf(" -bits <num> ......: number of bits in the key (RSA only)\n");
     printf(" -key <file> ......: signing private key filename\n");
     printf(" -altkey <file> ...: filename for the secondary signing private key\n");
@@ -236,7 +237,8 @@ int load_file(byte ** data, int *len, const char * filename) {
 }
 
 int gen_csr(const AsymKey * keyPair, const AsymKey * altkey,
-            const char * out_filename, int out_format, const char * subject_dn)
+            const char * out_filename, int out_format, 
+            const char * subject_dn, enum wc_HashType hashType)
 {
     int ret = NOT_COMPILED_IN;
 
@@ -267,7 +269,7 @@ int gen_csr(const AsymKey * keyPair, const AsymKey * altkey,
     }
 
     wc_InitRng(&rng);
-    ret = wc_AsymKey_SignReq_ex(&out, &outSz, &aReq, WC_HASH_TYPE_SHA512, 1, keyPair, &rng);
+    ret = wc_AsymKey_SignReq_ex(&out, &outSz, &aReq, hashType, 1, keyPair, &rng);
     if (ret < 0) {
         printf("Error Generating the Request: ret = %d, derSz = %d\n", ret, outSz);
         return ret;
@@ -302,7 +304,7 @@ int gen_csr(const AsymKey * keyPair, const AsymKey * altkey,
 
 int sign_cert(const char * req_file, const char * outCertFilename, int outCertFormat, 
               const char * caCertFilename, int caCertFormat, const char * subject_dn, int templateId,
-              const AsymKey * caKeyPair, const AsymKey * caAltKeyPair)
+              enum wc_HashType hashType, const AsymKey * caKeyPair, const AsymKey * caAltKeyPair)
 {
     int ret = NOT_COMPILED_IN;
 
@@ -339,6 +341,11 @@ int sign_cert(const char * req_file, const char * outCertFilename, int outCertFo
     if (!caKeyPair) {
         printf("Invalid key\n");
         return BAD_FUNC_ARG;
+    }
+
+    // Sets the default hash type
+    if (hashType == WC_HASH_TYPE_NONE) {
+        hashType = WC_HASH_TYPE_SHA256;
     }
 
     // Loads the request
@@ -427,7 +434,7 @@ int sign_cert(const char * req_file, const char * outCertFilename, int outCertFo
     //     return ret;
     // }
     
-    certSz = ret = wc_AsymKey_SignCert_ex(NULL, 0, 1, ca, caSz, &aCert, pubKeyPnt, 0, caKeyPair, NULL, &rng);
+    certSz = ret = wc_AsymKey_SignCert_ex(NULL, 0, 1, ca, caSz, &aCert, pubKeyPnt, hashType, caKeyPair, NULL, &rng);
     if (ret < 0) {
         printf("Error generating the certificate: %d\n", ret);
         return ret;
@@ -439,7 +446,7 @@ int sign_cert(const char * req_file, const char * outCertFilename, int outCertFo
         return -1;
     }
 
-    ret = wc_AsymKey_SignCert_ex(cert, certSz, 1, ca, caSz, &aCert, pubKeyPnt, 0, caKeyPair, NULL, &rng);
+    ret = wc_AsymKey_SignCert_ex(cert, certSz, 1, ca, caSz, &aCert, pubKeyPnt, hashType, caKeyPair, NULL, &rng);
     if (ret < 0) {
         printf("Error generating the certificate: %d\n", ret);
         return ret;
@@ -534,6 +541,8 @@ int main(int argc, char** argv) {
     int templateId = 0; /* template number */
     int error = 0; /* error flag */
 
+    enum wc_HashType hashType = WC_HASH_TYPE_SHA256; /* Hash Algorithm */
+
     (void)cert_file;
 
     // Gets the CMD
@@ -586,9 +595,6 @@ int main(int argc, char** argv) {
                 usage();
                 return 1;
             }
-        } else if (XSTRNCMP(argv[i], "-h", 2) == 0) {
-            usage();
-            return 1;
         } else if ((XSTRNCMP(argv[i], "-algorithm", 10) == 0) ||
                    (XSTRNCMP(argv[i], "-algor", 6) == 0)) {
             i++;
@@ -612,7 +618,8 @@ int main(int argc, char** argv) {
         } else if (XSTRNCMP(argv[i], "-template_id", 12) == 0) {
             i++;
             if ((templateId = atoi(argv[i])) <= 0) {
-                printf("Invalid template id\n");
+                printf("\n    ERROR: Invalid template id, use 'pktool templates' for a full list.\n\n");
+                usage();
                 return 1;
             }
             if (templateId > WC_CERT_TEMPLATE_MAX) {
@@ -666,46 +673,75 @@ int main(int argc, char** argv) {
                        !XSTRNCMP(argv[i], "BP512", 5)) {
                 param = ECC_BRAINPOOLP512R1;
             } else {
-                printf("Invalid curve type\n");
+                printf("\n    ERROR: Invalid curve type (%s)\n", argv[i]);
+                return 1;
+            }
+        } else if (XSTRNCMP(argv[i], "-hash", 5) == 0) {
+            i++;
+            if (!XSTRNCMP(argv[i], "SHA1", 4) ||
+                          !XSTRNCMP(argv[i], "sha1", 4)) {
+                hashType = WC_HASH_TYPE_SHA;
+            } else if (!XSTRNCMP(argv[i], "SHA256", 6) ||
+                          !XSTRNCMP(argv[i], "sha256", 6)) {
+                hashType = WC_HASH_TYPE_SHA256;
+            } else if (!XSTRNCMP(argv[i], "SHA384", 6) ||
+                          !XSTRNCMP(argv[i], "sha384", 6)) {
+                hashType = WC_HASH_TYPE_SHA384;
+            } else if (!XSTRNCMP(argv[i], "SHA512", 6) ||
+                          !XSTRNCMP(argv[i], "sha512", 6)) {
+                hashType = WC_HASH_TYPE_SHA512;
+            } else if (!XSTRNCMP(argv[i], "SHA3-256", 9) ||
+                          !XSTRNCMP(argv[i], "sha3-256", 9)) {
+                hashType = WC_HASH_TYPE_SHA3_256;
+            } else if (!XSTRNCMP(argv[i], "SHA3-384", 9) ||
+                          !XSTRNCMP(argv[i], "sha3-384", 9)) {
+                hashType = WC_HASH_TYPE_SHA3_384;
+            } else if (!XSTRNCMP(argv[i], "SHA3-512", 9) ||
+                          !XSTRNCMP(argv[i], "sha3-512", 9)) {
+                hashType = WC_HASH_TYPE_SHA3_512;
+            } else if (!XSTRNCMP(argv[i], "SHAKE128", 8) ||
+                          !XSTRNCMP(argv[i], "shake128", 8)) {
+                hashType = WC_HASH_TYPE_SHAKE128;
+            } else if (!XSTRNCMP(argv[i], "SHAKE256", 8) ||
+                          !XSTRNCMP(argv[i], "shake256", 8)) {
+                hashType = WC_HASH_TYPE_SHAKE256;
+            } else {
+                printf("\n    ERROR: Invalid hash type (%s)\n\n", argv[i]);
                 return 1;
             }
         } else if (XSTRNCMP(argv[i], "-bits", 5) == 0) {
             i++;
             if ((param = atoi(argv[i])) <= 0) {
-                printf("Invalid key size\n");
+                printf("\n    ERROR: Invalid bits (is it an integer?) (%s)\n\n", argv[i]);
                 return 1;
             }
             if (param < 2048) {
-                printf("Invalid key size (min: 2048)\n");
+                printf("\n    ERROR: Invalid key size (given: %d, min: 2048)\n\n", param);
                 return 1;
             }
 
             if (param > 16384) {
-                printf("Invalid key size (max: 16384)\n");
+                printf("\n    ERROR: Invalid key size (given: %d, max: 16384)\n\n", param);
                 return 1;
             }
 
         } else if (XSTRNCMP(argv[i], "-key", 4) == 0) {
             i++;
             if (i >= argc) {
-                printf("Missing keypair filename\n\n");
-                usage();
-                return 1;
+                printf("\n    ERROR: Missing keypair filename\n\n");
             }
             key_file = argv[i];
         } else if (XSTRNCMP(argv[i], "-altkey", 7) == 0) {
             i++;
             if (i >= argc) {
-                printf("Missing alt keypair filename\n\n");
-                usage();
+                printf("\n    ERROR: Missing alt keypair filename\n\n");
                 return 1;
             }
             altkey_file = argv[i];
         } else if (XSTRNCMP(argv[i], "-req", 4) == 0) {
             i++;
             if (i >= argc) {
-                printf("Missing request filename\n\n");
-                usage();
+                printf("\n    ERROR: Missing request filename\n\n");
                 return 1;
             }
             csr_file = argv[i];
@@ -720,27 +756,28 @@ int main(int argc, char** argv) {
         } else if (XSTRNCMP(argv[i], "-cacert", 7) == 0) {
             i++;
             if (i >= argc) {
-                printf("Missing CA filename\n\n");
-                usage();
+                printf("\n    ERROR: Missing CA filename\n\n");
                 return 1;
             }
             ca_file = argv[i];
         } else if (XSTRNCMP(argv[i], "-in", 3) == 0) {
             i++;
             if (i >= argc) {
-                printf("Missing input file\n\n");
-                usage();
+                printf("\n    ERROR: Missing input file\n\n");
                 return 1;
             }
             in_file = argv[i];
         } else if (XSTRNCMP(argv[i], "-out", 4) == 0) {
             i++;
             if (i >= argc) {
-                printf("Missing output filename\n\n");
-                usage();
+                printf("\n    ERROR: Missing output filename\n\n");
                 return 1;
             }
             out_file = argv[i];
+        } else if (XSTRNCMP(argv[i], "-h", 2) == 0 ||
+                   XSTRNCMP(argv[i], "-help", 5) == 0) {
+            usage();
+            return 1;
         } else {
             printf("\n     ERROR: option \"%s\" was not recognized.\n\n", argv[i]);
             error = 1;
@@ -789,7 +826,7 @@ int main(int argc, char** argv) {
                     return -1;
                 }
             }
-            if (gen_csr(keyPtr, altKeyPtr, out_file, out_format, subject_dn) < 0) {
+            if (gen_csr(keyPtr, altKeyPtr, out_file, out_format, subject_dn, hashType) < 0) {
                 return -1;
             }
             return 0;
@@ -819,7 +856,7 @@ int main(int argc, char** argv) {
             }
 
             if (sign_cert(csr_file, out_file, out_format, ca_file, in_format, 
-                          subject_dn, templateId, keyPtr, altKeyPtr) < 0) {
+                          subject_dn, templateId, hashType, keyPtr, altKeyPtr) < 0) {
                 printf("Error generating certificate\n");
                 return -1;
             }

@@ -3161,8 +3161,13 @@ int wc_AsymKey_CertReq_SetTemplate(Cert * tbsCert, enum wc_CertTemplate template
         case WC_CERT_TEMPLATE_X9_EMAIL:
         case WC_CERT_TEMPLATE_X9_802_1X:
         case WC_CERT_TEMPLATE_X9_IPSEC:
+            ret = NOT_COMPILED_IN;
+            goto err;
 
         case WC_CERT_TEMPLATE_UNKNOWN:
+            // No selected template, nothing to do
+            break;
+
             default:
                 ret = BAD_FUNC_ARG;
                 goto err;
@@ -3677,7 +3682,8 @@ int wc_AsymKey_SignCert_ex(byte * out, word32 outSz, int outform,
         goto exit;
     
     // Adds the missing size for the signature
-    certSz += ret;
+    // plus 64 bytes of extra space for PEM/DER conversion
+    certSz += ret + 2 * MAX_SEQ_SZ + 64;
 
     // Allocates the needed size
     cert = (byte *)XMALLOC(certSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -3712,7 +3718,6 @@ int wc_AsymKey_SignCert_ex(byte * out, word32 outSz, int outform,
     if (outform == 1) {
         pem_dataSz = ret = wc_DerToPem(cert, certSz, NULL, pem_dataSz, CERT_TYPE);
         if (ret <= 0) {
-            printf("Cannot get the size of the PEM...: %d\n", ret);
             goto exit;
         }
         if (!out)
@@ -3720,7 +3725,6 @@ int wc_AsymKey_SignCert_ex(byte * out, word32 outSz, int outform,
         
         pem_data = (byte *)XMALLOC(pem_dataSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         if (pem_data == NULL) {
-            printf("Memory Error exporting key\n");
             goto exit;
         }
         ret = wc_DerToPem(cert, certSz, pem_data, pem_dataSz, CERT_TYPE);
@@ -3734,6 +3738,7 @@ int wc_AsymKey_SignCert_ex(byte * out, word32 outSz, int outform,
     if (out) {
         if (certSz > outSz) {
             ret = BUFFER_E;
+            printf("********** Buffer too small: %d (certSz) > %d (outSz)\n", certSz, outSz);
             goto exit;
         }
         XMEMCPY(out, pem_data, certSz);
