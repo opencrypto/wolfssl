@@ -2412,7 +2412,12 @@ WOLFSSL_LOCAL int CheckCertSignaturePubKey(const byte* cert, word32 certSz,
 WOLFSSL_LOCAL int wc_CertGetPubKey(const byte* cert, word32 certSz,
     const unsigned char** pubKey, word32* pubKeySz);
 #endif
-
+WOLFSSL_LOCAL int ConfirmSignature(SignatureCtx* sigCtx,
+    const byte* buf, word32 bufSz,
+    const byte* key, word32 keySz, word32 keyOID,
+    const byte* sig, word32 sigSz, word32 sigOID,
+    const byte* sigParams, word32 sigParamsSz,
+    byte* rsaKeyIdx);
 #ifdef WOLFSSL_CERT_REQ
 WOLFSSL_LOCAL int CheckCSRSignaturePubKey(const byte* cert, word32 certSz,
         void* heap, const byte* pubKey, word32 pubKeySz, int pubKeyOID);
@@ -2430,6 +2435,7 @@ WOLFSSL_LOCAL int wc_GetPubX509(DecodedCert* cert, int verify, int* badDate);
 
 WOLFSSL_LOCAL const byte* OidFromId(word32 id, word32 type, word32* oidSz);
 WOLFSSL_LOCAL const byte* OidFromString(const char* oidStr, word32 type, word32 *oidSz, word32* keySum);
+WOLFSSL_LOCAL Signer* findSignerByKeyHash(Signer *list, byte *hash);
 WOLFSSL_LOCAL Signer* findSignerByName(Signer *list, byte *hash);
 WOLFSSL_LOCAL int FillSigner(Signer* signer, DecodedCert* cert, int type, DerBuffer *der);
 WOLFSSL_LOCAL Signer* MakeSigner(void* heap);
@@ -2805,6 +2811,11 @@ struct OcspEntry
     WC_BITFIELD used:1;                   /* entry used                */
 };
 
+enum responderIdType {
+    OCSP_RESPONDER_ID_INVALID = 0,
+    OCSP_RESPONDER_ID_NAME = 1,
+    OCSP_RESPONDER_ID_KEY  = 2,
+};
 /* TODO: Long-term, it would be helpful if we made this struct and other OCSP
          structs conform to the ASN spec as described in RFC 6960. It will help
          with readability and with implementing OpenSSL compatibility API
@@ -2815,6 +2826,12 @@ struct OcspResponse {
 
     byte*   response;        /* Pointer to beginning of OCSP Response */
     word32  responseSz;      /* length of the OCSP Response */
+
+    enum responderIdType responderIdType;
+    union {
+        byte keyHash[KEYID_SIZE];
+        byte nameHash[KEYID_SIZE];
+    } responderId ;
 
     byte    producedDate[MAX_DATE_SIZE];
                              /* Date at which this response was signed */
@@ -2827,6 +2844,9 @@ struct OcspResponse {
     word32  sigSz;           /* Length in octets for the sig */
     word32  sigOID;          /* OID for hash used for sig */
 
+    byte* sigParams;
+    word32 sigParamsSz;
+
     OcspEntry* single;       /* chain of OCSP single responses */
 
     byte*   nonce;           /* pointer to nonce inside ASN.1 response */
@@ -2835,9 +2855,6 @@ struct OcspResponse {
     byte*   source;          /* pointer to source buffer, not owned */
     word32  maxIdx;          /* max offset based on init size */
     Signer* pendingCAs;
-#ifdef OPENSSL_EXTRA
-    int     verifyError;
-#endif
     void*  heap;
 };
 
@@ -2867,7 +2884,7 @@ WOLFSSL_LOCAL void InitOcspResponse(OcspResponse* resp, OcspEntry* single,
                      CertStatus* status, byte* source, word32 inSz, void* heap);
 WOLFSSL_LOCAL void FreeOcspResponse(OcspResponse* resp);
 WOLFSSL_LOCAL int OcspResponseDecode(OcspResponse* resp, void* cm, void* heap,
-                                     int noVerify);
+                                     int noVerifyCert, int noVerifySignature);
 
 WOLFSSL_LOCAL int    InitOcspRequest(OcspRequest* req, DecodedCert* cert,
                                      byte useNonce, void* heap);

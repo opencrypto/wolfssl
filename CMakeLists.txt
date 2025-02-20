@@ -1141,8 +1141,7 @@ if(NOT WOLFSSL_MEMORY)
 else()
     # turn off memory cb if leanpsk or leantls on
     if(WOLFSSL_LEAN_PSK OR WOLFSSL_LEAN_TLS)
-        # but don't turn on NO_WOLFSSL_MEMORY because using own
-        override_cache(WOLFSSL_MEMORY "no")
+        list(APPEND WOLFSSL_DEFINITIONS "-DNO_WOLFSSL_MEMORY")
     endif()
 endif()
 
@@ -2511,6 +2510,8 @@ if(WOLFSSL_EXAMPLES)
         tests/api/test_ripemd.c
         tests/api/test_hash.c
         tests/api/test_ascon.c
+        tests/api/test_mlkem.c
+        tests/api/test_ocsp.c
         tests/hash.c
         tests/srp.c
         tests/suites.c
